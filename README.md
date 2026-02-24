@@ -188,7 +188,7 @@ DELETE /api/v1/users/{id}     # 삭제
 
 ### 코드 리뷰
 
-- MR 최소 1명 리뷰 후 머지, Approve 없이 머지 금지
+- 기능 MR 최소 1명 리뷰 후 머지, Approve 없이 머지 금지
 - 리뷰어는 24시간 내 완료
 
 ### Jira 이슈
