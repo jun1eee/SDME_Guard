@@ -18,7 +18,7 @@ main                              ← 배포 스냅샷 (직접 푸시 금지)
     ├── feature/be/기능명          ← dev에서 분기 → dev로 MR
     ├── feature/fe/기능명          ← dev에서 분기 → dev로 MR
     │
-    └── ai                        ← dev에서 분기 (장기 브랜치)
+    └── ai                        ← dev에서 분기 (ai 개별 브랜치)
         │                         ← 완성 단위로 dev에 MR
         └── feature/ai/기능명      ← ai에서 분기 → ai로 MR
 
