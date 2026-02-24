@@ -2,6 +2,9 @@
 ---
 
 > # Team Convention
+> 1. [Git Convention](#1-git-convention)
+> 2. [Coding Convention](#2-coding-convention)
+> 3. [API Convention](#3-api-convention)
 
 ## 1. Git Convention
 
