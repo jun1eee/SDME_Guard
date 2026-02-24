@@ -1,3 +1,5 @@
+# A105 | 정대철 고효석 김건희 신현성 이준원 최민경
+---
 # Team Convention
 
 ## 1. Git Convention
