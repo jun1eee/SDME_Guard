@@ -1,13 +1,13 @@
-package com.ssafy.project105;
+package com.ssafy.sdme;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class Project105Application {
+public class SdmeApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(Project105Application.class, args);
+        SpringApplication.run(SdmeApplication.class, args);
     }
 
 }

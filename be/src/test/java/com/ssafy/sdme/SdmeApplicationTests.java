@@ -1,10 +1,10 @@
-package com.ssafy.project105;
+package com.ssafy.sdme;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class Project105ApplicationTests {
+class SdmeApplicationTests {
 
     @Test
     void contextLoads() {

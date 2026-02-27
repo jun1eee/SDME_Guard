@@ -6,7 +6,7 @@ plugins {
 
 group = 'com.ssafy'
 version = '0.0.1-SNAPSHOT'
-description = 'project105'
+description = 'sdme'
 
 java {
     toolchain {
