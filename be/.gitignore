@@ -35,3 +35,35 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Claude ###
+.claude/
+CLAUDE.md
+
+### Template ###
+TEMPLATE-GUIDE.md
+{{FRONTEND_DIR}}/
+
+### Null files ###
+nul
+.nul
+null
+
+### Spring Boot ###
+application-local.yml
+application-local.properties
+application-secret.yml
+application-secret.properties
+*.log
+logs/
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
+
+### Environment ###
+.env
+.env.*
+*.pem
+*.key
