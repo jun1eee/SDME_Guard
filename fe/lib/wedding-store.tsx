@@ -226,6 +226,8 @@ interface WeddingState {
   toggleFavorite: (vendorId: string) => void
   reviews: VendorReview[]
   addReview: (review: Omit<VendorReview, "id">) => void
+  updateReview: (id: string, updates: Partial<VendorReview>) => void
+  removeReview: (id: string) => void
   messages: ChatMessage[]
   addMessage: (message: Omit<ChatMessage, "id" | "timestamp">) => void
   events: WeddingEvent[]
@@ -237,6 +239,8 @@ interface WeddingState {
   updatePreferences: (updates: Partial<CoupleProfile["preferences"]>) => void
   payments: PaymentRecord[]
   reservations: Reservation[]
+  updateReservation: (id: string, updates: Partial<Reservation>) => void
+  cancelReservation: (id: string) => void
   registeredCards: RegisteredCard[]
   addCard: (card: Omit<RegisteredCard, "id">) => void
   removeCard: (id: string) => void
@@ -956,7 +960,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState(initialEvents)
   const [coupleProfile, setCoupleProfile] = useState(initialCoupleProfile)
   const [payments] = useState(initialPayments)
-  const [reservations] = useState(initialReservations)
+  const [reservations, setReservations] = useState(initialReservations)
   const [registeredCards, setRegisteredCards] = useState(initialCards)
 
   const updateCategory = useCallback((id: string, updates: Partial<BudgetCategory>) => {
@@ -990,6 +994,14 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
 
   const addReview = useCallback((review: Omit<VendorReview, "id">) => {
     setReviews((prev) => [...prev, { ...review, id: `r-${Date.now()}` }])
+  }, [])
+
+  const updateReview = useCallback((id: string, updates: Partial<VendorReview>) => {
+    setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)))
+  }, [])
+
+  const removeReview = useCallback((id: string) => {
+    setReviews((prev) => prev.filter((r) => r.id !== id))
   }, [])
 
   const addMessage = useCallback(
@@ -1043,15 +1055,23 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     setRegisteredCards((prev) => prev.filter((c) => c.id !== id))
   }, [])
 
+  const updateReservation = useCallback((id: string, updates: Partial<Reservation>) => {
+    setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...updates } : r)))
+  }, [])
+
+  const cancelReservation = useCallback((id: string) => {
+    setReservations((prev) => prev.filter((r) => r.id !== id))
+  }, [])
+
   return (
     <WeddingContext.Provider
       value={{
         totalBudget, setTotalBudget, categories, updateCategory,
         vendors, bookVendor, favoriteIds, toggleFavorite,
-        reviews, addReview,
+        reviews, addReview, updateReview, removeReview,
         messages, addMessage, events, addEvent, updateEvent, removeEvent,
         coupleProfile, updateCoupleProfile, updatePreferences,
-        payments, reservations, registeredCards, addCard, removeCard,
+        payments, reservations, updateReservation, cancelReservation, registeredCards, addCard, removeCard,
       }}
     >
       {children}
