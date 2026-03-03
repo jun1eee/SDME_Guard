@@ -65,5 +65,6 @@ desktop.ini
 ### Environment ###
 .env
 .env.*
+!.env.example
 *.pem
 *.key
