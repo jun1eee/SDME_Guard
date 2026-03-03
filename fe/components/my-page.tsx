@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useWedding } from "@/lib/wedding-store"
+import { useWedding, type VendorReview } from "@/lib/wedding-store"
 import {
   Heart,
   Palette,
@@ -24,6 +24,7 @@ import {
   Trash2,
   Link2,
   Send,
+  CalendarCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -330,8 +331,18 @@ function PaymentsPage({ onBack }: { onBack: () => void }) {
 
 /* ── Reservations Page ─────────────────────────────────── */
 function ReservationsPage({ onBack }: { onBack: () => void }) {
-  const { reservations } = useWedding()
+  const { reservations, updateReservation, cancelReservation } = useWedding()
   const catLabel: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", hall: "웨딩홀" }
+  const [changeTargetId, setChangeTargetId] = useState<string | null>(null)
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null)
+  const [newServiceDate, setNewServiceDate] = useState("")
+
+  const handleChange = () => {
+    if (!changeTargetId || !newServiceDate) return
+    updateReservation(changeTargetId, { serviceDate: newServiceDate })
+    setChangeTargetId(null)
+    setNewServiceDate("")
+  }
 
   return (
     <div className="px-6 py-6 flex flex-col gap-6">
@@ -355,19 +366,75 @@ function ReservationsPage({ onBack }: { onBack: () => void }) {
                   <span>예약일: {r.reservationDate}</span>
                 </div>
                 <div className="text-xs text-muted-foreground">서비스일: {r.serviceDate}</div>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline" size="sm"
+                    className="flex-1 rounded-full h-8 text-xs gap-1"
+                    onClick={() => { setNewServiceDate(r.serviceDate); setChangeTargetId(r.id) }}
+                  >
+                    <CalendarCheck className="size-3" />예약 변경
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    className="flex-1 rounded-full h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                    onClick={() => setCancelTargetId(r.id)}
+                  >
+                    예약 취소
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* 예약 변경 Dialog */}
+      <Dialog open={!!changeTargetId} onOpenChange={(open) => { if (!open) { setChangeTargetId(null); setNewServiceDate("") } }}>
+        <DialogContent className="rounded-3xl max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>예약 변경</DialogTitle>
+            <DialogDescription>변경할 서비스 날짜를 선택해주세요</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 py-2">
+            <label className="text-xs text-muted-foreground font-medium">서비스 날짜</label>
+            <Input type="date" value={newServiceDate} onChange={(e) => setNewServiceDate(e.target.value)} className="rounded-xl h-10" />
+          </div>
+          <DialogFooter className="flex-col gap-2">
+            <Button onClick={handleChange} disabled={!newServiceDate} className="w-full rounded-full h-11">변경하기</Button>
+            <Button variant="outline" onClick={() => { setChangeTargetId(null); setNewServiceDate("") }} className="w-full rounded-full h-11">취소</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 예약 취소 Dialog */}
+      <Dialog open={!!cancelTargetId} onOpenChange={(open) => { if (!open) setCancelTargetId(null) }}>
+        <DialogContent className="rounded-3xl max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>예약 취소</DialogTitle>
+            <DialogDescription>예약을 취소하면 되돌릴 수 없습니다. 정말 취소하시겠습니까?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2">
+            <Button variant="destructive" onClick={() => { if (cancelTargetId) { cancelReservation(cancelTargetId); setCancelTargetId(null) } }} className="w-full rounded-full h-11">예약 취소</Button>
+            <Button variant="outline" onClick={() => setCancelTargetId(null)} className="w-full rounded-full h-11">돌아가기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
 /* ── My Reviews Page ───────────────────────────────────── */
 function MyReviewsPage({ onBack }: { onBack: () => void }) {
-  const { reviews } = useWedding()
+  const { reviews, updateReview, removeReview, vendors } = useWedding()
   const myReviews = reviews.filter((r) => r.userName === "나")
+  const [editTarget, setEditTarget] = useState<{ id: string; rating: number; text: string } | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+
+  const handleEditSave = () => {
+    if (!editTarget || !editTarget.text.trim()) return
+    updateReview(editTarget.id, { rating: editTarget.rating, text: editTarget.text.trim() })
+    setEditTarget(null)
+  }
 
   return (
     <div className="px-6 py-6 flex flex-col gap-6">
@@ -380,11 +447,11 @@ function MyReviewsPage({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="flex flex-col gap-3">
           {myReviews.map((r) => {
-            const vendor = undefined // Could look up vendor name from vendorId
+            const vendor = vendors.find((v) => v.id === r.vendorId)
             return (
               <div key={r.id} className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{r.vendorId}</span>
+                  <span className="text-sm font-medium">{vendor?.name ?? r.vendorId}</span>
                   <span className="text-[10px] text-muted-foreground">{r.date}</span>
                 </div>
                 <div className="flex items-center gap-0.5 mb-2">
@@ -393,11 +460,74 @@ function MyReviewsPage({ onBack }: { onBack: () => void }) {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">{r.text}</p>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline" size="sm"
+                    className="flex-1 rounded-full h-8 text-xs gap-1"
+                    onClick={() => setEditTarget({ id: r.id, rating: r.rating, text: r.text })}
+                  >
+                    <Pencil className="size-3" />수정
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    className="flex-1 rounded-full h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                    onClick={() => setDeleteTargetId(r.id)}
+                  >
+                    <Trash2 className="size-3" />삭제
+                  </Button>
+                </div>
               </div>
             )
           })}
         </div>
       )}
+
+      {/* 리뷰 수정 Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null) }}>
+        <DialogContent className="rounded-3xl max-w-sm mx-auto">
+          <DialogHeader><DialogTitle>리뷰 수정</DialogTitle></DialogHeader>
+          {editTarget && (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted-foreground font-medium">별점</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button key={s} onClick={() => setEditTarget({ ...editTarget, rating: s })} className="p-0.5" aria-label={`별점 ${s}점`}>
+                      <Star className={cn("size-6 transition-colors", s <= editTarget.rating ? "fill-foreground text-foreground" : "text-border")} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted-foreground font-medium">후기</label>
+                <textarea
+                  value={editTarget.text}
+                  onChange={(e) => setEditTarget({ ...editTarget, text: e.target.value })}
+                  className="h-24 rounded-xl border border-input bg-background px-3 py-2 text-sm resize-none outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2">
+            <Button onClick={handleEditSave} disabled={!editTarget?.text.trim()} className="w-full rounded-full h-11">저장하기</Button>
+            <Button variant="outline" onClick={() => setEditTarget(null)} className="w-full rounded-full h-11">취소</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 리뷰 삭제 Dialog */}
+      <Dialog open={!!deleteTargetId} onOpenChange={(open) => { if (!open) setDeleteTargetId(null) }}>
+        <DialogContent className="rounded-3xl max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>리뷰 삭제</DialogTitle>
+            <DialogDescription>이 리뷰를 삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2">
+            <Button variant="destructive" onClick={() => { if (deleteTargetId) { removeReview(deleteTargetId); setDeleteTargetId(null) } }} className="w-full rounded-full h-11">삭제하기</Button>
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)} className="w-full rounded-full h-11">취소</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

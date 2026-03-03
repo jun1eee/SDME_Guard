@@ -10,6 +10,7 @@ import {
   StickyNote,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,10 +62,12 @@ function EventCard({
   event,
   onStatusChange,
   onDelete,
+  onEdit,
 }: {
   event: WeddingEvent
   onStatusChange: (status: WeddingEvent["status"]) => void
   onDelete: () => void
+  onEdit: () => void
 }) {
   const st = statusConfig[event.status]
   const nextStatus: Record<string, WeddingEvent["status"]> = {
@@ -108,9 +111,14 @@ function EventCard({
           </div>
         </div>
 
-        <button onClick={onDelete} className="text-muted-foreground/50 hover:text-destructive transition-colors shrink-0" aria-label="일정 삭제">
-          <Trash2 className="size-4" />
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button onClick={onEdit} className="text-muted-foreground/50 hover:text-foreground transition-colors" aria-label="일정 수정">
+            <Pencil className="size-4" />
+          </button>
+          <button onClick={onDelete} className="text-muted-foreground/50 hover:text-destructive transition-colors" aria-label="일정 삭제">
+            <Trash2 className="size-4" />
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -122,6 +130,14 @@ export function WeddingCalendar() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newEvent, setNewEvent] = useState({
+    title: "",
+    time: "10:00",
+    location: "",
+    memo: "",
+    category: "meeting" as WeddingEvent["category"],
+  })
+  const [editingEvent, setEditingEvent] = useState<WeddingEvent | null>(null)
+  const [editForm, setEditForm] = useState({
     title: "",
     time: "10:00",
     location: "",
@@ -147,6 +163,17 @@ export function WeddingCalendar() {
     addEvent({ ...newEvent, date: selectedDate, status: "waiting" })
     setNewEvent({ title: "", time: "10:00", location: "", memo: "", category: "meeting" })
     setShowAddDialog(false)
+  }
+
+  const handleEditOpen = (event: WeddingEvent) => {
+    setEditingEvent(event)
+    setEditForm({ title: event.title, time: event.time, location: event.location, memo: event.memo, category: event.category })
+  }
+
+  const handleEditSave = () => {
+    if (!editingEvent || !editForm.title.trim()) return
+    updateEvent(editingEvent.id, editForm)
+    setEditingEvent(null)
   }
 
   const upcomingEvents = events
@@ -233,6 +260,7 @@ export function WeddingCalendar() {
                 event={event}
                 onStatusChange={(status) => updateEvent(event.id, { status })}
                 onDelete={() => removeEvent(event.id)}
+                onEdit={() => handleEditOpen(event)}
               />
             ))
           )}
@@ -303,6 +331,47 @@ export function WeddingCalendar() {
           <DialogFooter className="flex-col gap-2">
             <Button onClick={handleAddEvent} disabled={!newEvent.title.trim()} className="w-full rounded-full h-11">추가하기</Button>
             <Button variant="outline" onClick={() => setShowAddDialog(false)} className="w-full rounded-full h-11">취소</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={!!editingEvent} onOpenChange={(open) => { if (!open) setEditingEvent(null) }}>
+        <DialogContent className="rounded-3xl max-w-sm mx-auto">
+          <DialogHeader><DialogTitle className="text-lg">일정 수정</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground font-medium">일정 제목</label>
+              <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="예: 드레스 피팅" className="rounded-xl h-10" />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-xs text-muted-foreground font-medium">시간</label>
+                <Input type="time" value={editForm.time} onChange={(e) => setEditForm({ ...editForm, time: e.target.value })} className="rounded-xl h-10" />
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-xs text-muted-foreground font-medium">카테고리</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value as WeddingEvent["category"] })}
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+                >
+                  {Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground font-medium">장소</label>
+              <Input value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} placeholder="예: 강남구 OO빌딩" className="rounded-xl h-10" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground font-medium">메모</label>
+              <Input value={editForm.memo} onChange={(e) => setEditForm({ ...editForm, memo: e.target.value })} placeholder="예: 준비물 챙기기" className="rounded-xl h-10" />
+            </div>
+          </div>
+          <DialogFooter className="flex-col gap-2">
+            <Button onClick={handleEditSave} disabled={!editForm.title.trim()} className="w-full rounded-full h-11">저장하기</Button>
+            <Button variant="outline" onClick={() => setEditingEvent(null)} className="w-full rounded-full h-11">취소</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

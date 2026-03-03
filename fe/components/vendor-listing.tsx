@@ -161,6 +161,42 @@ function ReviewSummary({ reviews }: { reviews: VendorReview[] }) {
   )
 }
 
+function AiReviewSummary({ reviews }: { reviews: VendorReview[] }) {
+  if (reviews.length < 2) return null
+  const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+  const sentiment = avg >= 4.5 ? "매우 긍정적" : avg >= 3.5 ? "전반적으로 긍정적" : "다소 엇갈린"
+  const positiveReviews = reviews.filter((r) => r.rating >= 4)
+  const insights = positiveReviews
+    .slice(0, 2)
+    .map((r) => r.text.split(".")[0].split(",")[0].trim())
+    .filter(Boolean)
+
+  return (
+    <div className="bg-foreground/5 rounded-2xl p-4 flex flex-col gap-2.5">
+      <div className="flex items-center gap-1.5">
+        <Sparkles className="size-3.5 text-foreground" />
+        <span className="text-xs font-medium">AI 리뷰 요약</span>
+        <span className="text-[10px] text-muted-foreground ml-1">· {reviews.length}개 분석</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        {reviews.length}개의 리뷰를 분석한 결과 전반적인 평가가{" "}
+        <span className="text-foreground font-medium">{sentiment}</span>입니다.
+        {positiveReviews.length / reviews.length >= 0.8 && " 대부분의 고객이 만족스러운 서비스를 경험했습니다."}
+      </p>
+      {insights.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {insights.map((text, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <span className="text-foreground/50 text-[10px] mt-0.5 shrink-0">✓</span>
+              <span className="text-[11px] text-muted-foreground leading-relaxed">{text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function WriteReviewDialog({ open, onOpenChange, vendorId }: { open: boolean; onOpenChange: (open: boolean) => void; vendorId: string }) {
   const { addReview } = useWedding(); const [rating, setRating] = useState(5); const [text, setText] = useState("")
   const handleSubmit = () => { if (!text.trim()) return; addReview({ vendorId, userName: "나", rating, text: text.trim(), date: new Date().toISOString().split("T")[0] }); setText(""); setRating(5); onOpenChange(false) }
@@ -620,6 +656,7 @@ function VendorDetail({ vendor, onBack }: { vendor: Vendor; onBack: () => void }
           <Button onClick={() => setShowReviewDialog(true)} variant="outline" size="sm" className="rounded-full h-8 gap-1.5 text-xs"><Send className="size-3" />리뷰 작성</Button>
         </div>
         <ReviewSummary reviews={vendorReviews} />
+        <AiReviewSummary reviews={vendorReviews} />
         {vendorReviews.length > 0 ? (
           <div className="flex flex-col gap-3 max-h-80 overflow-y-auto no-scrollbar">{vendorReviews.map((r) => <ReviewCard key={r.id} review={r} />)}</div>
         ) : (<p className="text-xs text-muted-foreground text-center py-4">아직 리뷰가 없습니다</p>)}
