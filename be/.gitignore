@@ -39,6 +39,7 @@ out/
 ### Claude ###
 .claude/
 CLAUDE.md
+mydocs/
 
 ### Template ###
 TEMPLATE-GUIDE.md
