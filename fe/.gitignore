@@ -35,4 +35,4 @@ package-lock.json
 .idea/
 
 # Vercel
-.vercel
+.vercel.claude/
