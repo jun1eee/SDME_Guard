@@ -1,0 +1,551 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import {
+  Plus,
+  Check,
+  Pencil,
+  Trash2,
+  Sparkles,
+  CreditCard,
+  ExternalLink,
+  X,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+interface BudgetItem {
+  id: string
+  category: string
+  name: string
+  amount: number
+  isPaid: boolean
+}
+
+interface BudgetViewProps {
+  totalBudget: number
+}
+
+// ── 색상 팔레트 (핑크 모노톤) ──────────────────────────────────
+const PALETTE = [
+  { stroke: "#c76a85", bg: "#fce8ef", text: "#a04060" }, // deep rose
+  { stroke: "#e28aa3", bg: "#fdf0f4", text: "#c76a85" }, // rose
+  { stroke: "#f5a8c0", bg: "#fdf4f7", text: "#d4708e" }, // medium pink
+  { stroke: "#a84f6a", bg: "#f5d4df", text: "#803050" }, // darker rose
+  { stroke: "#f9cedd", bg: "#fdf8fa", text: "#e28aa3" }, // pale pink
+  { stroke: "#b86a82", bg: "#f8dde7", text: "#904060" }, // mid rose
+  { stroke: "#8a3a58", bg: "#f0ccd8", text: "#602030" }, // darkest rose
+]
+
+const PRESET_CATEGORIES = ["웨딩홀", "스튜디오", "드레스", "메이크업", "케이터링", "허니문", "기타"]
+
+const initialBudgetItems: BudgetItem[] = [
+  { id: "1", category: "웨딩홀",   name: "더 그랜드 파빌리온", amount: 14000000, isPaid: true },
+  { id: "2", category: "케이터링", name: "뷔페 200명",           amount: 10000000, isPaid: false },
+  { id: "3", category: "스튜디오", name: "로앤스튜디오",         amount:  6000000, isPaid: false },
+  { id: "4", category: "드레스",   name: "로자스피사",           amount:  6000000, isPaid: false },
+  { id: "5", category: "기타",     name: "답례품, 청첩장 등",    amount:  4000000, isPaid: false },
+]
+
+const cardRecommendations = [
+  {
+    id: "1",
+    name: "삼성 웨딩카드",
+    issuer: "삼성카드",
+    benefit: "웨딩홀 결제 시 5% 캐시백",
+    description: "웨딩 관련 업종 할인 및 무이자 할부 12개월",
+    badge: "최대 60만원",
+  },
+  {
+    id: "2",
+    name: "현대 M포인트",
+    issuer: "현대카드",
+    benefit: "스튜디오/드레스 10% 포인트 적립",
+    description: "결혼 준비 전 업종 M포인트 2배 적립",
+    badge: "최대 30만 포인트",
+  },
+]
+
+// ── 도넛 차트 계산 ─────────────────────────────────────────────
+const RADIUS = 80
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS  // ≈ 502.655
+const GAP = 3  // 세그먼트 사이 간격 (svg units)
+
+function buildSegments(
+  categoryTotals: { category: string; amount: number }[],
+  total: number,
+  colorMap: Record<string, number>
+) {
+  if (total === 0) return []
+  let cumulativeArc = 0
+  return categoryTotals.map((cat) => {
+    const fraction = cat.amount / total
+    const fullArc = fraction * CIRCUMFERENCE
+    const arcLength = Math.max(0, fullArc - GAP)
+    const dashOffset = CIRCUMFERENCE / 4 - cumulativeArc
+    cumulativeArc += fullArc
+    const colorIdx = colorMap[cat.category] ?? 0
+    return {
+      ...cat,
+      fraction,
+      arcLength,
+      dashOffset,
+      color: PALETTE[colorIdx % PALETTE.length],
+    }
+  })
+}
+
+// ── 유틸 ──────────────────────────────────────────────────────
+const fmt = (n: number) =>
+  new Intl.NumberFormat("ko-KR").format(n)
+
+const fmtShort = (n: number) => {
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`
+  if (n >= 10000000) return `${(n / 10000000).toFixed(0)}천만`
+  if (n >= 10000) return `${(n / 10000).toFixed(0)}만`
+  return fmt(n)
+}
+
+// ── 메인 컴포넌트 ──────────────────────────────────────────────
+export function BudgetView({ totalBudget }: BudgetViewProps) {
+  const [items, setItems] = useState<BudgetItem[]>(initialBudgetItems)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState("")
+
+  // 카테고리별 색상 인덱스 (추가 순서 유지)
+  const colorMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    let idx = 0
+    items.forEach((item) => {
+      if (map[item.category] === undefined) {
+        map[item.category] = idx++
+      }
+    })
+    return map
+  }, [items])
+
+  // 카테고리별 합산
+  const categoryTotals = useMemo(() => {
+    const acc: Record<string, number> = {}
+    items.forEach((item) => {
+      acc[item.category] = (acc[item.category] ?? 0) + item.amount
+    })
+    return Object.entries(acc)
+      .map(([category, amount]) => ({ category, amount }))
+      .sort((a, b) => b.amount - a.amount)
+  }, [items])
+
+  const total = useMemo(
+    () => categoryTotals.reduce((s, c) => s + c.amount, 0),
+    [categoryTotals]
+  )
+
+  const segments = useMemo(
+    () => buildSegments(categoryTotals, total, colorMap),
+    [categoryTotals, total, colorMap]
+  )
+
+  const paidAmount = items.filter((i) => i.isPaid).reduce((s, i) => s + i.amount, 0)
+  const budgetUsedPct = totalBudget > 0 ? Math.min(100, (total / totalBudget) * 100) : 0
+
+  // ── 핸들러 ─────────────────────────────────────────────────
+  const togglePaid = (id: string) =>
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isPaid: !i.isPaid } : i)))
+
+  const deleteItem = (id: string) =>
+    setItems((prev) => prev.filter((i) => i.id !== id))
+
+  const startEdit = (id: string, amount: number) => {
+    setEditingId(id)
+    setEditAmount(amount.toString())
+  }
+
+  const saveEdit = (id: string) => {
+    const parsed = parseInt(editAmount)
+    if (!isNaN(parsed) && parsed > 0) {
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, amount: parsed } : i)))
+    }
+    setEditingId(null)
+  }
+
+  // ── 렌더 ──────────────────────────────────────────────────
+  return (
+    <div className="flex h-full flex-col overflow-y-auto bg-background">
+      <div className="mx-auto w-full max-w-2xl px-4 py-8">
+
+        {/* ── 헤더 ── */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-foreground">예산 관리</h1>
+          <p className="mt-1 text-sm text-muted-foreground">웨딩 예산을 한눈에 파악하세요</p>
+        </div>
+
+        {/* ── 도넛 차트 카드 ── */}
+        <div className="mb-5 overflow-hidden rounded-2xl bg-card shadow-sm">
+          <div className="p-6 pb-0">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              예산 현황
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center gap-6 px-6 py-6 sm:flex-row sm:items-start">
+            {/* 도넛 SVG */}
+            <div className="relative shrink-0">
+              <svg width="200" height="200" viewBox="0 0 200 200">
+                {/* 배경 트랙 */}
+                <circle
+                  cx="100" cy="100" r={RADIUS}
+                  fill="none"
+                  stroke="var(--muted)"
+                  strokeWidth="22"
+                />
+                {/* 세그먼트 */}
+                {total > 0 ? segments.map((seg) => (
+                  <circle
+                    key={seg.category}
+                    cx="100" cy="100" r={RADIUS}
+                    fill="none"
+                    stroke={seg.color.stroke}
+                    strokeWidth="22"
+                    strokeLinecap="round"
+                    strokeDasharray={`${seg.arcLength} ${CIRCUMFERENCE - seg.arcLength}`}
+                    strokeDashoffset={seg.dashOffset}
+                    className="transition-all duration-500"
+                  />
+                )) : (
+                  <circle
+                    cx="100" cy="100" r={RADIUS}
+                    fill="none"
+                    stroke="var(--muted)"
+                    strokeWidth="22"
+                  />
+                )}
+                {/* 중앙 채우기 */}
+                <circle cx="100" cy="100" r="67" fill="var(--card)" />
+              </svg>
+              {/* 중앙 텍스트 */}
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xs text-muted-foreground">지출 합계</span>
+                <span className="mt-0.5 text-2xl font-bold text-foreground leading-none">
+                  {fmtShort(total)}
+                </span>
+                <span className="mt-1 text-[10px] text-muted-foreground">
+                  / {fmtShort(totalBudget)}
+                </span>
+              </div>
+            </div>
+
+            {/* 범례 */}
+            <div className="flex flex-1 flex-col justify-center gap-2.5 w-full">
+              {segments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">항목을 추가하면 차트가 표시됩니다</p>
+              ) : (
+                segments.map((seg) => (
+                  <div key={seg.category} className="flex items-center gap-3">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: seg.color.stroke }}
+                    />
+                    <span className="flex-1 text-sm text-foreground">{seg.category}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {(seg.fraction * 100).toFixed(1)}%
+                    </span>
+                    <span className="w-24 text-right text-sm font-medium text-foreground">
+                      {fmt(seg.amount)}원
+                    </span>
+                  </div>
+                ))
+              )}
+
+              {/* 예산 대비 진행률 */}
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                  <span>총 예산 사용률</span>
+                  <span className="font-medium text-foreground">{budgetUsedPct.toFixed(1)}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${budgetUsedPct}%`,
+                      background: budgetUsedPct > 90
+                        ? "#ef4444"
+                        : "linear-gradient(to right, #e28aa3, #c76a85)",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 요약 수치 ── */}
+        <div className="mb-5 grid grid-cols-3 gap-3">
+          {[
+            { label: "총 지출", value: fmtShort(total), sub: "원" },
+            { label: "결제 완료", value: fmtShort(paidAmount), sub: "원" },
+            { label: "남은 예산", value: fmtShort(Math.max(0, totalBudget - total)), sub: "원" },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-xl bg-card px-4 py-4 shadow-sm">
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+              <p className="mt-1 text-lg font-bold text-foreground">
+                {stat.value}
+                <span className="text-xs font-normal text-muted-foreground ml-0.5">{stat.sub}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── 예산 항목 ── */}
+        <div className="mb-5 rounded-2xl bg-card shadow-sm">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <h2 className="font-semibold text-foreground">예산 항목</h2>
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              {showAddForm ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+              {showAddForm ? "닫기" : "항목 추가"}
+            </button>
+          </div>
+
+          {/* 추가 폼 */}
+          {showAddForm && (
+            <div className="border-b border-border px-5 py-4">
+              <AddBudgetItemForm
+                onAdd={(item) => {
+                  setItems((prev) => [...prev, { ...item, id: Date.now().toString() }])
+                  setShowAddForm(false)
+                }}
+                onCancel={() => setShowAddForm(false)}
+              />
+            </div>
+          )}
+
+          {/* 아이템 리스트 */}
+          <div className="divide-y divide-border">
+            {items.length === 0 && (
+              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+                항목을 추가하세요
+              </div>
+            )}
+            {items.map((item) => {
+              const colorIdx = colorMap[item.category] ?? 0
+              const color = PALETTE[colorIdx % PALETTE.length]
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-muted/30"
+                >
+                  {/* 결제 토글 */}
+                  <button
+                    onClick={() => togglePaid(item.id)}
+                    className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                      item.isPaid
+                        ? "border-emerald-500 bg-emerald-500 text-white"
+                        : "border-border hover:border-primary"
+                    }`}
+                  >
+                    {item.isPaid && <Check className="size-3" />}
+                  </button>
+
+                  {/* 카테고리 뱃지 */}
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: color.bg, color: color.text }}
+                  >
+                    {item.category}
+                  </span>
+
+                  {/* 이름 */}
+                  <p className={`flex-1 text-sm ${item.isPaid ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                    {item.name}
+                  </p>
+
+                  {/* 금액 편집 */}
+                  {editingId === item.id ? (
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        type="number"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        className="h-7 w-28 text-right text-sm"
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(item.id)}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => saveEdit(item.id)}
+                        className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span className={`text-sm font-semibold ${item.isPaid ? "text-emerald-600" : "text-foreground"}`}>
+                        {fmt(item.amount)}원
+                      </span>
+                      <button
+                        onClick={() => startEdit(item.id, item.amount)}
+                        className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 합계 */}
+          {items.length > 0 && (
+            <div className="flex items-center justify-between border-t border-border px-5 py-3.5">
+              <span className="text-sm font-semibold text-foreground">합계</span>
+              <span className="text-sm font-bold text-primary">{fmt(total)}원</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── AI 카드 추천 ── */}
+        <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+            <Sparkles className="size-4 text-primary" />
+            <h2 className="font-semibold text-foreground">AI 추천 카드</h2>
+          </div>
+          <div className="divide-y divide-border">
+            {cardRecommendations.map((card) => (
+              <div key={card.id} className="flex items-start gap-4 px-5 py-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <CreditCard className="size-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-foreground">{card.name}</p>
+                      <p className="text-xs text-muted-foreground">{card.issuer}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      {card.badge}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm font-medium text-foreground">{card.benefit}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{card.description}</p>
+                  <button className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                    <ExternalLink className="size-3.5" />
+                    자세히 보기
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ── 추가 폼 ────────────────────────────────────────────────────
+function AddBudgetItemForm({
+  onAdd,
+  onCancel,
+}: {
+  onAdd: (item: Omit<BudgetItem, "id">) => void
+  onCancel: () => void
+}) {
+  const [category, setCategory] = useState(PRESET_CATEGORIES[0])
+  const [customCategory, setCustomCategory] = useState("")
+  const [name, setName] = useState("")
+  const [amount, setAmount] = useState("")
+
+  const finalCategory = category === "직접입력" ? customCategory : category
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!finalCategory || !name || !amount) return
+    onAdd({ category: finalCategory, name, amount: parseInt(amount), isPaid: false })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* 카테고리 */}
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">카테고리</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {PRESET_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+            <option value="직접입력">직접입력</option>
+          </select>
+        </div>
+
+        {/* 직접 입력 카테고리 */}
+        {category === "직접입력" && (
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">카테고리명</label>
+            <Input
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="카테고리 이름"
+            />
+          </div>
+        )}
+
+        {/* 항목명 */}
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">항목명</label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="업체 또는 항목명"
+          />
+        </div>
+
+        {/* 금액 */}
+        <div>
+          <label className="mb-1 block text-xs text-muted-foreground">금액 (원)</label>
+          <Input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="10000000"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+        >
+          취소
+        </button>
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          추가
+        </button>
+      </div>
+    </form>
+  )
+}
