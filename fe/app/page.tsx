@@ -307,7 +307,7 @@ export default function ChatPage() {
       case "payment":
         return <PaymentView />
       case "reservation":
-        return <ReservationView />
+        return <ReservationView onNavigateToSchedule={() => setCurrentView("schedule")} />
       case "reviews":
         return <ReviewView />
       case "vote":
@@ -355,7 +355,13 @@ export default function ChatPage() {
     return (
       <SetupScreen
         onComplete={(name, nickname, connected, inviteCode, role) => {
-          setWeddingConfig((prev) => ({ ...prev, groomName: name }))
+          setWeddingConfig((prev) => ({
+            ...prev,
+            groomName: role === "groom" ? name : prev.groomName,
+            brideName: role === "bride" ? name : prev.brideName,
+            groomNickname: role === "groom" ? nickname : prev.groomNickname,
+            brideNickname: role === "bride" ? nickname : prev.brideNickname,
+          }))
           setUserNickname(nickname)
           setUserRole(role)
           setCoupleConnected(connected)

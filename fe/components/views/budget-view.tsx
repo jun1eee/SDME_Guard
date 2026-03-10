@@ -106,11 +106,15 @@ const fmtShort = (n: number) => {
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────
-export function BudgetView({ totalBudget }: BudgetViewProps) {
+export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
   const [items, setItems] = useState<BudgetItem[]>(initialBudgetItems)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAmount, setEditAmount] = useState("")
+  const [totalBudget, setTotalBudget] = useState(initialBudget)
+  const [editingBudget, setEditingBudget] = useState(false)
+  // 만원 단위로 표시/입력
+  const [tempBudget, setTempBudget] = useState(Math.round(initialBudget / 10000).toString())
 
   // 카테고리별 색상 인덱스 (추가 순서 유지)
   const colorMap = useMemo(() => {
@@ -168,15 +172,50 @@ export function BudgetView({ totalBudget }: BudgetViewProps) {
     setEditingId(null)
   }
 
+  const saveBudget = () => {
+    const parsed = parseInt(tempBudget.replace(/,/g, ""))
+    if (!isNaN(parsed) && parsed > 0) setTotalBudget(parsed * 10000)
+    setEditingBudget(false)
+  }
+
   // ── 렌더 ──────────────────────────────────────────────────
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background">
       <div className="mx-auto w-full max-w-2xl px-4 py-8">
 
         {/* ── 헤더 ── */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">예산 관리</h1>
-          <p className="mt-1 text-sm text-muted-foreground">웨딩 예산을 한눈에 파악하세요</p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">예산 관리</h1>
+            <p className="mt-1 text-sm text-muted-foreground">웨딩 예산을 한눈에 파악하세요</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground">총 예산</span>
+            {editingBudget ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  value={tempBudget}
+                  onChange={(e) => setTempBudget(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveBudget()}
+                  className="h-8 w-24 rounded-lg border border-border bg-background px-2 text-right text-sm font-bold focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  autoFocus
+                  min={1}
+                />
+                <span className="text-sm text-muted-foreground">만원</span>
+                <button onClick={saveBudget} className="rounded-lg bg-primary px-2 py-1 text-xs text-primary-foreground hover:bg-primary/90">저장</button>
+                <button onClick={() => setEditingBudget(false)} className="rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted">취소</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setTempBudget(Math.round(totalBudget / 10000).toString()); setEditingBudget(true) }}
+                className="flex items-center gap-1 text-base font-bold text-foreground hover:text-primary"
+              >
+                {fmt(totalBudget)}원
+                <Pencil className="size-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── 도넛 차트 카드 ── */}

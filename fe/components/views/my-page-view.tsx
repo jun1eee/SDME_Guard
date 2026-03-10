@@ -177,6 +177,42 @@ export function MyPageView({
     )
   }
 
+  // ── 추가 정보 ─────────────────────────────────────────────────
+  interface AdditionalInfo {
+    weddingDate: string
+    guestCount: number
+    budgetAmount: number
+    preferredAreas: string[]
+  }
+  const AREA_OPTIONS = [
+    "서울 강남/서초", "서울 마포/홍대", "서울 종로/중구",
+    "서울 강북/노원", "서울 강서/목동", "서울 강동/송파", "서울 기타",
+    "경기 북부", "경기 남부", "인천", "부산", "대구", "대전", "광주", "기타",
+  ]
+  const [info, setInfo] = useState<AdditionalInfo>({
+    weddingDate: "2026-08-06",
+    guestCount: 200,
+    budgetAmount: 5000,
+    preferredAreas: ["서울 강남/서초"],
+  })
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [tempInfo, setTempInfo] = useState<AdditionalInfo>(info)
+
+  const displayDate = (d: string) => {
+    if (!d) return "미정"
+    const dt = new Date(d + "T00:00:00")
+    return `${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일`
+  }
+
+  const toggleArea = (area: string) => {
+    setTempInfo((p) => ({
+      ...p,
+      preferredAreas: p.preferredAreas.includes(area)
+        ? p.preferredAreas.filter((a) => a !== area)
+        : [...p.preferredAreas, area],
+    }))
+  }
+
   // ── 아바타 컴포넌트 ───────────────────────────────────────────
   const Avatar = ({
     photoData,
@@ -506,19 +542,144 @@ export function MyPageView({
 
         {/* 추가 정보 */}
         <div className="rounded-2xl bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">추가 정보</h2>
-          <div className="space-y-1 divide-y divide-border">
-            {[
-              { label: "결혼 예정일", value: "2026년 8월 6일" },
-              { label: "예상 하객 수", value: "200명" },
-              { label: "총 예산", value: "5,000만원" },
-              { label: "선호 지역", value: "서울 강남" },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex items-center justify-between py-3">
-                <span className="text-sm text-muted-foreground">{label}</span>
-                <span className="text-sm font-medium text-foreground">{value}</span>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">추가 정보</h2>
+            {editingInfo ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEditingInfo(false)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => { setInfo(tempInfo); setEditingInfo(false) }}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  저장
+                </button>
               </div>
-            ))}
+            ) : (
+              <button
+                onClick={() => { setTempInfo(info); setEditingInfo(true) }}
+                className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
+              >
+                수정
+              </button>
+            )}
+          </div>
+
+          <div className="divide-y divide-border">
+            {/* 결혼 예정일 */}
+            <div className="flex items-center justify-between py-3.5">
+              <span className="text-sm text-muted-foreground">결혼 예정일</span>
+              {editingInfo ? (
+                <input
+                  type="date"
+                  value={tempInfo.weddingDate}
+                  onChange={(e) => setTempInfo((p) => ({ ...p, weddingDate: e.target.value }))}
+                  className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              ) : (
+                <span className="text-sm font-medium text-foreground">{displayDate(info.weddingDate)}</span>
+              )}
+            </div>
+
+            {/* 예상 하객 수 */}
+            <div className="flex items-center justify-between py-3.5">
+              <span className="text-sm text-muted-foreground">예상 하객 수</span>
+              {editingInfo ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setTempInfo((p) => ({ ...p, guestCount: Math.max(10, p.guestCount - 10) }))}
+                    className="flex size-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted text-base font-bold"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    value={tempInfo.guestCount}
+                    onChange={(e) => setTempInfo((p) => ({ ...p, guestCount: Math.max(10, parseInt(e.target.value) || 10) }))}
+                    className="h-8 w-16 rounded-lg border border-border bg-background text-center text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    min={10}
+                    step={10}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTempInfo((p) => ({ ...p, guestCount: p.guestCount + 10 }))}
+                    className="flex size-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted text-base font-bold"
+                  >
+                    +
+                  </button>
+                  <span className="text-sm text-muted-foreground">명</span>
+                </div>
+              ) : (
+                <span className="text-sm font-medium text-foreground">{info.guestCount.toLocaleString("ko-KR")}명</span>
+              )}
+            </div>
+
+            {/* 스드메·홀 예산 */}
+            <div className="py-3.5">
+              <div className="mb-1 flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-muted-foreground">스드메 + 홀 예산</span>
+                </div>
+                {editingInfo ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      value={tempInfo.budgetAmount}
+                      onChange={(e) => setTempInfo((p) => ({ ...p, budgetAmount: Math.max(1, parseInt(e.target.value) || 1) }))}
+                      className="h-8 w-24 rounded-lg border border-border bg-background px-2 text-right text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      min={1}
+                    />
+                    <span className="text-sm text-muted-foreground">만원</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium text-foreground">
+                    {info.budgetAmount.toLocaleString("ko-KR")}만원
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 선호 지역 */}
+            <div className="py-3.5">
+              <div className="mb-2.5 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">선호 지역</span>
+                {!editingInfo && (
+                  <div className="flex flex-wrap justify-end gap-1 max-w-[60%]">
+                    {info.preferredAreas.length > 0 ? info.preferredAreas.map((a) => (
+                      <span key={a} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{a}</span>
+                    )) : (
+                      <span className="text-sm font-medium text-muted-foreground">미설정</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {editingInfo && (
+                <div className="flex flex-wrap gap-1.5">
+                  {AREA_OPTIONS.map((area) => {
+                    const selected = tempInfo.preferredAreas.includes(area)
+                    return (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => toggleArea(area)}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {area}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

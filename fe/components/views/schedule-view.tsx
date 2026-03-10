@@ -129,8 +129,8 @@ function ScheduleForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 rounded-2xl bg-card p-5 shadow-sm border border-border">
-      <h3 className="mb-4 font-semibold text-foreground">{formTitle}</h3>
+    <form onSubmit={handleSubmit} className={formTitle ? "mb-6 rounded-2xl bg-card p-5 shadow-sm border border-border" : ""}>
+      {formTitle && <h3 className="mb-4 font-semibold text-foreground">{formTitle}</h3>}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm text-muted-foreground">일정명 *</label>
@@ -254,15 +254,6 @@ export function ScheduleView() {
             일정 추가
           </Button>
         </div>
-
-        {/* Add Form */}
-        {showAddForm && (
-          <ScheduleForm
-            title="새 일정 추가"
-            onSave={handleAdd}
-            onCancel={() => setShowAddForm(false)}
-          />
-        )}
 
         {/* Calendar Card */}
         <div className="mb-5 rounded-2xl border border-border bg-card shadow-sm">
@@ -469,6 +460,30 @@ export function ScheduleView() {
 
         <div className="h-6" />
       </div>
+
+      {/* Add Schedule Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-background shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h3 className="font-semibold text-foreground">새 일정 추가</h3>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="rounded-full p-1.5 hover:bg-muted"
+              >
+                <X className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="p-5">
+              <ScheduleForm
+                title=""
+                onSave={handleAdd}
+                onCancel={() => setShowAddForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
