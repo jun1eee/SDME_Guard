@@ -644,7 +644,10 @@ function VendorCard({
 
 // ─── Vendor Detail View ───────────────────────────────────────────────────
 
-function VendorDetailView({
+export { INITIAL_VENDORS }
+export type { Vendor }
+
+export function VendorDetailView({
   vendor,
   onBack,
   onToggleFavorite,
@@ -1143,7 +1146,9 @@ function VendorDetailView({
         <PaymentModal
           vendorName={vendor.name}
           paymentStep={vendor.paymentStep}
-          price={vendor.packages?.[0]?.price ?? 0}
+          price={selectedPkg?.price ?? vendor.packages?.[0]?.price ?? 0}
+          packageOptions={selectedPkg?.sections?.flatMap(s => s.options ?? [])}
+          addons={vendor.addons}
           onClose={() => setShowPayment(false)}
         />
       )}
@@ -1226,46 +1231,205 @@ function PaymentModal({
   vendorName,
   paymentStep,
   price,
+  packageOptions,
+  addons,
   onClose,
 }: {
   vendorName: string
   paymentStep: number
   price: number
+  packageOptions?: VendorPackageOption[]
+  addons?: VendorAddon[]
   onClose: () => void
 }) {
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([])
+  const [selectedMethod, setSelectedMethod] = useState("")
+
   const isDeposit = paymentStep <= 1
-  const amount = isDeposit ? Math.round(price * 0.1) : Math.round(price * 0.9)
+
+  const optionsTotal = selectedOptions.reduce((sum, name) => {
+    const opt = packageOptions?.find(o => o.name === name)
+    return sum + (opt?.price ?? 0)
+  }, 0)
+
+  const addonsTotal = selectedAddons.reduce((sum, id) => {
+    const addon = addons?.find(a => a.id === id)
+    return sum + (addon?.price ?? 0)
+  }, 0)
+
+  const totalPrice = price + optionsTotal + addonsTotal
+  const amount = isDeposit ? Math.round(totalPrice * 0.1) : Math.round(totalPrice * 0.9)
+
+  const toggleOption = (name: string) => {
+    setSelectedOptions(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    )
+  }
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddons(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
 
   return (
     <ModalShell onClose={onClose}>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-bold text-foreground">{isDeposit ? "계약금 결제" : "잔금 결제"}</h2>
         <button onClick={onClose}><X className="size-5 text-muted-foreground" /></button>
       </div>
-      <p className="mb-5 text-sm text-muted-foreground">{vendorName}</p>
-      <div className="mb-5 rounded-xl bg-muted p-4">
-        <div className="mb-2 flex justify-between text-sm">
-          <span className="text-muted-foreground">총 계약 금액</span>
-          <span className="font-medium">{formatPrice(price)}</span>
+      <p className="mb-4 text-sm text-muted-foreground">{vendorName}</p>
+
+      <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
+        {/* 기본 패키지 */}
+        <div>
+          <p className="mb-2 text-sm font-semibold text-foreground">기본 패키지</p>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">기본 금액</span>
+            <span className="font-medium">{formatPrice(price)}</span>
+          </div>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{isDeposit ? "계약금 (10%)" : "잔금 (90%)"}</span>
-          <span className="text-lg font-bold">{formatPrice(amount)}</span>
+
+        {/* 야외씬 촬영 옵션 */}
+        {packageOptions && packageOptions.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-foreground">야외씬 촬영 옵션</p>
+            <div className="space-y-2">
+              {packageOptions.map((opt) => {
+                const checked = selectedOptions.includes(opt.name)
+                return (
+                  <button
+                    key={opt.name}
+                    className="flex w-full items-center gap-3 text-left"
+                    onClick={() => toggleOption(opt.name)}
+                  >
+                    <div
+                      className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border"
+                      }`}
+                    >
+                      {checked && <Check className="size-3" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground">{opt.name}</span>
+                      {opt.note && (
+                        <p className="text-xs text-muted-foreground">{opt.note}</p>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-foreground shrink-0">
+                      {formatPrice(opt.price)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 추가상품 */}
+        {addons && addons.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
+            <div className="space-y-2">
+              {addons.map((addon) => {
+                const checked = selectedAddons.includes(addon.id)
+                return (
+                  <button
+                    key={addon.id}
+                    className="flex w-full items-center gap-3 text-left"
+                    onClick={() => toggleAddon(addon.id)}
+                  >
+                    <div
+                      className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border"
+                      }`}
+                    >
+                      {checked && <Check className="size-3" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground">{addon.name}</span>
+                      {addon.description && (
+                        <p className="text-xs text-muted-foreground">{addon.description}</p>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-foreground shrink-0">
+                      {formatPrice(addon.price)}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 결제 금액 요약 */}
+        <div className="rounded-xl bg-muted p-4 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">기본 패키지</span>
+            <span className="font-medium">{formatPrice(price)}</span>
+          </div>
+          {selectedOptions.map(name => {
+            const opt = packageOptions?.find(o => o.name === name)
+            if (!opt) return null
+            return (
+              <div key={name} className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{opt.name}</span>
+                <span className="font-medium">{formatPrice(opt.price)}</span>
+              </div>
+            )
+          })}
+          {selectedAddons.map(id => {
+            const addon = addons?.find(a => a.id === id)
+            if (!addon) return null
+            return (
+              <div key={id} className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{addon.name}</span>
+                <span className="font-medium">{formatPrice(addon.price)}</span>
+              </div>
+            )
+          })}
+          <div className="border-t border-border pt-2 mt-1" />
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-foreground">총 금액</span>
+            <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">{isDeposit ? "계약금 (10%)" : "잔금 (90%)"}</span>
+            <span className="text-lg font-bold text-foreground">{formatPrice(amount)}</span>
+          </div>
+        </div>
+
+        {/* 결제 수단 */}
+        <div>
+          <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
+          <div className="space-y-2">
+            {["신용카드", "계좌이체", "카카오페이"].map((method) => (
+              <button
+                key={method}
+                onClick={() => setSelectedMethod(method)}
+                className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                  selectedMethod === method
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border text-foreground hover:bg-muted"
+                }`}
+              >
+                {method}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="mb-5 space-y-2">
-        {["신용카드", "계좌이체", "카카오페이"].map((method) => (
-          <button
-            key={method}
-            className="w-full rounded-xl border border-border px-4 py-3 text-left text-sm font-medium text-foreground hover:bg-muted"
-          >
-            {method}
-          </button>
-        ))}
+
+      <div className="mt-5">
+        <Button className="w-full bg-foreground text-background hover:bg-foreground/90" onClick={onClose}>
+          {formatPrice(amount)} 결제하기
+        </Button>
       </div>
-      <Button className="w-full bg-foreground text-background hover:bg-foreground/90" onClick={onClose}>
-        {formatPrice(amount)} 결제하기
-      </Button>
     </ModalShell>
   )
 }

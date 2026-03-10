@@ -69,7 +69,11 @@ const categoryIcon: Record<string, string> = {
   메이크업: "💄",
 }
 
-export function ReservationView() {
+interface ReservationViewProps {
+  onNavigateToSchedule?: () => void
+}
+
+export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) {
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
   const [filter, setFilter] = useState<"전체" | "예정" | "완료" | "취소">("전체")
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -195,7 +199,10 @@ export function ReservationView() {
                           <X className="size-4" />
                           예약 취소
                         </button>
-                        <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-sm text-primary-foreground hover:bg-primary/90">
+                        <button
+                          onClick={onNavigateToSchedule}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-sm text-primary-foreground hover:bg-primary/90"
+                        >
                           <Check className="size-4" />
                           일정 확인
                         </button>
