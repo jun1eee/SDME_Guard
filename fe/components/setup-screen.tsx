@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Heart, ArrowRight, Copy, Check } from "lucide-react"
 
 interface SetupScreenProps {
-  onComplete: (name: string, nickname: string, coupleConnected: boolean, inviteCode: string) => void
+  onComplete: (name: string, nickname: string, coupleConnected: boolean, inviteCode: string, role: "groom" | "bride") => void
 }
 
 function generateCode() {
@@ -14,7 +14,8 @@ function generateCode() {
 export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [name, setName] = useState("")
   const [nickname, setNickname] = useState("")
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [role, setRole] = useState<"groom" | "bride" | null>(null)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [inviteCode] = useState(generateCode)
   const [partnerCode, setPartnerCode] = useState("")
   const [copied, setCopied] = useState(false)
@@ -33,18 +34,23 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
 
   const handleStep2 = (e: React.FormEvent) => {
     e.preventDefault()
-    setStep(3)
+    if (role) setStep(3)
+  }
+
+  const handleStep3 = (e: React.FormEvent) => {
+    e.preventDefault()
+    setStep(4)
   }
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault()
     if (partnerCode.trim().length === 6) {
-      onComplete(name.trim(), nickname.trim() || name.trim(), true, inviteCode)
+      onComplete(name.trim(), nickname.trim() || name.trim(), true, inviteCode, role ?? "groom")
     }
   }
 
   const handleSkip = () => {
-    onComplete(name.trim(), nickname.trim() || name.trim(), false, inviteCode)
+    onComplete(name.trim(), nickname.trim() || name.trim(), false, inviteCode, role ?? "groom")
   }
 
   return (
@@ -52,7 +58,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
       {/* 브랜드 */}
       <div className="mb-10 flex flex-col items-center gap-3">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Heart className="size-7 fill-primary text-primary" />
+          <img src="/favicon.png" alt="SDME Guard" className="size-9 object-contain" />
         </div>
         <span className="text-lg font-semibold text-foreground tracking-tight">SDME Guard</span>
       </div>
@@ -63,6 +69,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
           <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
           <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
           <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 3 ? "bg-primary" : "bg-muted"}`} />
+          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 4 ? "bg-primary" : "bg-muted"}`} />
         </div>
 
         {step === 1 ? (
@@ -102,6 +109,64 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             <div>
               <h1 className="text-2xl font-bold text-foreground">반가워요, {name}님!</h1>
               <p className="mt-2 text-sm text-muted-foreground">
+                나의 역할을 선택해주세요
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole("groom")}
+                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
+                  role === "groom"
+                    ? "border-blue-400 bg-blue-50 dark:bg-blue-950/40"
+                    : "border-border bg-card hover:border-blue-200 hover:bg-blue-50/50"
+                }`}
+              >
+                <span className="text-4xl">🤵</span>
+                <span className={`font-semibold ${role === "groom" ? "text-blue-700 dark:text-blue-300" : "text-foreground"}`}>
+                  신랑
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("bride")}
+                className={`flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all ${
+                  role === "bride"
+                    ? "border-primary bg-primary/8 dark:bg-primary/15"
+                    : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+                }`}
+              >
+                <span className="text-4xl">👰</span>
+                <span className={`font-semibold ${role === "bride" ? "text-primary" : "text-foreground"}`}>
+                  신부
+                </span>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={!role}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </form>
+        ) : step === 3 ? (
+          <form onSubmit={handleStep3} className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">거의 다 됐어요!</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
                 서비스에서 사용할 닉네임을 설정해주세요
               </p>
             </div>
@@ -130,7 +195,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
                 className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
               >
                 이전
@@ -224,7 +289,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
               >
                 이전
