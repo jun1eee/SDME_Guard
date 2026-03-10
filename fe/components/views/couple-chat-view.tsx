@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput } from "@/components/chat-input"
 import { Users, Bot, BotOff, Star, MapPin, Lock } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 export interface VendorShare {
   id: string
@@ -293,16 +295,35 @@ function CoupleChatMessage({
         )}
         {vendorShare ? (
           <VendorShareCard vendor={vendorShare} onAddToVote={onAddToVote} />
+        ) : isAssistant ? (
+          <div className="px-1 text-sm leading-relaxed text-foreground">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>,
+                ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>,
+                li: ({ children }) => <li className="text-sm">{children}</li>,
+                table: ({ children }) => (
+                  <div className="mb-2 overflow-x-auto">
+                    <table className="w-full border-collapse text-sm">{children}</table>
+                  </div>
+                ),
+                thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+                th: ({ children }) => (
+                  <th className="border border-border px-3 py-1.5 text-left text-xs font-semibold">{children}</th>
+                ),
+                td: ({ children }) => (
+                  <td className="border border-border px-3 py-1.5 text-xs">{children}</td>
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
         ) : (
-          <div
-            className={
-              isAssistant
-                ? "px-1 text-foreground"
-                : isGroom
-                  ? "rounded-2xl bg-blue-500 px-4 py-3 text-white"
-                  : "rounded-2xl bg-primary px-4 py-3 text-white"
-            }
-          >
+          <div className={isGroom ? "rounded-2xl bg-blue-500 px-4 py-3 text-white" : "rounded-2xl bg-primary px-4 py-3 text-white"}>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
           </div>
         )}
