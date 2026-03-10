@@ -37,14 +37,13 @@ const PALETTE = [
   { stroke: "#8a3a58", bg: "#f0ccd8", text: "#602030" }, // darkest rose
 ]
 
-const PRESET_CATEGORIES = ["웨딩홀", "스튜디오", "드레스", "메이크업", "케이터링", "허니문", "기타"]
+const PRESET_CATEGORIES = ["웨딩홀", "스튜디오", "드레스", "메이크업", "허니문", "기타"]
 
 const initialBudgetItems: BudgetItem[] = [
   { id: "1", category: "웨딩홀",   name: "더 그랜드 파빌리온", amount: 14000000, isPaid: true },
-  { id: "2", category: "케이터링", name: "뷔페 200명",           amount: 10000000, isPaid: false },
-  { id: "3", category: "스튜디오", name: "로앤스튜디오",         amount:  6000000, isPaid: false },
-  { id: "4", category: "드레스",   name: "로자스피사",           amount:  6000000, isPaid: false },
-  { id: "5", category: "기타",     name: "답례품, 청첩장 등",    amount:  4000000, isPaid: false },
+  { id: "2", category: "스튜디오", name: "로앤스튜디오",         amount:  6000000, isPaid: false },
+  { id: "3", category: "드레스",   name: "로자스피사",           amount:  6000000, isPaid: false },
+  { id: "4", category: "메이크업", name: "글로우 뷰티",          amount:  1500000, isPaid: false },
 ]
 
 const cardRecommendations = [
@@ -69,7 +68,7 @@ const cardRecommendations = [
 // ── 도넛 차트 계산 ─────────────────────────────────────────────
 const RADIUS = 80
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS  // ≈ 502.655
-const GAP = 3  // 세그먼트 사이 간격 (svg units)
+const GAP = 4  // 세그먼트 사이 간격 (svg units)
 
 function buildSegments(
   categoryTotals: { category: string; amount: number }[],
@@ -207,7 +206,7 @@ export function BudgetView({ totalBudget }: BudgetViewProps) {
                     fill="none"
                     stroke={seg.color.stroke}
                     strokeWidth="22"
-                    strokeLinecap="round"
+                    strokeLinecap="butt"
                     strokeDasharray={`${seg.arcLength} ${CIRCUMFERENCE - seg.arcLength}`}
                     strokeDashoffset={seg.dashOffset}
                     className="transition-all duration-500"
