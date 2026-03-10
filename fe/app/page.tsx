@@ -6,7 +6,8 @@ import { ChatMessage } from "@/components/chat-message"
 import { ChatInput } from "@/components/chat-input"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { SetupScreen } from "@/components/setup-screen"
-import { CoupleChatView } from "@/components/views/couple-chat-view"
+import { CoupleChatView, type VendorShare } from "@/components/views/couple-chat-view"
+import { toast } from "sonner"
 import { BudgetView } from "@/components/views/budget-view"
 import { VendorsView } from "@/components/views/vendors-view"
 import { ScheduleView } from "@/components/views/schedule-view"
@@ -15,8 +16,9 @@ import { WishlistView } from "@/components/views/wishlist-view"
 import { PaymentView } from "@/components/views/payment-view"
 import { ReservationView } from "@/components/views/reservation-view"
 import { ReviewView } from "@/components/views/review-view"
+import { VoteView, type VendorItem } from "@/components/views/vote-view"
 
-type ViewType = "chat" | "couple-chat" | "budget" | "vendors" | "schedule" | "my-chats" | "my-page" | "wishlist" | "payment" | "reservation" | "reviews"
+type ViewType = "chat" | "couple-chat" | "budget" | "vendors" | "schedule" | "my-chats" | "my-page" | "wishlist" | "payment" | "reservation" | "reviews" | "vote"
 
 interface Message {
   id: string
@@ -28,6 +30,7 @@ export default function ChatPage() {
   // 셋업 (이름/닉네임 입력)
   const [isSetup, setIsSetup] = useState(false)
   const [userNickname, setUserNickname] = useState("")
+  const [userRole, setUserRole] = useState<"groom" | "bride">("groom")
   const [coupleConnected, setCoupleConnected] = useState(false)
   const [myInviteCode, setMyInviteCode] = useState("")
 
@@ -37,6 +40,10 @@ export default function ChatPage() {
   const [showWelcome, setShowWelcome] = useState(true)
   const [currentView, setCurrentView] = useState<ViewType>("chat")
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([])
+  const [sharedVendors, setSharedVendors] = useState<VendorShare[]>([])
+  const [pendingVoteItems, setPendingVoteItems] = useState<VendorItem[]>([])
+  const [voteBadge, setVoteBadge] = useState(0)
+  const [coupleChatBadge, setCoupleChatBadge] = useState(0)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -157,6 +164,8 @@ export default function ChatPage() {
 
   const handleViewChange = (view: ViewType) => {
     setCurrentView(view)
+    if (view === "vote") setVoteBadge(0)
+    if (view === "couple-chat") setCoupleChatBadge(0)
   }
 
   const handleAccountNavigate = (view: string) => {
@@ -164,6 +173,58 @@ export default function ChatPage() {
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
     }
+  }
+
+  const CATEGORY_LABELS: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+
+  const VOTE_CATEGORY_MAP: Record<string, VendorItem["category"]> = {
+    studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀",
+  }
+  const VOTE_EMOJI_MAP: Record<string, string> = {
+    studio: "📷", dress: "👗", makeup: "💄", venue: "🏛️",
+  }
+  const VOTE_BG_MAP: Record<string, string> = {
+    studio: "bg-purple-100", dress: "bg-pink-100", makeup: "bg-amber-100", venue: "bg-rose-100",
+  }
+
+  const handleAddToVote = (vendor: { id: string; name: string; category: string; price: string; address: string }, source: "my-wish" | "partner-share") => {
+    const newItem: VendorItem = {
+      id: `vote-${vendor.id}-${Date.now()}`,
+      category: VOTE_CATEGORY_MAP[vendor.category] ?? "웨딩홀",
+      name: vendor.name,
+      location: vendor.address,
+      price: vendor.price,
+      source,
+      imageEmoji: VOTE_EMOJI_MAP[vendor.category] ?? "🏛️",
+      imageBg: VOTE_BG_MAP[vendor.category] ?? "bg-rose-100",
+      partnerVoted: false,
+    }
+    setPendingVoteItems((prev) => [...prev, newItem])
+    setVoteBadge((prev) => prev + 1)
+    toast.success("비밀 투표에 추가됐어요", { description: vendor.name, duration: 3000 })
+  }
+
+  const handleShareVendor = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, sharedBy: "groom" | "bride") => {
+    const share: VendorShare = {
+      id: Date.now().toString(),
+      vendorId: vendor.id,
+      name: vendor.name,
+      category: vendor.category,
+      categoryLabel: CATEGORY_LABELS[vendor.category] ?? vendor.category,
+      price: vendor.price,
+      rating: vendor.rating,
+      address: vendor.address,
+      tags: vendor.tags,
+      description: vendor.description,
+      coverUrl: vendor.coverUrl,
+      sharedBy,
+    }
+    setSharedVendors((prev) => [...prev, share])
+    if (currentView !== "couple-chat") setCoupleChatBadge((prev) => prev + 1)
+    toast.success(`커플 채팅에 공유됐어요`, {
+      description: vendor.name,
+      duration: 3000,
+    })
   }
 
   const handleLogout = () => {
@@ -211,15 +272,18 @@ export default function ChatPage() {
     switch (currentView) {
       case "couple-chat":
         return (
-          <CoupleChatView 
+          <CoupleChatView
             groomName={weddingConfig.groomName}
             brideName={weddingConfig.brideName}
+            currentUser={userRole}
+            sharedVendors={sharedVendors}
+            onAddToVote={(v) => handleAddToVote(v, "partner-share")}
           />
         )
       case "budget":
         return <BudgetView totalBudget={weddingConfig.budget} />
       case "vendors":
-        return <VendorsView />
+        return <VendorsView onShareVendor={handleShareVendor} onAddToVote={(v) => handleAddToVote(v, "my-wish")} currentUser={userRole} />
       case "schedule":
         return <ScheduleView />
       case "my-page":
@@ -235,6 +299,7 @@ export default function ChatPage() {
             myInviteCode={myInviteCode}
             onCoupleConnect={() => setCoupleConnected(true)}
             onUpdateProfile={handleUpdateProfile}
+            onDeleteAccount={handleLogout}
           />
         )
       case "wishlist":
@@ -245,6 +310,8 @@ export default function ChatPage() {
         return <ReservationView />
       case "reviews":
         return <ReviewView />
+      case "vote":
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
       case "my-chats":
         return (
           <div className="flex h-full items-center justify-center">
@@ -287,9 +354,10 @@ export default function ChatPage() {
   if (!isSetup) {
     return (
       <SetupScreen
-        onComplete={(name, nickname, connected, inviteCode) => {
+        onComplete={(name, nickname, connected, inviteCode, role) => {
           setWeddingConfig((prev) => ({ ...prev, groomName: name }))
           setUserNickname(nickname)
+          setUserRole(role)
           setCoupleConnected(connected)
           setMyInviteCode(inviteCode)
           setIsSetup(true)
@@ -313,6 +381,8 @@ export default function ChatPage() {
         activeSessionId={activeSessionId}
         chatHistory={chatHistory}
         userNickname={userNickname}
+        voteBadge={voteBadge}
+        coupleChatBadge={coupleChatBadge}
         onViewChange={handleViewChange}
         onAccountNavigate={handleAccountNavigate}
         onLogout={handleLogout}

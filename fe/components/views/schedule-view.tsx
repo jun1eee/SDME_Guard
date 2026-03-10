@@ -1,12 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { 
-  Plus, 
+import {
+  Plus,
   ChevronLeft,
   ChevronRight,
   Clock,
   MapPin,
+  Pencil,
+  Trash2,
+  X,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,334 +26,449 @@ interface ScheduleItem {
 }
 
 const initialSchedule: ScheduleItem[] = [
-  { 
-    id: "1", 
-    title: "드레스 피팅", 
-    date: "2026-04-20", 
+  {
+    id: "1",
+    title: "드레스 피팅",
+    date: "2026-04-20",
     time: "11:00",
     location: "메종 블랑쉬 아틀리에",
     category: "피팅",
-    status: "진행중"
+    status: "진행중",
   },
-  { 
-    id: "2", 
-    title: "메이크업 리허설", 
-    date: "2026-05-01", 
+  {
+    id: "2",
+    title: "메이크업 리허설",
+    date: "2026-05-01",
     time: "10:00",
     location: "글로우 뷰티",
     category: "리허설",
-    status: "대기중"
+    status: "대기중",
   },
-  { 
-    id: "3", 
-    title: "식사 시식회", 
-    date: "2026-05-10", 
+  {
+    id: "3",
+    title: "식사 시식회",
+    date: "2026-05-10",
     time: "18:00",
     location: "더 그랜드 파빌리온",
     category: "시식",
-    status: "대기중"
+    status: "대기중",
   },
-  { 
-    id: "4", 
-    title: "스튜디오 촬영", 
-    date: "2026-05-15", 
+  {
+    id: "4",
+    title: "스튜디오 촬영",
+    date: "2026-05-15",
     time: "09:00",
     location: "로앤스튜디오",
     category: "촬영",
-    status: "대기중"
+    status: "대기중",
   },
 ]
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
+const CATEGORY_COLORS: Record<string, string> = {
+  피팅: "bg-pink-100 text-pink-700",
+  리허설: "bg-violet-100 text-violet-700",
+  시식: "bg-amber-100 text-amber-700",
+  촬영: "bg-blue-100 text-blue-700",
+  기타: "bg-muted text-muted-foreground",
+}
+
 const statusColors = {
-  "진행중": "bg-primary text-primary-foreground",
-  "대기중": "bg-muted text-muted-foreground",
-  "완료": "bg-green-100 text-green-700",
+  진행중: "bg-primary text-primary-foreground",
+  대기중: "bg-muted text-muted-foreground",
+  완료: "bg-green-100 text-green-700",
 }
 
-export function ScheduleView() {
-  const [items, setItems] = useState<ScheduleItem[]>(initialSchedule)
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 9)) // March 2026
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
+// ─── 일정 셀 색상 ─────────────────────────────────────────────────────────────
+const EVENT_PILL_COLORS = [
+  "bg-primary/15 text-primary",
+  "bg-pink-100 text-pink-700",
+  "bg-violet-100 text-violet-700",
+  "bg-amber-100 text-amber-700",
+  "bg-blue-100 text-blue-700",
+  "bg-emerald-100 text-emerald-700",
+]
 
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
-
-  // Calendar calculations
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const startingDay = firstDay.getDay()
-  const totalDays = lastDay.getDate()
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1))
-  }
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1))
-  }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return `${date.getMonth() + 1}월 ${date.getDate()}일`
-  }
-
-  // Get events for a specific date
-  const getEventsForDate = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-    return items.filter(item => item.date === dateStr)
-  }
-
-  // Upcoming events (sorted by date)
-  const upcomingEvents = [...items]
-    .filter(item => new Date(item.date) >= new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 5)
-
-  // Generate calendar days
-  const calendarDays = []
-  for (let i = 0; i < startingDay; i++) {
-    calendarDays.push(null)
-  }
-  for (let day = 1; day <= totalDays; day++) {
-    calendarDays.push(day)
-  }
-
-  const today = new Date()
-  const isToday = (day: number) => 
-    today.getFullYear() === year && 
-    today.getMonth() === month && 
-    today.getDate() === day
-
-  return (
-    <div className="flex h-full flex-col overflow-y-auto bg-background">
-      <div className="mx-auto w-full max-w-3xl px-4 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold text-foreground">일정</h1>
-          <p className="mt-2 text-sm text-muted-foreground">웨딩 준비 일정을 한눈에 관리하세요</p>
-        </div>
-
-        {/* Calendar Card */}
-        <div className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-md">
-          {/* Calendar Header */}
-          <div className="mb-6 flex items-center justify-between">
-            <button
-              onClick={prevMonth}
-              className="rounded-full p-2 hover:bg-muted"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <h2 className="text-lg font-semibold text-foreground">
-              {year}년 {month + 1}월
-            </h2>
-            <button
-              onClick={nextMonth}
-              className="rounded-full p-2 hover:bg-muted"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
-
-          {/* Day Headers */}
-          <div className="mb-2 grid grid-cols-7 gap-2">
-            {DAYS.map((day, index) => (
-              <div
-                key={day}
-                className={`py-2 text-center text-sm font-medium ${
-                  index === 0 ? "text-red-500" : "text-muted-foreground"
-                }`}
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
-            {calendarDays.map((day, index) => {
-              if (day === null) {
-                return <div key={`empty-${index}`} className="aspect-square" />
-              }
-
-              const events = getEventsForDate(day)
-              const dayOfWeek = (startingDay + day - 1) % 7
-
-              return (
-                <button
-                  key={day}
-                  onClick={() => setSelectedDate(new Date(year, month, day))}
-                  className={`relative flex aspect-square items-center justify-center rounded-full text-sm transition-colors hover:bg-muted ${
-                    isToday(day) ? "bg-muted" : ""
-                  } ${dayOfWeek === 0 ? "text-red-500" : "text-foreground"}`}
-                >
-                  <span className={`${isToday(day) ? "font-semibold" : ""}`}>
-                    {day}
-                  </span>
-                  {events.length > 0 && (
-                    <div className="absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
-                      {events.slice(0, 3).map((_, i) => (
-                        <div key={i} className="size-1 rounded-full bg-primary" />
-                      ))}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Add Schedule Button */}
-        <div className="mb-6">
-          <Button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="size-5" />
-            일정 추가
-          </Button>
-        </div>
-
-        {showAddForm && (
-          <AddScheduleForm
-            onAdd={(item) => {
-              setItems([...items, { ...item, id: Date.now().toString() }])
-              setShowAddForm(false)
-            }}
-            onCancel={() => setShowAddForm(false)}
-          />
-        )}
-
-        {/* Upcoming Events */}
-        <div className="rounded-2xl bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-primary">다가오는 일정</h2>
-          
-          <div className="space-y-4">
-            {upcomingEvents.map((event) => (
-              <div
-                key={event.id}
-                className="rounded-xl border border-border p-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="size-2 rounded-full bg-foreground" />
-                    <span className="text-sm text-muted-foreground">{event.category}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[event.status]}`}>
-                      {event.status}
-                    </span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{formatDate(event.date)}</span>
-                </div>
-                
-                <h3 className="mt-2 text-lg font-semibold text-foreground">{event.title}</h3>
-                
-                <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="size-4" />
-                    <span>{event.time}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="size-4" />
-                    <span>{event.location}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {upcomingEvents.length === 0 && (
-            <div className="py-8 text-center">
-              <p className="text-muted-foreground">예정된 일정이 없습니다</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+function getEventColor(id: string) {
+  const hash = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
+  return EVENT_PILL_COLORS[hash % EVENT_PILL_COLORS.length]
 }
 
-function AddScheduleForm({
-  onAdd,
+// ─── Edit/Add Form ────────────────────────────────────────────────────────────
+
+function ScheduleForm({
+  initial,
+  onSave,
   onCancel,
+  title: formTitle,
 }: {
-  onAdd: (item: Omit<ScheduleItem, "id">) => void
+  initial?: Omit<ScheduleItem, "id">
+  onSave: (item: Omit<ScheduleItem, "id">) => void
   onCancel: () => void
+  title: string
 }) {
-  const [title, setTitle] = useState("")
-  const [date, setDate] = useState("")
-  const [time, setTime] = useState("")
-  const [location, setLocation] = useState("")
-  const [category, setCategory] = useState("")
+  const [title, setTitle] = useState(initial?.title ?? "")
+  const [date, setDate] = useState(initial?.date ?? "")
+  const [time, setTime] = useState(initial?.time ?? "")
+  const [location, setLocation] = useState(initial?.location ?? "")
+  const [category, setCategory] = useState(initial?.category ?? "")
+  const [status, setStatus] = useState<ScheduleItem["status"]>(initial?.status ?? "대기중")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title || !date) return
-    
-    onAdd({
+    onSave({
       title,
       date,
       time: time || "00:00",
       location: location || "미정",
       category: category || "기타",
-      status: "대기중",
+      status,
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 rounded-2xl bg-card p-4 shadow-sm">
-      <h3 className="mb-4 font-semibold text-foreground">새 일정 추가</h3>
-      <div className="grid gap-4 md:grid-cols-2">
+    <form onSubmit={handleSubmit} className="mb-6 rounded-2xl bg-card p-5 shadow-sm border border-border">
+      <h3 className="mb-4 font-semibold text-foreground">{formTitle}</h3>
+      <div className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm text-muted-foreground">일정명</label>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="예: 드레스 피팅"
-          />
+          <label className="mb-1 block text-sm text-muted-foreground">일정명 *</label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 드레스 피팅" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-muted-foreground">날짜</label>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <label className="mb-1 block text-sm text-muted-foreground">날짜 *</label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm text-muted-foreground">시간</label>
-          <Input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
+          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm text-muted-foreground">장소</label>
-          <Input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="예: 메종 블랑쉬 아틀리에"
-          />
+          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="예: 메종 블랑쉬 아틀리에" />
         </div>
         <div>
           <label className="mb-1 block text-sm text-muted-foreground">카테고리</label>
-          <Input
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="예: 피팅, 리허설, 시식"
-          />
+          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="예: 피팅, 리허설, 시식" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm text-muted-foreground">상태</label>
+          <div className="flex gap-2">
+            {(["대기중", "진행중", "완료"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  status === s ? statusColors[s] : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          취소
-        </Button>
-        <Button type="submit" className="bg-primary text-primary-foreground">
-          추가
+        <Button type="button" variant="outline" onClick={onCancel}>취소</Button>
+        <Button type="submit" className="bg-primary text-primary-foreground" disabled={!title || !date}>
+          저장
         </Button>
       </div>
     </form>
+  )
+}
+
+// ─── Main View ────────────────────────────────────────────────────────────────
+
+export function ScheduleView() {
+  const [items, setItems] = useState<ScheduleItem[]>(initialSchedule)
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 9))
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
+
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const startingDay = firstDay.getDay()
+  const totalDays = lastDay.getDate()
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return `${d.getMonth() + 1}월 ${d.getDate()}일`
+  }
+
+  const getEventsForDate = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    return items.filter((item) => item.date === dateStr)
+  }
+
+  const upcomingEvents = [...items]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const calendarDays: (number | null)[] = []
+  for (let i = 0; i < startingDay; i++) calendarDays.push(null)
+  for (let day = 1; day <= totalDays; day++) calendarDays.push(day)
+
+  const today = new Date()
+  const isToday = (day: number) =>
+    today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
+
+  const handleAdd = (item: Omit<ScheduleItem, "id">) => {
+    setItems((prev) => [...prev, { ...item, id: Date.now().toString() }])
+    setShowAddForm(false)
+  }
+
+  const handleEdit = (id: string, item: Omit<ScheduleItem, "id">) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...item, id } : i)))
+    setEditingId(null)
+  }
+
+  const handleDelete = (id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+    setDeletingId(null)
+  }
+
+  return (
+    <div className="flex h-full flex-col overflow-y-auto bg-background">
+      <div className="mx-auto w-full max-w-3xl px-4 py-6">
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">일정</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">웨딩 준비 일정을 한눈에 관리하세요</p>
+          </div>
+          <Button
+            onClick={() => { setShowAddForm(true); setEditingId(null) }}
+            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            size="sm"
+          >
+            <Plus className="size-4" />
+            일정 추가
+          </Button>
+        </div>
+
+        {/* Add Form */}
+        {showAddForm && (
+          <ScheduleForm
+            title="새 일정 추가"
+            onSave={handleAdd}
+            onCancel={() => setShowAddForm(false)}
+          />
+        )}
+
+        {/* Calendar Card */}
+        <div className="mb-5 rounded-2xl border border-border bg-card shadow-sm">
+          {/* Calendar Header */}
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <button onClick={prevMonth} className="rounded-full p-1.5 hover:bg-muted">
+              <ChevronLeft className="size-4" />
+            </button>
+            <h2 className="text-base font-semibold text-foreground">
+              {year}년 {month + 1}월
+            </h2>
+            <button onClick={nextMonth} className="rounded-full p-1.5 hover:bg-muted">
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+
+          <div className="p-3">
+            {/* Day Headers */}
+            <div className="mb-1 grid grid-cols-7">
+              {DAYS.map((day, index) => (
+                <div
+                  key={day}
+                  className={`py-1 text-center text-xs font-medium ${
+                    index === 0 ? "text-red-500" : "text-muted-foreground"
+                  }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+              {calendarDays.map((day, index) => {
+                if (day === null) {
+                  return <div key={`empty-${index}`} className="min-h-[72px] bg-muted/20 p-1" />
+                }
+
+                const events = getEventsForDate(day)
+                const dayOfWeek = (startingDay + day - 1) % 7
+                const todayCell = isToday(day)
+
+                return (
+                  <div
+                    key={day}
+                    className={`min-h-[72px] bg-card p-1 flex flex-col ${
+                      todayCell ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    {/* 날짜 숫자 */}
+                    <span
+                      className={`mb-0.5 flex size-5 items-center justify-center self-start rounded-full text-xs font-medium ${
+                        todayCell
+                          ? "bg-primary text-primary-foreground"
+                          : dayOfWeek === 0
+                            ? "text-red-500"
+                            : "text-foreground"
+                      }`}
+                    >
+                      {day}
+                    </span>
+
+                    {/* 일정 표시 */}
+                    <div className="flex flex-col gap-0.5">
+                      {events.slice(0, 2).map((ev) => (
+                        <div
+                          key={ev.id}
+                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight ${getEventColor(ev.id)}`}
+                          title={ev.title}
+                        >
+                          {ev.title}
+                        </div>
+                      ))}
+                      {events.length > 2 && (
+                        <span className="px-1 text-[10px] text-muted-foreground">
+                          +{events.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Event List */}
+        <div className="rounded-2xl bg-card border border-border shadow-sm">
+          <div className="border-b border-border px-5 py-3">
+            <h2 className="text-sm font-semibold text-foreground">전체 일정</h2>
+          </div>
+
+          {upcomingEvents.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground text-sm">등록된 일정이 없어요</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {upcomingEvents.map((event) => {
+                const isEditing = editingId === event.id
+                const isDeleting = deletingId === event.id
+
+                if (isEditing) {
+                  return (
+                    <div key={event.id} className="p-4">
+                      <ScheduleForm
+                        title="일정 수정"
+                        initial={event}
+                        onSave={(item) => handleEdit(event.id, item)}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </div>
+                  )
+                }
+
+                return (
+                  <div key={event.id} className="px-5 py-4">
+                    {isDeleting ? (
+                      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                        <p className="text-sm font-medium text-foreground">"{event.title}" 일정을 삭제할까요?</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setDeletingId(null)}
+                            className="flex-1 rounded-lg border border-border py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={() => handleDelete(event.id)}
+                            className="flex-1 rounded-lg bg-destructive py-1.5 text-xs font-medium text-white hover:bg-destructive/90 transition-colors"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        {/* 날짜 블록 */}
+                        <div className="shrink-0 text-center w-10">
+                          <div className="text-xs text-muted-foreground leading-none">
+                            {new Date(event.date).getMonth() + 1}월
+                          </div>
+                          <div className="text-xl font-bold text-foreground leading-tight">
+                            {new Date(event.date).getDate()}
+                          </div>
+                          <div className="text-xs text-muted-foreground leading-none">
+                            {DAYS[new Date(event.date).getDay()]}
+                          </div>
+                        </div>
+
+                        {/* 구분선 */}
+                        <div className={`mt-1 w-0.5 self-stretch rounded-full ${getEventColor(event.id).split(" ")[0]}`} />
+
+                        {/* 내용 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              CATEGORY_COLORS[event.category] ?? CATEGORY_COLORS["기타"]
+                            }`}>
+                              {event.category}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[event.status]}`}>
+                              {event.status}
+                            </span>
+                          </div>
+                          <h3 className="font-semibold text-foreground">{event.title}</h3>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="size-3" />
+                              <span>{event.time}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="size-3" />
+                              <span className="truncate">{event.location}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 수정/삭제 버튼 */}
+                        <div className="shrink-0 flex items-center gap-1">
+                          <button
+                            onClick={() => { setEditingId(event.id); setDeletingId(null) }}
+                            className="rounded-lg p-1.5 text-muted-foreground/60 hover:bg-muted hover:text-foreground transition-colors"
+                            title="수정"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { setDeletingId(event.id); setEditingId(null) }}
+                            className="rounded-lg p-1.5 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            title="삭제"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="h-6" />
+      </div>
+    </div>
   )
 }

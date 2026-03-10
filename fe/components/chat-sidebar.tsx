@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pin,
   Trash2,
+  Lock,
 } from "lucide-react"
 
 // 미니멀 말풍선 + 하트 커스텀 아이콘
@@ -35,7 +36,7 @@ import { cn } from "@/lib/utils"
 import { CoupleProfile } from "@/components/couple-profile"
 import { AccountPopover } from "@/components/account-popover"
 
-type ViewType = "chat" | "couple-chat" | "budget" | "vendors" | "schedule" | "my-chats" | "my-page" | "wishlist" | "payment" | "reservation" | "reviews"
+type ViewType = "chat" | "couple-chat" | "budget" | "vendors" | "schedule" | "my-chats" | "my-page" | "wishlist" | "payment" | "reservation" | "reviews" | "vote"
 
 export interface ChatMessage {
   id: string
@@ -65,6 +66,8 @@ interface ChatSidebarProps {
   activeSessionId: string | null
   chatHistory: ChatSession[]
   userNickname?: string
+  voteBadge?: number
+  coupleChatBadge?: number
   onViewChange: (view: ViewType) => void
   onAccountNavigate: (view: string) => void
   onLogout: () => void
@@ -175,6 +178,8 @@ export function ChatSidebar({
   activeSessionId,
   chatHistory,
   userNickname,
+  voteBadge = 0,
+  coupleChatBadge = 0,
   onViewChange,
   onAccountNavigate,
   onLogout,
@@ -187,6 +192,7 @@ export function ChatSidebar({
     { icon: <DollarSign className="size-4" />, label: "예산", view: "budget" },
     { icon: <Store className="size-4" />, label: "업체", view: "vendors" },
     { icon: <Calendar className="size-4" />, label: "일정", view: "schedule" },
+    { icon: <Lock className="size-4" />, label: "비밀 투표", view: "vote" },
   ]
 
   // 고정 채팅 먼저, 최신순
@@ -279,8 +285,30 @@ export function ChatSidebar({
               )}
               onClick={() => onViewChange(item.view)}
             >
-              {item.icon}
-              {!collapsed && <span>{item.label}</span>}
+              <div className="relative shrink-0">
+                {item.icon}
+                {item.view === "vote" && voteBadge > 0 && collapsed && (
+                  <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                    {voteBadge > 9 ? "9+" : voteBadge}
+                  </span>
+                )}
+                {item.view === "couple-chat" && coupleChatBadge > 0 && collapsed && (
+                  <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                    {coupleChatBadge > 9 ? "9+" : coupleChatBadge}
+                  </span>
+                )}
+              </div>
+              {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+              {!collapsed && item.view === "vote" && voteBadge > 0 && (
+                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {voteBadge > 9 ? "9+" : voteBadge}
+                </span>
+              )}
+              {!collapsed && item.view === "couple-chat" && coupleChatBadge > 0 && (
+                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-white leading-none">
+                  {coupleChatBadge > 9 ? "9+" : coupleChatBadge}
+                </span>
+              )}
             </button>
           ))}
         </div>

@@ -37,6 +37,7 @@ interface MyPageViewProps {
     groomPhoto?: string
     bridePhoto?: string
   }) => void
+  onDeleteAccount?: () => void
 }
 
 interface PreferenceSection {
@@ -58,7 +59,11 @@ export function MyPageView({
   myInviteCode = "",
   onCoupleConnect,
   onUpdateProfile,
+  onDeleteAccount,
 }: MyPageViewProps) {
+  // ── 회원탈퇴 확인 상태 ────────────────────────────────────────
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+
   // ── 파트너 연결 상태 ──────────────────────────────────────────
   const [connectTab, setConnectTab] = useState<"send" | "enter">("send")
   const [partnerCode, setPartnerCode] = useState("")
@@ -515,6 +520,48 @@ export function MyPageView({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* 회원탈퇴 */}
+        <div className="mt-10 border-t border-border pt-6">
+          {!deleteConfirm ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">회원탈퇴</p>
+                <p className="mt-0.5 text-xs text-muted-foreground/60">탈퇴 시 모든 데이터가 삭제됩니다</p>
+              </div>
+              <button
+                onClick={() => setDeleteConfirm(true)}
+                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
+              >
+                탈퇴하기
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-muted/30 p-5">
+              <p className="mb-1 text-sm font-medium text-foreground">정말 탈퇴하시겠어요?</p>
+              <p className="mb-4 text-xs text-muted-foreground">
+                커플 연결 정보, 채팅 기록, 즐겨찾기 등 모든 데이터가 영구 삭제됩니다.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  className="flex-1 rounded-xl border border-border bg-background py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    setDeleteConfirm(false)
+                    onDeleteAccount?.()
+                  }}
+                  className="flex-1 rounded-xl border border-border bg-background py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                >
+                  탈퇴 확인
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
