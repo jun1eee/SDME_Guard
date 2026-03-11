@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
@@ -423,16 +423,41 @@ function stepBadgeStyle(step: number): string {
 
 // ─── Main Export ──────────────────────────────────────────────────────────
 
-export function VendorsView({ onShareVendor, onAddToVote, currentUser }: {
-  onShareVendor?: (vendor: Vendor, sharedBy: "groom" | "bride") => void
+export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds }: {
+  onShareVendor?: (vendor: Vendor) => void
   onAddToVote?: (vendor: Vendor) => void
   currentUser?: "groom" | "bride"
+  onFavoriteChange?: (vendor: Vendor, isFavorite: boolean) => void
+  initialVendorId?: string | null
+  favoriteVendorIds?: string[]
 }) {
   const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS)
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("all")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(() => {
+    if (initialVendorId) return INITIAL_VENDORS.find((v) => v.id === initialVendorId) ?? null
+    return null
+  })
+
+  // initialVendorId가 바뀌면 해당 업체 상세로 이동
+  useEffect(() => {
+    if (initialVendorId) {
+      const v = vendors.find((v) => v.id === initialVendorId)
+      if (v) setSelectedVendor(v)
+    }
+  }, [initialVendorId])
+
+  // 외부 찜 상태 동기화 (커플채팅 등에서 찜 취소 시 반영)
+  useEffect(() => {
+    if (!favoriteVendorIds) return
+    setVendors((prev) =>
+      prev.map((v) => ({ ...v, isFavorite: favoriteVendorIds.includes(v.id) }))
+    )
+    setSelectedVendor((prev) =>
+      prev ? { ...prev, isFavorite: favoriteVendorIds.includes(prev.id) } : prev
+    )
+  }, [favoriteVendorIds])
 
   const filtered = vendors.filter((v) => {
     const catOk = selectedCategory === "all" || v.category === selectedCategory
@@ -444,6 +469,11 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser }: {
   const currentStyleFilters = selectedCategory !== "all" ? (STYLE_FILTERS[selectedCategory] ?? []) : []
 
   const toggleFavorite = (id: string) => {
+    const vendor = vendors.find((v) => v.id === id)
+    if (vendor) {
+      const newFav = !vendor.isFavorite
+      onFavoriteChange?.(vendor, newFav)
+    }
     setVendors((prev) => prev.map((v) => (v.id === id ? { ...v, isFavorite: !v.isFavorite } : v)))
     setSelectedVendor((prev) => (prev?.id === id ? { ...prev, isFavorite: !prev.isFavorite } : prev))
   }
@@ -471,7 +501,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser }: {
         onBack={() => setSelectedVendor(null)}
         onToggleFavorite={() => toggleFavorite(selectedVendor.id)}
         onAddReview={(r) => addReview(selectedVendor.id, r)}
-        onShareVendor={onShareVendor ? (v) => onShareVendor(v, currentUser ?? "groom") : undefined}
+        onShareVendor={onShareVendor}
         onAddToVote={onAddToVote}
       />
     )
@@ -541,7 +571,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser }: {
               vendor={vendor}
               onClick={() => setSelectedVendor(vendor)}
               onToggleFavorite={() => toggleFavorite(vendor.id)}
-              onShareToCouple={onShareVendor ? () => onShareVendor(vendor, currentUser ?? "groom") : undefined}
+              onShareToCouple={onShareVendor ? () => onShareVendor(vendor) : undefined}
             />
           ))}
         </div>
@@ -580,10 +610,28 @@ function VendorCard({
     setTimeout(() => setShareCopied(false), 2000)
   }
 
+  const handleDragStart = (e: React.DragEvent) => {
+    const vendorData = {
+      id: vendor.id,
+      name: vendor.name,
+      category: vendor.category,
+      categoryLabel: catLabel,
+      price: vendor.price,
+      rating: vendor.rating,
+      address: vendor.address ?? "",
+      tags: vendor.tags,
+      description: vendor.description,
+    }
+    e.dataTransfer.setData("application/vendor-card", JSON.stringify(vendorData))
+    e.dataTransfer.effectAllowed = "copy"
+  }
+
   return (
     <div
-      className="cursor-pointer overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md"
+      className="cursor-pointer overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
       onClick={onClick}
+      draggable
+      onDragStart={handleDragStart}
     >
       {/* Image placeholder */}
       <div className="relative h-52 bg-[#f0eaf2]">
@@ -668,7 +716,6 @@ export function VendorDetailView({
   const [showPayment, setShowPayment] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showReport, setShowReport] = useState(false)
-  const [showShare, setShowShare] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
   const [addrCopied, setAddrCopied] = useState(false)
 
@@ -800,7 +847,7 @@ export function VendorDetailView({
                 </button>
               )}
               <button
-                onClick={() => setShowShare(true)}
+                onClick={() => onShareVendor?.(vendor)}
                 className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
               >
                 <Share2 className="size-4" />
@@ -1161,9 +1208,6 @@ export function VendorDetailView({
       )}
       {showReport && (
         <ReportModal vendorName={vendor.name} onClose={() => setShowReport(false)} />
-      )}
-      {showShare && (
-        <ShareModal vendor={vendor} onClose={() => setShowShare(false)} onShareVendor={onShareVendor} />
       )}
     </div>
   )
@@ -1575,8 +1619,7 @@ function ShareModal({ vendor, onClose, onShareVendor }: {
 
   const handleShareToCouple = () => {
     onShareVendor?.(vendor)
-    setShared(true)
-    setTimeout(() => { setShared(false); onClose() }, 1500)
+    onClose()
   }
 
   return (

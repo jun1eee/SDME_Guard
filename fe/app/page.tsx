@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
-import { ChatInput } from "@/components/chat-input"
+import { ChatInput, type DroppedVendor } from "@/components/chat-input"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { SetupScreen } from "@/components/setup-screen"
 import { CoupleChatView, type VendorShare } from "@/components/views/couple-chat-view"
@@ -17,8 +17,33 @@ import { PaymentView } from "@/components/views/payment-view"
 import { ReservationView } from "@/components/views/reservation-view"
 import { ReviewView } from "@/components/views/review-view"
 import { VoteView, type VendorItem } from "@/components/views/vote-view"
+import { CoupleWishlistView } from "@/components/views/couple-wishlist-view"
+import { SplitPanel, type PanelState, type PanelTab, type PanelTabType } from "@/components/split-panel"
+import { Store, DollarSign, Calendar, Sparkles, Send, X } from "lucide-react"
 
+// 패널 탭으로 열 수 있는 뷰
+const PANEL_VIEWS: Record<string, PanelTabType> = {
+  "couple-chat": "couple-chat",
+  "vendors": "vendors",
+  "chat": "chat",
+  "schedule": "schedule",
+  "vote": "vote",
+  "budget": "budget",
+  "couple-wishlist": "couple-wishlist",
+}
+
+// 풀페이지로만 보여줄 뷰
 type ViewType = "chat" | "couple-chat" | "budget" | "vendors" | "schedule" | "my-chats" | "my-page" | "wishlist" | "payment" | "reservation" | "reviews" | "vote"
+
+const TAB_LABELS: Record<PanelTabType, string> = {
+  chat: "AI 채팅",
+  "couple-chat": "커플 채팅",
+  vendors: "업체",
+  schedule: "일정",
+  vote: "비밀 투표",
+  budget: "예산",
+  "couple-wishlist": "커플 찜목록",
+}
 
 interface Message {
   id: string
@@ -27,7 +52,7 @@ interface Message {
 }
 
 export default function ChatPage() {
-  // 셋업 (이름/닉네임 입력)
+  // 셋업
   const [isSetup, setIsSetup] = useState(false)
   const [userNickname, setUserNickname] = useState("")
   const [userRole, setUserRole] = useState<"groom" | "bride">("groom")
@@ -36,18 +61,32 @@ export default function ChatPage() {
 
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
+  const [attachedVendors, setAttachedVendors] = useState<DroppedVendor[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
-  const [currentView, setCurrentView] = useState<ViewType>("chat")
+  const [currentView, setCurrentView] = useState<ViewType | null>(null) // null = 패널 모드
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([])
   const [sharedVendors, setSharedVendors] = useState<VendorShare[]>([])
+  const [favoriteVendors, setFavoriteVendors] = useState<VendorShare[]>([])
   const [pendingVoteItems, setPendingVoteItems] = useState<VendorItem[]>([])
   const [voteBadge, setVoteBadge] = useState(0)
   const [coupleChatBadge, setCoupleChatBadge] = useState(0)
+  const [openVendorId, setOpenVendorId] = useState<string | null>(null)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [shareModalVendor, setShareModalVendor] = useState<{ id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string } | null>(null)
+  const [shareModalComment, setShareModalComment] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Wedding configuration
+  // ── 패널 상태 ──────────────────────────────
+  const [panelState, setPanelState] = useState<PanelState>({
+    left: [],
+    right: [],
+    activeLeftId: null,
+    activeRightId: null,
+    splitRatio: 0.5,
+  })
+  const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false)
+
   const [weddingConfig, setWeddingConfig] = useState({
     groomName: "김민수",
     groomNickname: "",
@@ -67,9 +106,43 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages, isTyping])
 
+  // ── 패널 탭 관리 ──────────────────────────────
+  const addPanelTab = (type: PanelTabType, side: "left" | "right" = "left", title?: string) => {
+    setPanelState((prev) => {
+      // 이미 열려있으면 해당 탭 활성화
+      const allTabs = [...prev.left, ...prev.right]
+      const existing = allTabs.find((t) => t.type === type)
+      if (existing) {
+        const inLeft = prev.left.some((t) => t.id === existing.id)
+        return {
+          ...prev,
+          ...(inLeft ? { activeLeftId: existing.id } : { activeRightId: existing.id }),
+        }
+      }
+
+      const tab: PanelTab = {
+        id: `${type}-${Date.now()}`,
+        type,
+        title: title || TAB_LABELS[type],
+      }
+
+      // AI채팅/커플채팅 → 항상 왼쪽, 나머지 → 항상 오른쪽
+      const isChatType = type === "chat" || type === "couple-chat"
+      const targetSide = isChatType ? "left" : "right"
+
+      if (targetSide === "right") {
+        return { ...prev, right: [...prev.right, tab], activeRightId: tab.id }
+      }
+      return { ...prev, left: [...prev.left, tab], activeLeftId: tab.id }
+    })
+
+    // 풀페이지 뷰 해제
+    setCurrentView(null)
+  }
+
+  // ── 기존 핸들러 ──────────────────────────────
   const handleStartChat = (content: string) => {
     setShowWelcome(false)
-    setCurrentView("chat")
     setActiveSessionId(null)
 
     const userMessage: Message = {
@@ -78,18 +151,44 @@ export default function ChatPage() {
       content,
     }
     setMessages([userMessage])
-
+    setAttachedVendors([])
     setIsTyping(true)
+    autoOpenRelatedTab(content)
 
     setTimeout(() => {
       setIsTyping(false)
+      const responseText = getInitialAIResponse(content)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: getInitialAIResponse(content),
+        content: responseText,
       }
       setMessages((prev) => [...prev, aiResponse])
     }, 1500)
+  }
+
+  // 사용자 메시지 키워드 기반 관련 탭 자동 오픈
+  const autoOpenRelatedTab = (userText: string) => {
+    const lower = userText.toLowerCase()
+    if (lower.includes("예산") || lower.includes("비용") || lower.includes("견적")) {
+      addPanelTab("budget", "right")
+    } else if (lower.includes("일정") || lower.includes("스케줄") || lower.includes("날짜")) {
+      addPanelTab("schedule", "right")
+    } else if (lower.includes("업체") || lower.includes("스튜디오") || lower.includes("드레스") || lower.includes("메이크업") || lower.includes("웨딩홀")) {
+      addPanelTab("vendors", "right")
+    } else if (lower.includes("투표") || lower.includes("의견")) {
+      addPanelTab("vote", "right")
+    }
+  }
+
+  const handleVendorDrop = (vendor: DroppedVendor) => {
+    setAttachedVendors((prev) =>
+      prev.some((v) => v.id === vendor.id) ? prev : [...prev, vendor]
+    )
+  }
+
+  const handleRemoveVendor = (id: string) => {
+    setAttachedVendors((prev) => prev.filter((v) => v.id !== id))
   }
 
   const handleSend = (content: string) => {
@@ -99,22 +198,23 @@ export default function ChatPage() {
       content,
     }
     setMessages((prev) => [...prev, userMessage])
-
+    setAttachedVendors([])
     setIsTyping(true)
+    autoOpenRelatedTab(content)
 
     setTimeout(() => {
       setIsTyping(false)
+      const responseText = getAIResponse(content)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: getAIResponse(content),
+        content: responseText,
       }
       setMessages((prev) => [...prev, aiResponse])
     }, 1500)
   }
 
   const handleNewChat = () => {
-    // 기존 채팅이 있으면 히스토리에 저장
     if (messages.length > 0) {
       const firstUser = messages.find((m) => m.role === "user")
       const rawTitle = firstUser?.content ?? "새 채팅"
@@ -134,8 +234,8 @@ export default function ChatPage() {
     }
     setMessages([])
     setShowWelcome(true)
-    setCurrentView("chat")
     setActiveSessionId(null)
+    addPanelTab("chat", "left")
   }
 
   const handleLoadChat = (id: string) => {
@@ -143,8 +243,10 @@ export default function ChatPage() {
     if (!session) return
     setMessages(session.messages as Message[])
     setActiveSessionId(id)
-    setCurrentView("chat")
     setShowWelcome(false)
+
+    // AI 채팅 탭이 패널에 있으면 활성화, 없으면 추가
+    addPanelTab("chat", "left", session.title)
   }
 
   const handlePinChat = (id: string) => {
@@ -163,9 +265,20 @@ export default function ChatPage() {
   }
 
   const handleViewChange = (view: ViewType) => {
+    // 패널 탭으로 열 수 있는 뷰
+    if (view in PANEL_VIEWS) {
+      const panelType = PANEL_VIEWS[view]
+
+      if (view === "couple-chat") setCoupleChatBadge(0)
+
+      addPanelTab(panelType, "left")
+      if (view === "vote") setVoteBadge(0)
+      return
+    }
+
+    // 풀페이지 뷰
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
-    if (view === "couple-chat") setCoupleChatBadge(0)
   }
 
   const handleAccountNavigate = (view: string) => {
@@ -204,27 +317,72 @@ export default function ChatPage() {
     toast.success("비밀 투표에 추가됐어요", { description: vendor.name, duration: 3000 })
   }
 
-  const handleShareVendor = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, sharedBy: "groom" | "bride") => {
+  const handleFavoriteChange = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, isFavorite: boolean) => {
+    if (isFavorite) {
+      const fav: VendorShare = {
+        id: `fav-${Date.now()}-${vendor.id}`,
+        vendorId: vendor.id,
+        name: vendor.name,
+        category: vendor.category,
+        categoryLabel: CATEGORY_LABELS[vendor.category] ?? vendor.category,
+        price: vendor.price,
+        rating: vendor.rating,
+        address: vendor.address,
+        tags: vendor.tags,
+        description: vendor.description,
+        coverUrl: vendor.coverUrl,
+        sharedBy: userRole,
+      }
+      setFavoriteVendors((prev) => [...prev, fav])
+      toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
+    } else {
+      setFavoriteVendors((prev) =>
+        prev.filter((v) => !(v.vendorId === vendor.id && v.sharedBy === userRole))
+      )
+      toast.success("찜목록에서 제거됐어요", { description: vendor.name, duration: 2000 })
+    }
+  }
+
+  // 커플채팅에서 공유된 업체 좋아요
+  const handleFavoriteVendorFromChat = (vendor: VendorShare) => {
+    const alreadyFav = favoriteVendors.some(
+      (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
+    )
+    if (!alreadyFav) {
+      const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
+      setFavoriteVendors((prev) => [...prev, fav])
+      toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
+    }
+  }
+
+  const handleShareVendor = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }) => {
+    setShareModalVendor(vendor)
+    setShareModalComment("")
+  }
+
+  const confirmShareVendor = () => {
+    if (!shareModalVendor) return
     const share: VendorShare = {
       id: Date.now().toString(),
-      vendorId: vendor.id,
-      name: vendor.name,
-      category: vendor.category,
-      categoryLabel: CATEGORY_LABELS[vendor.category] ?? vendor.category,
-      price: vendor.price,
-      rating: vendor.rating,
-      address: vendor.address,
-      tags: vendor.tags,
-      description: vendor.description,
-      coverUrl: vendor.coverUrl,
-      sharedBy,
+      vendorId: shareModalVendor.id,
+      name: shareModalVendor.name,
+      category: shareModalVendor.category,
+      categoryLabel: CATEGORY_LABELS[shareModalVendor.category] ?? shareModalVendor.category,
+      price: shareModalVendor.price,
+      rating: shareModalVendor.rating,
+      address: shareModalVendor.address,
+      tags: shareModalVendor.tags,
+      description: shareModalVendor.description,
+      coverUrl: shareModalVendor.coverUrl,
+      sharedBy: userRole,
+      comment: shareModalComment.trim() || undefined,
     }
     setSharedVendors((prev) => [...prev, share])
-    if (currentView !== "couple-chat") setCoupleChatBadge((prev) => prev + 1)
-    toast.success(`커플 채팅에 공유됐어요`, {
-      description: vendor.name,
-      duration: 3000,
-    })
+    const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
+    if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
+    toast.success(`커플 채팅에 공유됐어요`, { description: shareModalVendor.name, duration: 3000 })
+    setShareModalVendor(null)
+    setShareModalComment("")
   }
 
   const handleLogout = () => {
@@ -232,7 +390,8 @@ export default function ChatPage() {
     setChatHistory([])
     setActiveSessionId(null)
     setShowWelcome(true)
-    setCurrentView("chat")
+    setCurrentView(null)
+    setPanelState({ left: [], right: [], activeLeftId: null, activeRightId: null, splitRatio: 0.5 })
     setIsSetup(false)
   }
 
@@ -255,21 +414,63 @@ export default function ChatPage() {
     }))
   }
 
-  const renderMainContent = () => {
-    // Welcome screen for new chat
-    if (currentView === "chat" && showWelcome) {
-      return (
-        <WelcomeScreen 
-          onStartChat={handleStartChat}
-          groomName={weddingConfig.groomName}
-          brideName={weddingConfig.brideName}
-          dDay={weddingConfig.dDay}
-        />
-      )
-    }
+  // ── 패널 탭 콘텐츠 렌더링 ──────────────────────────────
+  const renderPanelContent = (tab: PanelTab) => {
+    switch (tab.type) {
+      case "chat":
+        if (showWelcome && messages.length === 0) {
+          return (
+            <div className="flex h-full flex-col">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
+                    <Sparkles className="size-5 text-primary" />
+                  </div>
+                  <h1 className="text-lg font-semibold text-foreground">AI 웨딩 플래너</h1>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => addPanelTab("budget", "right")}
+                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title="예산"
+                  >
+                    <DollarSign className="size-4" />
+                  </button>
+                  <button
+                    onClick={() => addPanelTab("schedule", "right")}
+                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title="일정"
+                  >
+                    <Calendar className="size-4" />
+                  </button>
+                </div>
+              </div>
+              <WelcomeScreen
+                onStartChat={(content) => {
+                  setShowWelcome(false)
+                  handleStartChat(content)
+                }}
+                groomName={weddingConfig.groomName}
+                brideName={weddingConfig.brideName}
+                dDay={weddingConfig.dDay}
+              />
+            </div>
+          )
+        }
+        return (
+          <ChatPanelWithDrop
+            messages={messages}
+            isTyping={isTyping}
+            messagesEndRef={messagesEndRef}
+            onSend={handleSend}
+            attachedVendors={attachedVendors}
+            onVendorDrop={handleVendorDrop}
+            onRemoveVendor={handleRemoveVendor}
+            onOpenTab={(type) => addPanelTab(type as PanelTabType, "right")}
+          />
+        )
 
-    // Different views
-    switch (currentView) {
       case "couple-chat":
         return (
           <CoupleChatView
@@ -278,12 +479,91 @@ export default function ChatPage() {
             currentUser={userRole}
             sharedVendors={sharedVendors}
             onAddToVote={(v) => handleAddToVote(v, "partner-share")}
+            onOpenTab={(type) => {
+              if (type.startsWith("vendor:")) {
+                const vendorId = type.split(":")[1]
+                setOpenVendorId(vendorId)
+                addPanelTab("vendors", "right")
+              } else {
+                addPanelTab(type as PanelTabType, "right")
+              }
+            }}
+            onVendorShared={(vendor) => {
+              setSharedVendors((prev) => [...prev, vendor])
+            }}
+            onFavoriteVendor={handleFavoriteVendorFromChat}
+            onUnfavoriteVendor={(vendorId) => {
+              setFavoriteVendors((prev) =>
+                prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole))
+              )
+              toast.success("찜목록에서 제거됐어요", { duration: 2000 })
+            }}
+            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
           />
         )
+
+      case "vendors":
+        return (
+          <VendorsView
+            onShareVendor={handleShareVendor}
+            onAddToVote={(v) => handleAddToVote(v, "my-wish")}
+            currentUser={userRole}
+            onFavoriteChange={handleFavoriteChange}
+            initialVendorId={openVendorId}
+            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+          />
+        )
+
+      case "schedule":
+        return <ScheduleView />
+
+      case "vote":
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
+
       case "budget":
         return <BudgetView totalBudget={weddingConfig.budget} />
-      case "vendors":
-        return <VendorsView onShareVendor={handleShareVendor} onAddToVote={(v) => handleAddToVote(v, "my-wish")} currentUser={userRole} />
+
+      case "couple-wishlist":
+        return (
+          <CoupleWishlistView
+            sharedVendors={favoriteVendors}
+            groomName={weddingConfig.groomName}
+            brideName={weddingConfig.brideName}
+            onOpenVendor={() => addPanelTab("vendors", "right")}
+            onOpenSchedule={() => addPanelTab("schedule", "right")}
+            onUnfavorite={(vendorId) => {
+              setFavoriteVendors((prev) =>
+                prev.filter((v) => v.vendorId !== vendorId)
+              )
+              toast.success("찜목록에서 제거됐어요", { duration: 2000 })
+            }}
+            onShareVendor={(vendor) => {
+              setShareModalVendor({
+                id: vendor.vendorId,
+                name: vendor.name,
+                category: vendor.category,
+                price: vendor.price,
+                rating: vendor.rating,
+                address: vendor.address,
+                tags: vendor.tags,
+                description: vendor.description,
+                coverUrl: vendor.coverUrl,
+              })
+              setShareModalComment("")
+            }}
+          />
+        )
+
+      default:
+        return null
+    }
+  }
+
+  // ── 풀페이지 메인 콘텐츠 ──────────────────────────────
+  const renderFullPageContent = () => {
+    switch (currentView) {
+      case "budget":
+        return <BudgetView totalBudget={weddingConfig.budget} />
       case "schedule":
         return <ScheduleView />
       case "my-page":
@@ -312,41 +592,8 @@ export default function ChatPage() {
         return <ReviewView />
       case "vote":
         return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
-      case "my-chats":
-        return (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-foreground">내 채팅</h2>
-              <p className="mt-2 text-muted-foreground">
-                {chatHistory.length === 0
-                  ? "채팅을 시작하면 여기에 기록이 쌓입니다"
-                  : `${chatHistory.length}개의 대화가 사이드바에 저장되어 있습니다`}
-              </p>
-            </div>
-          </div>
-        )
       default:
-        // Chat view with messages
-        return (
-          <div className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto bg-background">
-              <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-                {messages.map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    role={message.role}
-                    content={message.content}
-                  />
-                ))}
-                {isTyping && (
-                  <ChatMessage role="assistant" content="" isTyping />
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-            <ChatInput onSend={handleSend} disabled={isTyping} />
-          </div>
-        )
+        return null
     }
   }
 
@@ -372,6 +619,27 @@ export default function ChatPage() {
     )
   }
 
+  // 패널에 열린 탭 타입 목록
+  const openPanelTypes = [...panelState.left, ...panelState.right].map((t) => t.type)
+  const hasPanelTabs = panelState.left.length > 0 || panelState.right.length > 0
+  const isFullPageMode = currentView !== null
+
+  // 사이드바에서 드래그 → 메인 드롭
+  const handleMainDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingFromSidebar(false)
+    const type = e.dataTransfer.getData("application/floating-window") as PanelTabType
+    if (!type) return
+
+    const mainRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const dropX = e.clientX - mainRect.left
+    const midX = mainRect.width / 2
+
+    // 드롭 위치에 따라 좌/우 패널에 배치
+    const side = dropX < midX ? "left" : "right"
+    addPanelTab(type, side)
+  }
+
   return (
     <div className="flex h-screen bg-background">
       <ChatSidebar
@@ -383,7 +651,7 @@ export default function ChatPage() {
         groomPhoto={weddingConfig.groomPhoto}
         bridePhoto={weddingConfig.bridePhoto}
         dDay={weddingConfig.dDay}
-        currentView={currentView}
+        currentView={currentView ?? "chat"}
         activeSessionId={activeSessionId}
         chatHistory={chatHistory}
         userNickname={userNickname}
@@ -395,9 +663,117 @@ export default function ChatPage() {
         onLoadChat={handleLoadChat}
         onPinChat={handlePinChat}
         onDeleteChat={handleDeleteChat}
+        openFloatingWindows={openPanelTypes}
       />
-      <main className="relative flex-1 bg-background">
-        {renderMainContent()}
+      <main
+        className="relative flex-1 overflow-hidden bg-background"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("application/floating-window")) {
+            e.preventDefault()
+            setIsDraggingFromSidebar(true)
+          }
+        }}
+        onDragLeave={(e) => {
+          // main 밖으로 나갔을 때만
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDraggingFromSidebar(false)
+          }
+        }}
+        onDrop={handleMainDrop}
+      >
+        {/* 풀페이지 뷰 (투표/일정/예산 등) */}
+        {isFullPageMode && renderFullPageContent()}
+
+        {/* 패널 모드 (채팅/업체 분할) */}
+        {!isFullPageMode && (
+          <>
+            {hasPanelTabs ? (
+              <SplitPanel
+                state={panelState}
+                onStateChange={setPanelState}
+                renderContent={renderPanelContent}
+                isDraggingFromSidebar={isDraggingFromSidebar}
+              />
+            ) : (
+              // 아무 탭도 없을 때 웰컴 화면
+              <WelcomeScreen
+                onStartChat={(content) => {
+                  addPanelTab("chat", "left")
+                  setTimeout(() => handleStartChat(content), 100)
+                }}
+                groomName={weddingConfig.groomName}
+                brideName={weddingConfig.brideName}
+                dDay={weddingConfig.dDay}
+              />
+            )}
+          </>
+        )}
+
+        {/* 드래그 오버 인디케이터 (사이드바에서 드래그 중) */}
+        {isDraggingFromSidebar && !hasPanelTabs && (
+          <div className="absolute inset-0 z-50 flex pointer-events-none">
+            <div className="flex flex-1 items-center justify-center border-2 border-dashed border-primary/30 bg-primary/5 rounded-lg m-4">
+              <p className="text-sm font-medium text-primary/70">여기에 놓아서 창 열기</p>
+            </div>
+          </div>
+        )}
+        {isDraggingFromSidebar && hasPanelTabs && (
+          <div className="absolute inset-0 z-50 flex pointer-events-none">
+            <div className="flex flex-1 items-center justify-center border-2 border-dashed border-primary/20 bg-primary/5 rounded-lg m-2 opacity-50">
+              <p className="text-xs text-primary/50">왼쪽</p>
+            </div>
+            <div className="flex flex-1 items-center justify-center border-2 border-dashed border-primary/20 bg-primary/5 rounded-lg m-2 opacity-50">
+              <p className="text-xs text-primary/50">오른쪽</p>
+            </div>
+          </div>
+        )}
+
+        {/* 업체 공유 모달 */}
+        {shareModalVendor && (
+          <div className="absolute inset-0 z-[100] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => { setShareModalVendor(null); setShareModalComment("") }} />
+            <div className="relative mx-4 w-full max-w-md rounded-2xl bg-background shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h2 className="text-base font-semibold text-foreground">커플 방에 공유하기</h2>
+                <button onClick={() => { setShareModalVendor(null); setShareModalComment("") }} className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
+                  <X className="size-4" />
+                </button>
+              </div>
+              <div className="px-5 py-4">
+                <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">[업체 공유] {shareModalVendor.name}</p>
+                  <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                    {shareModalVendor.address && <p>📍 {shareModalVendor.address}</p>}
+                    {shareModalVendor.price && <p>💰 {shareModalVendor.price}</p>}
+                    {shareModalVendor.rating > 0 && <p>⭐ {shareModalVendor.rating}</p>}
+                  </div>
+                </div>
+                <textarea
+                  value={shareModalComment}
+                  onChange={(e) => setShareModalComment(e.target.value)}
+                  placeholder="이 업체의 어떤 점이 마음에 드셨나요? 작성하면 AI가 더 잘 추천해줄 수 있어요"
+                  rows={3}
+                  className="mt-4 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex gap-2 border-t border-border px-5 py-4">
+                <button
+                  onClick={() => { setShareModalVendor(null); setShareModalComment("") }}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmShareVendor}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+                >
+                  <Send className="size-3.5" />
+                  커플 방에 공유
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
@@ -549,7 +925,7 @@ function getAIResponse(userMessage: string): string {
 - **드레스**: 로자스피사, 모니카블랑쉬 (150~300만원)
 - **메이크업**: 글로우 뷰티, 제니하우스 (80~150만원)
 
-예산 내에서 충분히 퀄리티 있는 웨딩이 가능합니다. 
+예산 내에서 충분히 퀄리티 있는 웨딩이 가능합니다.
 더 자세한 정보가 필요하시면 말씀해주세요!`
   }
 
@@ -589,4 +965,103 @@ function getAIResponse(userMessage: string): string {
 - 원하는 지역
 
 편하게 알려주세요!`
+}
+
+// ── AI 채팅 패널 (드래그앤드롭 지원) ──────────────────────
+function ChatPanelWithDrop({
+  messages,
+  isTyping,
+  messagesEndRef,
+  onSend,
+  attachedVendors,
+  onVendorDrop,
+  onRemoveVendor,
+  onOpenTab,
+}: {
+  messages: Message[]
+  isTyping: boolean
+  messagesEndRef: React.RefObject<HTMLDivElement | null>
+  onSend: (content: string) => void
+  attachedVendors: DroppedVendor[]
+  onVendorDrop: (vendor: DroppedVendor) => void
+  onRemoveVendor: (id: string) => void
+  onOpenTab: (type: string) => void
+}) {
+  const [dragOver, setDragOver] = useState(false)
+
+  return (
+    <div
+      className="flex h-full flex-col"
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("application/vendor-card")) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = "copy"
+          setDragOver(true)
+        }
+      }}
+      onDragLeave={(e) => {
+        // 자식 요소로의 이동은 무시
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setDragOver(false)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        const data = e.dataTransfer.getData("application/vendor-card")
+        if (!data) return
+        const vendor = JSON.parse(data) as DroppedVendor
+        onVendorDrop(vendor)
+      }}
+    >
+      {/* 헤더 */}
+      <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
+            <Sparkles className="size-5 text-primary" />
+          </div>
+          <h1 className="text-lg font-semibold text-foreground">AI 웨딩 플래너</h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onOpenTab("budget")}
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="예산"
+          >
+            <DollarSign className="size-4" />
+          </button>
+          <button
+            onClick={() => onOpenTab("schedule")}
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            title="일정"
+          >
+            <Calendar className="size-4" />
+          </button>
+        </div>
+      </div>
+      {/* 드래그 오버 시 전체 화면 인디케이터 */}
+      {dragOver && (
+        <div className="flex items-center justify-center gap-2 border-b border-primary/20 bg-primary/5 py-3 text-sm font-medium text-primary">
+          <Store className="size-4" />
+          업체를 놓아서 질문에 추가하기
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto bg-background">
+        <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+          {messages.map((message) => (
+            <ChatMessage key={message.id} role={message.role} content={message.content} />
+          ))}
+          {isTyping && <ChatMessage role="assistant" content="" isTyping />}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+      <ChatInput
+        onSend={onSend}
+        disabled={isTyping}
+        placeholder="AI에게 질문하세요..."
+        attachedVendors={attachedVendors}
+        onVendorDrop={onVendorDrop}
+        onRemoveVendor={onRemoveVendor}
+      />
+    </div>
+  )
 }

@@ -74,6 +74,7 @@ interface ChatSidebarProps {
   onLoadChat: (id: string) => void
   onPinChat: (id: string) => void
   onDeleteChat: (id: string) => void
+  openFloatingWindows?: string[]
 }
 
 interface SidebarItem {
@@ -186,13 +187,14 @@ export function ChatSidebar({
   onLoadChat,
   onPinChat,
   onDeleteChat,
+  openFloatingWindows = [],
 }: ChatSidebarProps) {
+  // 드래그 가능한 뷰 (플로팅 윈도우로 열 수 있는 항목)
+  const draggableViews = ["couple-chat", "vendors", "schedule", "vote", "budget"]
+
   const mainMenuItems: SidebarItem[] = [
     { icon: <CoupleChatIcon className="size-4" />, label: "커플 채팅", view: "couple-chat" },
-    { icon: <DollarSign className="size-4" />, label: "예산", view: "budget" },
     { icon: <Store className="size-4" />, label: "업체", view: "vendors" },
-    { icon: <Calendar className="size-4" />, label: "일정", view: "schedule" },
-    { icon: <Lock className="size-4" />, label: "비밀 투표", view: "vote" },
   ]
 
   // 고정 채팅 먼저, 최신순
@@ -265,6 +267,11 @@ export function ChatSidebar({
               collapsed && "justify-center px-0"
             )}
             onClick={onNewChat}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("application/floating-window", "chat")
+              e.dataTransfer.effectAllowed = "copy"
+            }}
           >
             <Plus className="size-4" />
             {!collapsed && <span className="font-medium">New Chat</span>}
@@ -273,17 +280,24 @@ export function ChatSidebar({
           <div className="my-3 h-px bg-sidebar-border" />
 
           {/* 메인 메뉴 */}
-          {mainMenuItems.map((item) => (
+          {mainMenuItems.map((item) => {
+            const isDraggable = draggableViews.includes(item.view)
+
+            return (
             <button
               key={item.view}
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                currentView === item.view
-                  ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                collapsed && "justify-center px-0"
+                "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                collapsed && "justify-center px-0",
+                isDraggable && "cursor-grab active:cursor-grabbing"
               )}
               onClick={() => onViewChange(item.view)}
+              draggable={isDraggable}
+              onDragStart={isDraggable ? (e) => {
+                e.dataTransfer.setData("application/floating-window", item.view)
+                e.dataTransfer.effectAllowed = "copy"
+              } : undefined}
             >
               <div className="relative shrink-0">
                 {item.icon}
@@ -310,7 +324,8 @@ export function ChatSidebar({
                 </span>
               )}
             </button>
-          ))}
+            )
+          })}
         </div>
 
         <div className="my-3 h-px bg-sidebar-border" />
