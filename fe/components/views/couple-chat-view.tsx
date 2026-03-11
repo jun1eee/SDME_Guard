@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from "react"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput } from "@/components/chat-input"
-import { Users, Bot, BotOff, Star, MapPin, Lock } from "lucide-react"
+import { Users, Bot, BotOff, Star, MapPin, Lock, Store } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { cn } from "@/lib/utils"
 
 export interface VendorShare {
   id: string
@@ -39,6 +40,7 @@ interface CoupleChatViewProps {
 }
 
 export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote }: CoupleChatViewProps) {
+  const [vendorDragOver, setVendorDragOver] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -160,7 +162,55 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto transition-colors",
+          vendorDragOver && "bg-primary/5"
+        )}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("application/vendor-card")) {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "copy"
+            setVendorDragOver(true)
+          }
+        }}
+        onDragLeave={() => setVendorDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setVendorDragOver(false)
+          const data = e.dataTransfer.getData("application/vendor-card")
+          if (!data) return
+          const vendor = JSON.parse(data) as VendorShare
+          const vendorShare: VendorShare = {
+            id: `share-${Date.now()}`,
+            vendorId: vendor.id ?? vendor.vendorId,
+            name: vendor.name,
+            category: (vendor.category as VendorShare["category"]) ?? "studio",
+            categoryLabel: vendor.categoryLabel ?? vendor.category,
+            price: vendor.price ?? "",
+            rating: vendor.rating ?? 0,
+            address: vendor.address ?? "",
+            tags: vendor.tags ?? [],
+            description: vendor.description ?? "",
+            sharedBy: currentUser,
+          }
+          const shareMsg: Message = {
+            id: vendorShare.id,
+            role: currentUser,
+            content: "",
+            sender: currentUser === "groom" ? groomName : brideName,
+            vendorShare,
+          }
+          setMessages((prev) => [...prev, shareMsg])
+        }}
+      >
+        {/* 드래그 오버 인디케이터 */}
+        {vendorDragOver && (
+          <div className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-primary">
+            <Store className="size-4" />
+            여기에 놓아서 업체 공유하기
+          </div>
+        )}
         <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
           {messages.map((message) => (
             <CoupleChatMessage

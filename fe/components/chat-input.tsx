@@ -1,17 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { Send, Plus, Mic } from "lucide-react"
+import { Send, Plus, Mic, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+interface DroppedVendor {
+  id: string
+  name: string
+  category: string
+  categoryLabel: string
+  price: string
+  rating: number
+}
 
 interface ChatInputProps {
   onSend: (message: string) => void
   disabled?: boolean
   placeholder?: string
+  onVendorDrop?: (vendor: DroppedVendor) => void
 }
 
-export function ChatInput({ onSend, disabled, placeholder = "메시지를 입력하세요..." }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, placeholder = "메시지를 입력하세요...", onVendorDrop }: ChatInputProps) {
   const [value, setValue] = useState("")
+  const [dragOver, setDragOver] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,8 +40,47 @@ export function ChatInput({ onSend, disabled, placeholder = "메시지를 입력
     }
   }
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("application/vendor-card")) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "copy"
+      setDragOver(true)
+    }
+  }
+
+  const handleDragLeave = () => setDragOver(false)
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const data = e.dataTransfer.getData("application/vendor-card")
+    if (!data) return
+    const vendor = JSON.parse(data) as DroppedVendor
+    if (onVendorDrop) {
+      onVendorDrop(vendor)
+    } else {
+      // 기본 동작: 업체 이름으로 질문 텍스트 생성
+      setValue(`"${vendor.name}" 업체에 대해 알려줘`)
+    }
+  }
+
   return (
-    <div className="border-t border-border bg-background/80 backdrop-blur-sm">
+    <div
+      className={cn(
+        "border-t border-border bg-background/80 backdrop-blur-sm transition-colors",
+        dragOver && "border-t-2 border-t-primary bg-primary/5"
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* 드래그 오버 인디케이터 */}
+      {dragOver && (
+        <div className="flex items-center justify-center gap-2 py-2 text-sm font-medium text-primary">
+          <Store className="size-4" />
+          여기에 놓아서 업체 질문하기
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="mx-auto max-w-3xl p-4">
         <div className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
           <Button

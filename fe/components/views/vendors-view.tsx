@@ -580,10 +580,28 @@ function VendorCard({
     setTimeout(() => setShareCopied(false), 2000)
   }
 
+  const handleDragStart = (e: React.DragEvent) => {
+    const vendorData = {
+      id: vendor.id,
+      name: vendor.name,
+      category: vendor.category,
+      categoryLabel: catLabel,
+      price: vendor.price,
+      rating: vendor.rating,
+      address: vendor.address ?? "",
+      tags: vendor.tags,
+      description: vendor.description,
+    }
+    e.dataTransfer.setData("application/vendor-card", JSON.stringify(vendorData))
+    e.dataTransfer.effectAllowed = "copy"
+  }
+
   return (
     <div
-      className="cursor-pointer overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md"
+      className="cursor-pointer overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
       onClick={onClick}
+      draggable
+      onDragStart={handleDragStart}
     >
       {/* Image placeholder */}
       <div className="relative h-52 bg-[#f0eaf2]">
