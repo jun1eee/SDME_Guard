@@ -190,14 +190,11 @@ export function ChatSidebar({
   openFloatingWindows = [],
 }: ChatSidebarProps) {
   // 드래그 가능한 뷰 (플로팅 윈도우로 열 수 있는 항목)
-  const draggableViews = ["couple-chat", "vendors"]
+  const draggableViews = ["couple-chat", "vendors", "schedule", "vote", "budget"]
 
   const mainMenuItems: SidebarItem[] = [
     { icon: <CoupleChatIcon className="size-4" />, label: "커플 채팅", view: "couple-chat" },
-    { icon: <DollarSign className="size-4" />, label: "예산", view: "budget" },
     { icon: <Store className="size-4" />, label: "업체", view: "vendors" },
-    { icon: <Calendar className="size-4" />, label: "일정", view: "schedule" },
-    { icon: <Lock className="size-4" />, label: "비밀 투표", view: "vote" },
   ]
 
   // 고정 채팅 먼저, 최신순
@@ -266,9 +263,7 @@ export function ChatSidebar({
           <button
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-              openFloatingWindows.includes("chat")
-                ? "bg-primary/20 text-primary ring-1 ring-primary/30"
-                : "bg-primary/10 text-primary hover:bg-primary/20",
+              "bg-primary/10 text-primary hover:bg-primary/20",
               collapsed && "justify-center px-0"
             )}
             onClick={onNewChat}
@@ -287,28 +282,20 @@ export function ChatSidebar({
           {/* 메인 메뉴 */}
           {mainMenuItems.map((item) => {
             const isDraggable = draggableViews.includes(item.view)
-            const isFloatingOpen = openFloatingWindows.includes(
-              item.view === "couple-chat" ? "couple-chat" : item.view === "vendors" ? "vendors" : ""
-            )
-            const isActive = currentView === item.view || isFloatingOpen
 
             return (
             <button
               key={item.view}
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                isFloatingOpen
-                  ? "bg-primary/15 text-primary font-medium ring-1 ring-primary/20"
-                  : isActive
-                  ? "bg-sidebar-accent text-sidebar-foreground font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 collapsed && "justify-center px-0",
                 isDraggable && "cursor-grab active:cursor-grabbing"
               )}
               onClick={() => onViewChange(item.view)}
               draggable={isDraggable}
               onDragStart={isDraggable ? (e) => {
-                e.dataTransfer.setData("application/floating-window", item.view === "couple-chat" ? "couple-chat" : "vendors")
+                e.dataTransfer.setData("application/floating-window", item.view)
                 e.dataTransfer.effectAllowed = "copy"
               } : undefined}
             >

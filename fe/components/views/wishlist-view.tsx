@@ -109,9 +109,9 @@ export function WishlistView() {
           <div className="mb-6">
             <div className="flex items-center gap-2">
               <Heart className="size-6 fill-primary text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">찜목록</h1>
+              <h1 className="text-2xl font-bold text-foreground">나의 찜목록</h1>
             </div>
-            <p className="mt-1 text-muted-foreground">관심 있는 업체를 모아보세요</p>
+            <p className="mt-1 text-muted-foreground">내가 관심 있는 업체를 모아보세요</p>
           </div>
 
           {/* Category Filter */}

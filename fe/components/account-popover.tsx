@@ -44,7 +44,7 @@ export function AccountPopover({
   const [open, setOpen] = useState(false)
 
   const menuItems: MenuItem[] = [
-    { icon: <Heart className="size-4" />, label: "찜목록", action: "wishlist" },
+    { icon: <Heart className="size-4" />, label: "나의 찜목록", action: "wishlist" },
     { icon: <CreditCard className="size-4" />, label: "결제내역", action: "payment" },
     { icon: <CalendarCheck className="size-4" />, label: "예약관리", action: "reservation" },
     { icon: <Star className="size-4" />, label: "리뷰관리", action: "reviews" },

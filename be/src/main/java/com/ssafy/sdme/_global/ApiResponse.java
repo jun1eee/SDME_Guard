@@ -3,7 +3,6 @@ package com.ssafy.sdme._global;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
-
 @Getter
 @JsonPropertyOrder({"status", "message", "data"})
 public class ApiResponse<T> {

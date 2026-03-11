@@ -5,7 +5,7 @@ import { X, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // ── 타입 ──────────────────────────────────────────────
-export type PanelTabType = "chat" | "couple-chat" | "vendors"
+export type PanelTabType = "chat" | "couple-chat" | "vendors" | "schedule" | "vote" | "budget" | "couple-wishlist"
 
 export interface PanelTab {
   id: string
@@ -26,6 +26,10 @@ const TAB_DOT_COLORS: Record<PanelTabType, string> = {
   chat: "bg-violet-500",
   "couple-chat": "bg-pink-500",
   vendors: "bg-emerald-500",
+  schedule: "bg-blue-500",
+  vote: "bg-amber-500",
+  budget: "bg-teal-500",
+  "couple-wishlist": "bg-red-500",
 }
 
 // ── 탭 바 ──────────────────────────────────────────────
