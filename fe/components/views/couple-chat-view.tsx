@@ -44,6 +44,7 @@ interface CoupleChatViewProps {
   onFavoriteVendor?: (vendor: VendorShare) => void
   onUnfavoriteVendor?: (vendorId: string) => void
   favoriteVendorIds?: string[]
+  onShareVendorFromDrop?: (vendor: { id: string; name: string; category: string; price: string; rating: number; address: string; tags: string[]; description: string }) => void
 }
 
 interface PendingVendor {
@@ -58,10 +59,8 @@ interface PendingVendor {
   description: string
 }
 
-export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [] }: CoupleChatViewProps) {
+export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [], onShareVendorFromDrop }: CoupleChatViewProps) {
   const [vendorDragOver, setVendorDragOver] = useState(false)
-  const [shareModalVendors, setShareModalVendors] = useState<PendingVendor[]>([])
-  const [shareComment, setShareComment] = useState("")
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -115,45 +114,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
   }
 
   const handleVendorDrop = (vendor: PendingVendor) => {
-    setShareModalVendors((prev) => prev.some((v) => v.id === vendor.id) ? prev : [...prev, vendor])
-  }
-
-  const handleShareConfirm = () => {
-    if (shareModalVendors.length === 0) return
-    const senderName = currentUser === "groom" ? groomName : brideName
-    const commentText = shareComment.trim() || undefined
-
-    const vendorMsgs: Message[] = shareModalVendors.map((v, idx) => {
-      const vendorShare: VendorShare = {
-        id: `share-${Date.now()}-${v.id}`,
-        vendorId: v.id,
-        name: v.name,
-        category: (v.category as VendorShare["category"]) ?? "studio",
-        categoryLabel: v.categoryLabel ?? v.category,
-        price: v.price ?? "",
-        rating: v.rating ?? 0,
-        address: v.address ?? "",
-        tags: v.tags ?? [],
-        description: v.description ?? "",
-        sharedBy: currentUser,
-      }
-      return {
-        id: vendorShare.id,
-        role: currentUser as "groom" | "bride",
-        content: "",
-        sender: senderName,
-        vendorShare,
-        ...(idx === 0 && commentText ? { comment: commentText } : {}),
-      }
-    })
-
-    setMessages((prev) => [...prev, ...vendorMsgs])
-    vendorMsgs.forEach((msg) => {
-      if (msg.vendorShare) onVendorShared?.(msg.vendorShare)
-    })
-    prevSharedLengthRef.current += vendorMsgs.length
-    setShareModalVendors([])
-    setShareComment("")
+    onShareVendorFromDrop?.(vendor)
   }
 
   const handleSend = (content: string) => {
@@ -291,6 +252,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
         onSend={handleSend}
         disabled={isTyping}
         placeholder={inputPlaceholder}
+        onVendorDrop={(vendor) => handleVendorDrop(vendor)}
         extraButton={
           <button
             type="button"
@@ -307,63 +269,6 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
         }
       />
 
-      {/* 업체 공유 모달 */}
-      {shareModalVendors.length > 0 && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { setShareModalVendors([]); setShareComment("") }} />
-          <div className="relative mx-4 w-full max-w-md rounded-2xl bg-background shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <h2 className="text-base font-semibold text-foreground">커플 방에 공유하기</h2>
-              <button onClick={() => { setShareModalVendors([]); setShareComment("") }} className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* 업체 정보 */}
-            <div className="max-h-60 overflow-y-auto px-5 py-4">
-              <div className="space-y-3">
-                {shareModalVendors.map((v) => (
-                  <div key={v.id} className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-                    <p className="text-sm font-semibold text-foreground">[업체 공유] {v.name}</p>
-                    <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                      {v.address && <p>📍 {v.address}</p>}
-                      {v.price && <p>💰 {v.price}</p>}
-                      {v.rating > 0 && <p>⭐ {v.rating}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 코멘트 입력 */}
-              <textarea
-                value={shareComment}
-                onChange={(e) => setShareComment(e.target.value)}
-                placeholder="이 업체의 어떤 점이 마음에 드셨나요? 작성하면 AI가 더 잘 추천해줄 수 있어요"
-                rows={3}
-                className="mt-4 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            {/* 하단 버튼 */}
-            <div className="flex gap-2 border-t border-border px-5 py-4">
-              <button
-                onClick={() => { setShareModalVendors([]); setShareComment("") }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleShareConfirm}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-              >
-                <Send className="size-3.5" />
-                커플 방에 공유
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

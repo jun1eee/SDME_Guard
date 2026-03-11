@@ -499,6 +499,19 @@ export default function ChatPage() {
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            onShareVendorFromDrop={(vendor) => {
+              setShareModalVendor({
+                id: vendor.id,
+                name: vendor.name,
+                category: vendor.category as "studio" | "dress" | "makeup" | "venue",
+                price: vendor.price,
+                rating: vendor.rating,
+                address: vendor.address,
+                tags: vendor.tags,
+                description: vendor.description,
+              })
+              setShareModalComment("")
+            }}
           />
         )
 
