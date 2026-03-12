@@ -194,6 +194,8 @@ export function ChatSidebar({
 
   const mainMenuItems: SidebarItem[] = [
     { icon: <CoupleChatIcon className="size-4" />, label: "커플 채팅", view: "couple-chat" },
+    { icon: <DollarSign className="size-4" />, label: "커플 예산", view: "budget" },
+    { icon: <Calendar className="size-4" />, label: "커플 일정", view: "schedule" },
     { icon: <Store className="size-4" />, label: "업체", view: "vendors" },
   ]
 
