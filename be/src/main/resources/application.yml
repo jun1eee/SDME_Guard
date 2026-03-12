@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: optional:file:be/.env[.properties]
   application:
     name: sdme
   profiles:
