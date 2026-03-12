@@ -422,28 +422,12 @@ export default function ChatPage() {
           return (
             <div className="flex h-full flex-col">
               {/* 헤더 */}
-              <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+              <div className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
                     <Sparkles className="size-5 text-primary" />
                   </div>
                   <h1 className="text-lg font-semibold text-foreground">AI 웨딩 플래너</h1>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => addPanelTab("budget", "right")}
-                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    title="예산"
-                  >
-                    <DollarSign className="size-4" />
-                  </button>
-                  <button
-                    onClick={() => addPanelTab("schedule", "right")}
-                    className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    title="일정"
-                  >
-                    <Calendar className="size-4" />
-                  </button>
                 </div>
               </div>
               <WelcomeScreen
@@ -478,7 +462,7 @@ export default function ChatPage() {
             brideName={weddingConfig.brideName}
             currentUser={userRole}
             sharedVendors={sharedVendors}
-            onAddToVote={(v) => handleAddToVote(v, "partner-share")}
+            onAddToVote={(v) => handleAddToVote({ ...v, id: v.vendorId }, "partner-share")}
             onOpenTab={(type) => {
               if (type.startsWith("vendor:")) {
                 const vendorId = type.split(":")[1]
@@ -486,6 +470,7 @@ export default function ChatPage() {
                 addPanelTab("vendors", "right")
               } else {
                 addPanelTab(type as PanelTabType, "right")
+                if (type === "vote") setVoteBadge(0)
               }
             }}
             onVendorShared={(vendor) => {
@@ -499,6 +484,25 @@ export default function ChatPage() {
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            voteBadge={voteBadge}
+            onShareVendorFromDrop={(vendor) => {
+              setShareModalVendor({
+                id: vendor.id,
+                name: vendor.name,
+                category: vendor.category as "studio" | "dress" | "makeup" | "venue",
+                price: vendor.price,
+                rating: vendor.rating,
+                address: vendor.address,
+                tags: vendor.tags,
+                description: vendor.description,
+              })
+              setShareModalComment("")
+            }}
+            onUnshareVendor={(vendorId) => {
+              setSharedVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
+              setPendingVoteItems((prev) => prev.filter((v) => !v.id.startsWith(`vote-${vendorId}-`)))
+              toast.success("공유가 취소됐어요", { duration: 2000 })
+            }}
           />
         )
 
@@ -751,7 +755,7 @@ export default function ChatPage() {
                 <textarea
                   value={shareModalComment}
                   onChange={(e) => setShareModalComment(e.target.value)}
-                  placeholder="이 업체의 어떤 점이 마음에 드셨나요? 작성하면 AI가 더 잘 추천해줄 수 있어요"
+                  placeholder="이 업체의 어떤 점이 마음에 드셨나요? 작성하면 AI가 더 잘 추천해줄 수 있어요 (선택 사항)"
                   rows={3}
                   className="mt-4 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -1014,28 +1018,12 @@ function ChatPanelWithDrop({
       }}
     >
       {/* 헤더 */}
-      <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+      <div className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="size-5 text-primary" />
           </div>
           <h1 className="text-lg font-semibold text-foreground">AI 웨딩 플래너</h1>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => onOpenTab("budget")}
-            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="예산"
-          >
-            <DollarSign className="size-4" />
-          </button>
-          <button
-            onClick={() => onOpenTab("schedule")}
-            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="일정"
-          >
-            <Calendar className="size-4" />
-          </button>
         </div>
       </div>
       {/* 드래그 오버 시 전체 화면 인디케이터 */}

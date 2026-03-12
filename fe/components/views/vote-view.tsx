@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import {
   Lock, CheckCircle2, Clock,
   Sparkles, Heart, MessageSquareDiff,
-  RotateCcw, Trash2,
+  RotateCcw, Trash2, ChevronDown,
+  ThumbsUp, ThumbsDown, Minus, EyeOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,8 +17,7 @@ type VoteScore = "great" | "good" | "neutral" | "bad" | "discuss"
 interface VoteOption {
   value: VoteScore
   label: string
-  emoji: string
-  color: string
+  icon: "heart" | "thumbsUp" | "minus" | "thumbsDown" | "messageCircle"
   selectedBg: string
   selectedText: string
   selectedRing: string
@@ -26,57 +26,60 @@ interface VoteOption {
 const VOTE_OPTIONS: VoteOption[] = [
   {
     value: "great",
-    label: "매우 좋음",
-    emoji: "💕",
-    color: "text-rose-500",
-    selectedBg: "bg-rose-50 dark:bg-rose-950/40",
-    selectedText: "text-rose-600 dark:text-rose-400",
-    selectedRing: "ring-2 ring-rose-400",
+    label: "강추",
+    icon: "heart",
+    selectedBg: "bg-slate-50 dark:bg-slate-800/60",
+    selectedText: "text-slate-600 dark:text-slate-400",
+    selectedRing: "ring-2 ring-slate-400",
   },
   {
     value: "good",
-    label: "좋음",
-    emoji: "😊",
-    color: "text-pink-500",
-    selectedBg: "bg-pink-50 dark:bg-pink-950/40",
-    selectedText: "text-pink-600 dark:text-pink-400",
-    selectedRing: "ring-2 ring-pink-400",
+    label: "좋아요",
+    icon: "thumbsUp",
+    selectedBg: "bg-slate-50 dark:bg-slate-800/60",
+    selectedText: "text-slate-600 dark:text-slate-400",
+    selectedRing: "ring-2 ring-slate-400",
   },
   {
     value: "neutral",
-    label: "보통",
-    emoji: "😐",
-    color: "text-amber-500",
-    selectedBg: "bg-amber-50 dark:bg-amber-950/40",
-    selectedText: "text-amber-600 dark:text-amber-400",
-    selectedRing: "ring-2 ring-amber-400",
+    label: "글쎄",
+    icon: "minus",
+    selectedBg: "bg-slate-50 dark:bg-slate-800/60",
+    selectedText: "text-slate-600 dark:text-slate-400",
+    selectedRing: "ring-2 ring-slate-400",
   },
   {
     value: "bad",
     label: "별로",
-    emoji: "😕",
-    color: "text-slate-500",
+    icon: "thumbsDown",
     selectedBg: "bg-slate-50 dark:bg-slate-800/60",
     selectedText: "text-slate-600 dark:text-slate-400",
     selectedRing: "ring-2 ring-slate-400",
   },
   {
     value: "discuss",
-    label: "개별로",
-    emoji: "🤝",
-    color: "text-purple-500",
-    selectedBg: "bg-purple-50 dark:bg-purple-950/40",
-    selectedText: "text-purple-600 dark:text-purple-400",
-    selectedRing: "ring-2 ring-purple-400",
+    label: "관심없음",
+    icon: "messageCircle",
+    selectedBg: "bg-slate-50 dark:bg-slate-800/60",
+    selectedText: "text-slate-600 dark:text-slate-400",
+    selectedRing: "ring-2 ring-slate-400",
   },
 ]
 
-const scoreLabel: Record<VoteScore, string> = {
-  great: "💕 매우 좋음",
-  good: "😊 좋음",
-  neutral: "😐 보통",
-  bad: "😕 별로",
-  discuss: "🤝 개별로",
+const VOTE_ICONS: Record<VoteOption["icon"], typeof Heart> = {
+  heart: Heart,
+  thumbsUp: ThumbsUp,
+  minus: Minus,
+  thumbsDown: ThumbsDown,
+  messageCircle: EyeOff,
+}
+
+const scoreLabel: Record<VoteScore, { icon: VoteOption["icon"]; label: string; badgeBg: string; badgeText: string }> = {
+  great: { icon: "heart", label: "강추", badgeBg: "bg-rose-50 dark:bg-rose-950/40", badgeText: "text-rose-600 dark:text-rose-400" },
+  good: { icon: "thumbsUp", label: "좋아요", badgeBg: "bg-blue-50 dark:bg-blue-950/40", badgeText: "text-blue-600 dark:text-blue-400" },
+  neutral: { icon: "minus", label: "글쎄", badgeBg: "bg-amber-50 dark:bg-amber-950/40", badgeText: "text-amber-600 dark:text-amber-400" },
+  bad: { icon: "thumbsDown", label: "별로", badgeBg: "bg-slate-100 dark:bg-slate-800/60", badgeText: "text-slate-500 dark:text-slate-400" },
+  discuss: { icon: "messageCircle", label: "관심없음", badgeBg: "bg-purple-50 dark:bg-purple-950/40", badgeText: "text-purple-600 dark:text-purple-400" },
 }
 
 type Source = "ai" | "my-wish" | "partner-share"
@@ -159,47 +162,23 @@ const INITIAL_ITEMS: VendorItem[] = [
   },
 ]
 
-// ─── Source Badge ─────────────────────────────────────────────────────────────
+const CATEGORY_ORDER = ["웨딩홀", "스튜디오", "드레스", "메이크업"] as const
 
-function SourceBadge({ source }: { source: Source }) {
-  if (source === "ai") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
-        <Sparkles className="size-3" />
-        AI 추천
-      </span>
-    )
-  }
-  if (source === "my-wish") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
-        <Heart className="size-3 fill-current" />
-        내가 찜
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-600 dark:bg-sky-950/50 dark:text-sky-400">
-      <MessageSquareDiff className="size-3" />
-      파트너 공유
-    </span>
-  )
+const CATEGORY_ICON: Record<string, string> = {
+  웨딩홀: "🏛️",
+  스튜디오: "📷",
+  드레스: "👗",
+  메이크업: "💄",
 }
 
-// ─── Category Badge ───────────────────────────────────────────────────────────
 
-const categoryStyle: Record<string, string> = {
-  웨딩홀: "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400",
-  스튜디오: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
-  드레스: "bg-pink-50 text-pink-600 dark:bg-pink-950/40 dark:text-pink-400",
-  메이크업: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400",
-}
+// ─── Compact Vote Row ────────────────────────────────────────────────────────
 
-// ─── Vote Card ────────────────────────────────────────────────────────────────
-
-function VoteCard({
+function CompactVoteRow({
   item,
   myVote,
+  isExpanded,
+  onToggle,
   currentUser,
   onVoteSubmit,
   onVoteDelete,
@@ -207,18 +186,19 @@ function VoteCard({
 }: {
   item: VendorItem
   myVote: MyVote | null
+  isExpanded: boolean
+  onToggle: () => void
   currentUser: "groom" | "bride"
   onVoteSubmit: (id: string, score: VoteScore, reason: string) => void
   onVoteDelete: (id: string) => void
   onItemDelete: (id: string) => void
 }) {
-  const [isEditing, setIsEditing] = useState(!myVote)
+  const [isEditing, setIsEditing] = useState(false)
   const [selectedScore, setSelectedScore] = useState<VoteScore | null>(myVote?.score ?? null)
   const [reason, setReason] = useState(myVote?.reason ?? "")
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmItemDelete, setConfirmItemDelete] = useState(false)
 
-  const bothVoted = myVote && item.partnerVoted
   const isVoted = !!myVote
 
   const handleSubmit = () => {
@@ -240,151 +220,146 @@ function VoteCard({
     setIsEditing(false)
   }
 
-  const currentOption = VOTE_OPTIONS.find(o => o.value === selectedScore)
+  // 펼칠 때 미투표면 자동으로 편집 모드
+  useEffect(() => {
+    if (isExpanded && !myVote) {
+      setIsEditing(true)
+    }
+  }, [isExpanded, myVote])
 
   return (
-    <div className={`overflow-hidden rounded-2xl bg-card shadow-sm transition-shadow hover:shadow-md ${
-      isVoted && !isEditing ? "border border-border" : "border-2 border-primary/20"
-    }`}>
-      {/* Vendor Info */}
-      <div className="flex items-start gap-3 p-4">
-        <div className={`flex size-14 shrink-0 items-center justify-center rounded-xl text-2xl ${item.imageBg}`}>
-          {item.imageEmoji}
-        </div>
+    <div className="border-b border-border last:border-b-0">
+      {/* 컴팩트 행 */}
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+      >
+        {/* 업체명 + 가격 */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${categoryStyle[item.category] ?? ""}`}>
-              {item.category}
-            </span>
-            <SourceBadge source={item.source} />
-            {myVote?.isEdited && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
-                <RotateCcw className="size-2.5" />
-                수정됨
+          <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+          <p className="text-xs text-muted-foreground">{item.location} · {item.price}</p>
+        </div>
+
+        {/* 투표 상태 뱃지 */}
+        <div className="shrink-0">
+          {myVote ? (() => {
+            const sl = scoreLabel[myVote.score]
+            const Icon = VOTE_ICONS[sl.icon]
+            return (
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${sl.badgeBg} ${sl.badgeText}`}>
+                <Icon className="size-3" />
+                {sl.label}
               </span>
-            )}
-          </div>
-          <h3 className="font-semibold text-foreground truncate">{item.name}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{item.location} · {item.price}</p>
+            )
+          })() : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+              미투표
+            </span>
+          )}
         </div>
-        {/* Item delete button */}
-        <button
-          onClick={() => setConfirmItemDelete(true)}
-          className="shrink-0 rounded-lg p-1.5 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
-          aria-label="투표 항목 삭제"
-        >
-          <Trash2 className="size-4" />
-        </button>
-      </div>
 
-      {/* Item delete confirm */}
-      {confirmItemDelete && (
-        <div className="mx-4 mb-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
-          <p className="text-sm text-foreground font-medium">이 항목을 목록에서 삭제할까요?</p>
-          <p className="text-xs text-muted-foreground">투표 목록에서 완전히 제거돼요.</p>
-          <div className="flex gap-2">
+        {/* 파트너 투표 여부 */}
+        <div className="shrink-0">
+          {item.partnerVoted ? (
+            <CheckCircle2 className="size-4 text-emerald-500" />
+          ) : (
+            <Clock className="size-4 text-muted-foreground/40" />
+          )}
+        </div>
+
+        {/* 펼치기 화살표 */}
+        <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {/* 펼쳐진 영역 */}
+      {isExpanded && (
+        <div className="border-t border-border/60 bg-muted/20 px-4 py-3 space-y-3">
+          {/* 상단: 파트너 상태 + 삭제 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {item.partnerVoted ? (
+                <>
+                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <span>{currentUser === "groom" ? "신부" : "신랑"} 투표 완료</span>
+                  {!myVote && <Lock className="size-3 opacity-60" />}
+                </>
+              ) : (
+                <>
+                  <Clock className="size-3.5" />
+                  <span>{currentUser === "groom" ? "신부" : "신랑"} 아직 투표 안 함</span>
+                </>
+              )}
+            </div>
             <button
-              onClick={() => setConfirmItemDelete(false)}
-              className="flex-1 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+              onClick={() => setConfirmItemDelete(true)}
+              className="rounded p-1 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
-              취소
-            </button>
-            <button
-              onClick={() => onItemDelete(item.id)}
-              className="flex-1 rounded-lg bg-destructive py-2 text-xs font-medium text-white hover:bg-destructive/90 transition-colors"
-            >
-              삭제하기
+              <Trash2 className="size-3.5" />
             </button>
           </div>
-        </div>
-      )}
 
-      {/* Partner Status Strip */}
-      <div className="mx-4 mb-3 flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <div className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
-            currentUser === "groom"
-              ? "bg-pink-100 text-pink-600"
-              : "bg-blue-100 text-blue-600"
-          }`}>
-            {currentUser === "groom" ? "신" : "신"}
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {currentUser === "groom" ? "신부" : "신랑"}의 투표
-          </span>
-        </div>
-        {item.partnerVoted ? (
-          <div className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="size-3.5" />
-            투표 완료
-            {!bothVoted && <Lock className="size-3 ml-0.5 opacity-60" />}
-          </div>
-        ) : (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="size-3.5" />
-            아직 투표 안 함
-          </div>
-        )}
-      </div>
-
-      {/* Both Voted Badge */}
-      {bothVoted && (
-        <div className="mx-4 mb-3 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
-          <CheckCircle2 className="size-3.5" />
-          둘 다 투표 완료!
-        </div>
-      )}
-
-      {/* My Vote Form / Result */}
-      <div className="px-4 pb-4">
-        <div className="rounded-xl bg-background border border-border/60 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              내 투표
-            </p>
-            {isVoted && !isEditing && (
-              <div className="flex items-center gap-3">
+          {/* 항목 삭제 확인 */}
+          {confirmItemDelete && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
+              <p className="text-sm text-foreground font-medium">이 항목을 삭제할까요?</p>
+              <div className="flex gap-2">
                 <button
-                  onClick={handleEdit}
-                  className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  onClick={() => setConfirmItemDelete(false)}
+                  className="flex-1 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
                 >
-                  <RotateCcw className="size-3" />
-                  수정하기
+                  취소
                 </button>
                 <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+                  onClick={() => onItemDelete(item.id)}
+                  className="flex-1 rounded-lg bg-destructive py-2 text-xs font-medium text-white hover:bg-destructive/90 transition-colors"
                 >
-                  <Trash2 className="size-3" />
                   삭제
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* Voted Summary (not editing) */}
-          {isVoted && !isEditing && myVote && !confirmDelete && (
-            <div className="space-y-2">
-              <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${
-                VOTE_OPTIONS.find(o => o.value === myVote.score)?.selectedBg ?? ""
-              } ${
-                VOTE_OPTIONS.find(o => o.value === myVote.score)?.selectedText ?? ""
-              }`}>
-                {scoreLabel[myVote.score]}
-              </div>
-              {myVote.reason && (
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  "{myVote.reason}"
-                </p>
-              )}
             </div>
           )}
 
-          {/* Delete confirm */}
+          {/* 투표 결과 (투표 완료 + 편집 아닌 상태) */}
+          {isVoted && !isEditing && myVote && !confirmDelete && (
+            <div className="rounded-xl bg-background border border-border/60 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const sl = scoreLabel[myVote.score]
+                    const Icon = VOTE_ICONS[sl.icon]
+                    return (
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${sl.badgeBg} ${sl.badgeText}`}>
+                        <Icon className="size-3.5" />
+                        {sl.label}
+                      </span>
+                    )
+                  })()}
+                  {myVote.reason && (
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">"{myVote.reason}"</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleEdit}
+                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 투표 삭제 확인 */}
           {confirmDelete && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
               <p className="text-sm text-foreground font-medium">투표를 삭제할까요?</p>
-              <p className="text-xs text-muted-foreground">삭제하면 내 투표 내용이 사라져요.</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmDelete(false)}
@@ -402,49 +377,50 @@ function VoteCard({
                   }}
                   className="flex-1 rounded-lg bg-destructive py-2 text-xs font-medium text-white hover:bg-destructive/90 transition-colors"
                 >
-                  삭제하기
+                  삭제
                 </button>
               </div>
             </div>
           )}
 
-          {/* Vote Form */}
+          {/* 투표 폼 */}
           {isEditing && (
             <div className="space-y-3">
-              {/* Score Options */}
               <div className="grid grid-cols-5 gap-1.5">
-                {VOTE_OPTIONS.map(option => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSelectedScore(option.value)}
-                    className={`flex flex-col items-center gap-1 rounded-xl p-2 text-center transition-all ${
-                      selectedScore === option.value
-                        ? `${option.selectedBg} ${option.selectedRing} scale-105`
-                        : "bg-muted/60 hover:bg-muted"
-                    }`}
-                  >
-                    <span className="text-xl leading-none">{option.emoji}</span>
-                    <span className={`text-[10px] font-medium leading-tight ${
-                      selectedScore === option.value ? option.selectedText : "text-muted-foreground"
-                    }`}>
-                      {option.label}
-                    </span>
-                  </button>
-                ))}
+                {VOTE_OPTIONS.map(option => {
+                  const Icon = VOTE_ICONS[option.icon]
+                  const isSelected = selectedScore === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setSelectedScore(option.value)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-center transition-all ${
+                        isSelected
+                          ? `${option.selectedBg} ${option.selectedRing} scale-105`
+                          : "bg-background hover:bg-muted"
+                      }`}
+                    >
+                      <Icon className={`size-5 ${
+                        isSelected ? option.selectedText : "text-muted-foreground"
+                      }`} />
+                      <span className={`text-[10px] font-medium leading-tight ${
+                        isSelected ? option.selectedText : "text-muted-foreground"
+                      }`}>
+                        {option.label}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
 
-              {/* Reason Input */}
-              <div>
-                <Textarea
-                  placeholder="이유를 적어보세요 (선택사항)"
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
-                  rows={2}
-                  className="resize-none text-sm bg-muted/40 border-border/60 placeholder:text-muted-foreground/60"
-                />
-              </div>
+              <Textarea
+                placeholder="이유를 적어보세요 (선택사항)"
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                rows={2}
+                className="resize-none text-sm bg-background border-border/60 placeholder:text-muted-foreground/60"
+              />
 
-              {/* Actions */}
               <div className="flex gap-2">
                 {myVote && (
                   <Button
@@ -468,7 +444,7 @@ function VoteCard({
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -496,7 +472,6 @@ function VoteProgressBar({
         <span className="text-xs text-muted-foreground">{total}개 업체</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {/* My progress */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className={`font-medium ${currentUser === "groom" ? "text-blue-600" : "text-primary"}`}>
@@ -509,11 +484,10 @@ function VoteProgressBar({
               className={`h-full rounded-full transition-all duration-500 ${
                 currentUser === "groom" ? "bg-blue-400" : "bg-primary"
               }`}
-              style={{ width: `${(myCount / total) * 100}%` }}
+              style={{ width: `${total > 0 ? (myCount / total) * 100 : 0}%` }}
             />
           </div>
         </div>
-        {/* Partner progress */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className={`font-medium ${currentUser === "groom" ? "text-primary" : "text-blue-600"}`}>
@@ -526,15 +500,15 @@ function VoteProgressBar({
               className={`h-full rounded-full transition-all duration-500 ${
                 currentUser === "groom" ? "bg-primary" : "bg-blue-400"
               }`}
-              style={{ width: `${(partnerCount / total) * 100}%` }}
+              style={{ width: `${total > 0 ? (partnerCount / total) * 100 : 0}%` }}
             />
           </div>
         </div>
       </div>
-      {myCount === total && partnerCount === total && (
+      {myCount === total && partnerCount === total && total > 0 && (
         <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
           <CheckCircle2 className="size-4" />
-          두 분 모두 투표 완료! 결과를 확인해보세요 🎉
+          두 분 모두 투표 완료! 결과를 확인해보세요
         </div>
       )}
     </div>
@@ -555,26 +529,29 @@ export function VoteView({
 
   useEffect(() => {
     if (pendingItems.length > prevPendingLengthRef.current) {
+      // 새 아이템 추가
       const newItems = pendingItems.slice(prevPendingLengthRef.current)
       setItems(prev => {
         const existingIds = new Set(prev.map(i => i.id))
         return [...prev, ...newItems.filter(i => !existingIds.has(i.id))]
       })
-      prevPendingLengthRef.current = pendingItems.length
+    } else if (pendingItems.length < prevPendingLengthRef.current) {
+      // 아이템 삭제 반영
+      const pendingIds = new Set(pendingItems.map(i => i.id))
+      setItems(prev => prev.filter(i => !i.id.startsWith("vote-") || pendingIds.has(i.id)))
     }
+    prevPendingLengthRef.current = pendingItems.length
   }, [pendingItems])
 
   const [myVotes, setMyVotes] = useState<Record<string, MyVote>>({})
   const [filter, setFilter] = useState<"전체" | "미투표" | "투표완료">("전체")
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER))
 
   const handleVoteSubmit = (id: string, score: VoteScore, reason: string) => {
     setMyVotes(prev => ({
       ...prev,
-      [id]: {
-        score,
-        reason,
-        isEdited: !!prev[id],
-      },
+      [id]: { score, reason, isEdited: !!prev[id] },
     }))
   }
 
@@ -593,6 +570,7 @@ export function VoteView({
       delete next[id]
       return next
     })
+    if (expandedId === id) setExpandedId(null)
   }
 
   const myVoteCount = Object.keys(myVotes).length
@@ -603,6 +581,18 @@ export function VoteView({
     if (filter === "투표완료") return !!myVotes[item.id]
     return true
   })
+
+  // 카테고리별 그룹핑
+  const grouped = useMemo(() => {
+    const map: Record<string, VendorItem[]> = {}
+    for (const item of filteredItems) {
+      if (!map[item.category]) map[item.category] = []
+      map[item.category].push(item)
+    }
+    return CATEGORY_ORDER
+      .filter(cat => map[cat] && map[cat].length > 0)
+      .map(cat => ({ category: cat, items: map[cat] }))
+  }, [filteredItems])
 
   const categories = ["전체", "미투표", "투표완료"] as const
 
@@ -619,7 +609,7 @@ export function VoteView({
             <h1 className="text-2xl font-bold text-foreground">비밀 투표</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            AI가 추천한 업체에 대해 각자 비밀리에 투표해요. 상대방의 투표는 볼 수 없어요.
+            각자 비밀리에 투표해요. 둘 다 완료하면 결과를 확인할 수 있어요.
           </p>
         </div>
 
@@ -659,16 +649,15 @@ export function VoteView({
         </div>
 
         {/* Info note */}
-        <div className="flex items-start gap-2 rounded-xl bg-violet-50/60 border border-violet-100 px-3 py-2.5 dark:bg-violet-950/20 dark:border-violet-900">
-          <Lock className="size-3.5 text-violet-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-violet-600 dark:text-violet-400 leading-relaxed">
-            내 투표 내용은 상대방에게 보이지 않아요. 둘 다 투표를 완료하면 결과를 함께 확인할 수 있어요.
-            투표는 언제든지 수정 가능해요.
+        <div className="flex items-start gap-2 rounded-xl bg-muted/60 border border-border px-3 py-2.5">
+          <Lock className="size-3.5 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            내 투표는 상대방에게 보이지 않아요. 둘 다 투표를 완료하면 결과를 함께 확인할 수 있어요.
           </p>
         </div>
 
-        {/* Vote cards */}
-        {filteredItems.length === 0 ? (
+        {/* 카테고리별 그룹 */}
+        {grouped.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <CheckCircle2 className="size-12 text-primary/30 mb-3" />
             <p className="font-medium text-foreground">
@@ -680,17 +669,48 @@ export function VoteView({
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredItems.map(item => (
-              <VoteCard
-                key={item.id}
-                item={item}
-                myVote={myVotes[item.id] ?? null}
-                currentUser={currentUser}
-                onVoteSubmit={handleVoteSubmit}
-                onVoteDelete={handleVoteDelete}
-                onItemDelete={handleItemDelete}
-              />
-            ))}
+            {grouped.map(({ category, items: catItems }) => {
+              const votedCount = catItems.filter(i => myVotes[i.id]).length
+              return (
+                <div key={category} className="overflow-hidden rounded-2xl bg-card border border-border shadow-sm">
+                  {/* 카테고리 헤더 */}
+                  <button
+                    onClick={() => setCollapsedCategories(prev => {
+                      const next = new Set(prev)
+                      next.has(category) ? next.delete(category) : next.add(category)
+                      return next
+                    })}
+                    className="flex w-full items-center justify-between px-4 py-3 bg-muted/30 transition-colors hover:bg-muted/50"
+                  >
+                    <h3 className="text-sm font-semibold text-foreground">
+                      <span className="mr-1.5">{CATEGORY_ICON[category]}</span>
+                      {category}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {votedCount}/{catItems.length} 투표
+                      </span>
+                      <ChevronDown className={`size-4 text-muted-foreground transition-transform ${collapsedCategories.has(category) ? "-rotate-90" : ""}`} />
+                    </div>
+                  </button>
+
+                  {/* 업체 리스트 */}
+                  {!collapsedCategories.has(category) && catItems.map(item => (
+                    <CompactVoteRow
+                      key={item.id}
+                      item={item}
+                      myVote={myVotes[item.id] ?? null}
+                      isExpanded={expandedId === item.id}
+                      onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                      currentUser={currentUser}
+                      onVoteSubmit={handleVoteSubmit}
+                      onVoteDelete={handleVoteDelete}
+                      onItemDelete={handleItemDelete}
+                    />
+                  ))}
+                </div>
+              )
+            })}
           </div>
         )}
 

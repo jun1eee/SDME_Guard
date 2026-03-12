@@ -20,6 +20,7 @@ interface BudgetItem {
   name: string
   amount: number
   isPaid: boolean
+  isCustom?: boolean
 }
 
 interface BudgetViewProps {
@@ -36,6 +37,7 @@ const PALETTE = [
   { stroke: "#b86a82", bg: "#f8dde7", text: "#904060" }, // mid rose
   { stroke: "#8a3a58", bg: "#f0ccd8", text: "#602030" }, // darkest rose
 ]
+const REMAINING_COLOR = { stroke: "#dfe6e9", bg: "#f5f6fa", text: "#636e72" } // 회색 (남은 예산)
 
 const PRESET_CATEGORIES = ["웨딩홀", "스튜디오", "드레스", "메이크업", "허니문", "기타"]
 
@@ -73,12 +75,14 @@ const GAP = 4  // 세그먼트 사이 간격 (svg units)
 function buildSegments(
   categoryTotals: { category: string; amount: number }[],
   total: number,
+  totalBudget: number,
   colorMap: Record<string, number>
 ) {
-  if (total === 0) return []
+  if (total === 0 && totalBudget === 0) return []
+  const base = Math.max(total, totalBudget)
   let cumulativeArc = 0
-  return categoryTotals.map((cat) => {
-    const fraction = cat.amount / total
+  const segs = categoryTotals.map((cat) => {
+    const fraction = cat.amount / base
     const fullArc = fraction * CIRCUMFERENCE
     const arcLength = Math.max(0, fullArc - GAP)
     const dashOffset = CIRCUMFERENCE / 4 - cumulativeArc
@@ -90,8 +94,27 @@ function buildSegments(
       arcLength,
       dashOffset,
       color: PALETTE[colorIdx % PALETTE.length],
+      isRemaining: false,
     }
   })
+  // 남은 예산 회색 세그먼트
+  const remaining = totalBudget - total
+  if (remaining > 0) {
+    const fraction = remaining / base
+    const fullArc = fraction * CIRCUMFERENCE
+    const arcLength = Math.max(0, fullArc - GAP)
+    const dashOffset = CIRCUMFERENCE / 4 - cumulativeArc
+    segs.push({
+      category: "남은 예산",
+      amount: remaining,
+      fraction,
+      arcLength,
+      dashOffset,
+      color: REMAINING_COLOR,
+      isRemaining: true,
+    })
+  }
+  return segs
 }
 
 // ── 유틸 ──────────────────────────────────────────────────────
@@ -99,9 +122,18 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("ko-KR").format(n)
 
 const fmtShort = (n: number) => {
-  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`
-  if (n >= 10000000) return `${(n / 10000000).toFixed(0)}천만`
-  if (n >= 10000) return `${(n / 10000).toFixed(0)}만`
+  if (n >= 100000000) {
+    const eok = Math.floor(n / 100000000)
+    const remainder = n % 100000000
+    if (remainder === 0) return `${eok}억`
+    return `${eok}억 ${fmtShort(remainder)}`
+  }
+  if (n >= 10000) {
+    const man = Math.floor(n / 10000)
+    const remainder = n % 10000
+    if (remainder === 0) return `${fmt(man)}만`
+    return `${fmt(man)}만 ${fmt(remainder)}`
+  }
   return fmt(n)
 }
 
@@ -111,6 +143,7 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAmount, setEditAmount] = useState("")
+  const [editName, setEditName] = useState("")
   const [totalBudget, setTotalBudget] = useState(initialBudget)
   const [editingBudget, setEditingBudget] = useState(false)
   // 만원 단위로 표시/입력
@@ -145,8 +178,8 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
   )
 
   const segments = useMemo(
-    () => buildSegments(categoryTotals, total, colorMap),
-    [categoryTotals, total, colorMap]
+    () => buildSegments(categoryTotals, total, totalBudget, colorMap),
+    [categoryTotals, total, totalBudget, colorMap]
   )
 
   const paidAmount = items.filter((i) => i.isPaid).reduce((s, i) => s + i.amount, 0)
@@ -159,15 +192,16 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
   const deleteItem = (id: string) =>
     setItems((prev) => prev.filter((i) => i.id !== id))
 
-  const startEdit = (id: string, amount: number) => {
+  const startEdit = (id: string, name: string, amount: number) => {
     setEditingId(id)
+    setEditName(name)
     setEditAmount(amount.toString())
   }
 
   const saveEdit = (id: string) => {
     const parsed = parseInt(editAmount)
-    if (!isNaN(parsed) && parsed > 0) {
-      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, amount: parsed } : i)))
+    if (!isNaN(parsed) && parsed > 0 && editName.trim()) {
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: editName.trim(), amount: parsed } : i)))
     }
     setEditingId(null)
   }
@@ -226,19 +260,37 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
             </p>
           </div>
 
-          <div className="flex flex-col items-center gap-6 px-6 py-6 sm:flex-row sm:items-start">
+          {/* 예산 대비 진행률 — full width */}
+          <div className="px-6 pt-4 pb-2">
+            <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+              <span>총 예산 사용률</span>
+              <span className="font-medium text-foreground">{budgetUsedPct.toFixed(1)}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${budgetUsedPct}%`,
+                  background: budgetUsedPct > 90
+                    ? "#ef4444"
+                    : "linear-gradient(to right, #e28aa3, #c76a85)",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* 도넛 + 범례 같은 줄 */}
+          <div className="flex flex-col items-center gap-6 px-6 py-6 sm:flex-row sm:items-center">
             {/* 도넛 SVG */}
             <div className="relative shrink-0">
               <svg width="200" height="200" viewBox="0 0 200 200">
-                {/* 배경 트랙 */}
                 <circle
                   cx="100" cy="100" r={RADIUS}
                   fill="none"
                   stroke="var(--muted)"
                   strokeWidth="22"
                 />
-                {/* 세그먼트 */}
-                {total > 0 ? segments.map((seg) => (
+                {segments.length > 0 ? segments.map((seg) => (
                   <circle
                     key={seg.category}
                     cx="100" cy="100" r={RADIUS}
@@ -258,17 +310,15 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                     strokeWidth="22"
                   />
                 )}
-                {/* 중앙 채우기 */}
                 <circle cx="100" cy="100" r="67" fill="var(--card)" />
               </svg>
-              {/* 중앙 텍스트 */}
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xs text-muted-foreground">지출 합계</span>
-                <span className="mt-0.5 text-2xl font-bold text-foreground leading-none">
-                  {fmtShort(total)}
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-[38px]">
+                <span className="text-[10px] text-muted-foreground">지출 합계</span>
+                <span className="mt-0.5 text-lg font-bold text-foreground leading-none text-center break-keep">
+                  {fmtShort(total)}원
                 </span>
                 <span className="mt-1 text-[10px] text-muted-foreground">
-                  / {fmtShort(totalBudget)}
+                  / {fmtShort(totalBudget)}원
                 </span>
               </div>
             </div>
@@ -279,42 +329,24 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                 <p className="text-sm text-muted-foreground">항목을 추가하면 차트가 표시됩니다</p>
               ) : (
                 segments.map((seg) => (
-                  <div key={seg.category} className="flex items-center gap-3">
+                  <div key={seg.category} className={`flex items-center gap-3 ${seg.isRemaining ? "mt-1 border-t border-border pt-2.5 opacity-60" : ""}`}>
                     <span
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: seg.color.stroke }}
                     />
-                    <span className="flex-1 text-sm text-foreground">{seg.category}</span>
+                    <span className={`flex-1 text-sm ${seg.isRemaining ? "text-muted-foreground" : "text-foreground"}`}>{seg.category}</span>
                     <span className="text-xs text-muted-foreground">
                       {(seg.fraction * 100).toFixed(1)}%
                     </span>
-                    <span className="w-24 text-right text-sm font-medium text-foreground">
+                    <span className={`shrink-0 whitespace-nowrap text-right text-sm font-medium ${seg.isRemaining ? "text-muted-foreground" : "text-foreground"}`}>
                       {fmt(seg.amount)}원
                     </span>
                   </div>
                 ))
               )}
-
-              {/* 예산 대비 진행률 */}
-              <div className="mt-3 border-t border-border pt-3">
-                <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                  <span>총 예산 사용률</span>
-                  <span className="font-medium text-foreground">{budgetUsedPct.toFixed(1)}%</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${budgetUsedPct}%`,
-                      background: budgetUsedPct > 90
-                        ? "#ef4444"
-                        : "linear-gradient(to right, #e28aa3, #c76a85)",
-                    }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
+
         </div>
 
         {/* ── 요약 수치 ── */}
@@ -352,7 +384,7 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
             <div className="border-b border-border px-5 py-4">
               <AddBudgetItemForm
                 onAdd={(item) => {
-                  setItems((prev) => [...prev, { ...item, id: Date.now().toString() }])
+                  setItems((prev) => [...prev, { ...item, id: Date.now().toString(), isCustom: true }])
                   setShowAddForm(false)
                 }}
                 onCancel={() => setShowAddForm(false)}
@@ -395,21 +427,29 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                     {item.category}
                   </span>
 
-                  {/* 이름 */}
-                  <p className={`flex-1 text-sm ${item.isPaid ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {item.name}
-                  </p>
-
-                  {/* 금액 편집 */}
+                  {/* 이름 + 금액 편집 */}
                   {editingId === item.id ? (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-1 items-center gap-1.5">
+                      {item.isCustom ? (
+                        <Input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="h-7 w-32 text-sm"
+                          placeholder="항목명"
+                          onKeyDown={(e) => e.key === "Enter" && saveEdit(item.id)}
+                          autoFocus
+                        />
+                      ) : (
+                        <p className="flex-1 text-sm text-foreground">{item.name}</p>
+                      )}
                       <Input
-                        type="number"
-                        value={editAmount}
-                        onChange={(e) => setEditAmount(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={editAmount ? fmt(parseInt(editAmount) || 0) : ""}
+                        onChange={(e) => setEditAmount(e.target.value.replace(/,/g, "").replace(/[^0-9]/g, ""))}
                         className="h-7 w-28 text-right text-sm"
+                        placeholder="금액"
                         onKeyDown={(e) => e.key === "Enter" && saveEdit(item.id)}
-                        autoFocus
                       />
                       <button
                         onClick={() => saveEdit(item.id)}
@@ -425,12 +465,16 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                       </button>
                     </div>
                   ) : (
+                    <>
+                    <p className={`flex-1 text-sm ${item.isPaid ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      {item.name}
+                    </p>
                     <div className="flex items-center gap-1">
                       <span className={`text-sm font-semibold ${item.isPaid ? "text-emerald-600" : "text-foreground"}`}>
                         {fmt(item.amount)}원
                       </span>
                       <button
-                        onClick={() => startEdit(item.id, item.amount)}
+                        onClick={() => startEdit(item.id, item.name, item.amount)}
                         className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
                         <Pencil className="size-3.5" />
@@ -442,6 +486,7 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                         <Trash2 className="size-3.5" />
                       </button>
                     </div>
+                    </>
                   )}
                 </div>
               )
@@ -505,16 +550,13 @@ function AddBudgetItemForm({
   onCancel: () => void
 }) {
   const [category, setCategory] = useState(PRESET_CATEGORIES[0])
-  const [customCategory, setCustomCategory] = useState("")
   const [name, setName] = useState("")
   const [amount, setAmount] = useState("")
 
-  const finalCategory = category === "직접입력" ? customCategory : category
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!finalCategory || !name || !amount) return
-    onAdd({ category: finalCategory, name, amount: parseInt(amount), isPaid: false })
+    if (!category || !name || !amount) return
+    onAdd({ category, name, amount: parseInt(amount), isPaid: false })
   }
 
   return (
@@ -531,21 +573,8 @@ function AddBudgetItemForm({
             {PRESET_CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
-            <option value="직접입력">직접입력</option>
           </select>
         </div>
-
-        {/* 직접 입력 카테고리 */}
-        {category === "직접입력" && (
-          <div>
-            <label className="mb-1 block text-xs text-muted-foreground">카테고리명</label>
-            <Input
-              value={customCategory}
-              onChange={(e) => setCustomCategory(e.target.value)}
-              placeholder="카테고리 이름"
-            />
-          </div>
-        )}
 
         {/* 항목명 */}
         <div>
@@ -561,11 +590,18 @@ function AddBudgetItemForm({
         <div>
           <label className="mb-1 block text-xs text-muted-foreground">금액 (원)</label>
           <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="10000000"
+            type="text"
+            inputMode="numeric"
+            value={amount ? new Intl.NumberFormat("ko-KR").format(parseInt(amount.replace(/,/g, "")) || 0) : ""}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "")
+              setAmount(raw)
+            }}
+            placeholder="1,000,000"
           />
+          {amount && parseInt(amount) >= 10000 && (
+            <p className="mt-1 text-xs text-muted-foreground">{fmtShort(parseInt(amount))}원</p>
+          )}
         </div>
       </div>
 

@@ -44,6 +44,9 @@ interface CoupleChatViewProps {
   onFavoriteVendor?: (vendor: VendorShare) => void
   onUnfavoriteVendor?: (vendorId: string) => void
   favoriteVendorIds?: string[]
+  onShareVendorFromDrop?: (vendor: { id: string; name: string; category: string; price: string; rating: number; address: string; tags: string[]; description: string }) => void
+  voteBadge?: number
+  onUnshareVendor?: (vendorId: string) => void
 }
 
 interface PendingVendor {
@@ -58,10 +61,9 @@ interface PendingVendor {
   description: string
 }
 
-export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [] }: CoupleChatViewProps) {
+export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [], onShareVendorFromDrop, voteBadge = 0, onUnshareVendor }: CoupleChatViewProps) {
   const [vendorDragOver, setVendorDragOver] = useState(false)
-  const [shareModalVendors, setShareModalVendors] = useState<PendingVendor[]>([])
-  const [shareComment, setShareComment] = useState("")
+  const [unshareTarget, setUnshareTarget] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -72,7 +74,6 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
   const [isTyping, setIsTyping] = useState(false)
   const [aiMode, setAiMode] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const prevSharedLengthRef = useRef(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -84,8 +85,9 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
 
   // 새 업체 공유가 들어오면 메시지로 추가
   useEffect(() => {
-    if (sharedVendors.length > prevSharedLengthRef.current) {
-      const newShares = sharedVendors.slice(prevSharedLengthRef.current)
+    const existingIds = new Set(messages.filter(m => m.vendorShare).map(m => m.vendorShare!.id))
+    const newShares = sharedVendors.filter(vs => !existingIds.has(vs.id))
+    if (newShares.length > 0) {
       setMessages((prev) => [
         ...prev,
         ...newShares.map((vs) => ({
@@ -97,7 +99,6 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
           comment: vs.comment,
         })),
       ])
-      prevSharedLengthRef.current = sharedVendors.length
     }
   }, [sharedVendors, groomName, brideName])
 
@@ -115,45 +116,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
   }
 
   const handleVendorDrop = (vendor: PendingVendor) => {
-    setShareModalVendors((prev) => prev.some((v) => v.id === vendor.id) ? prev : [...prev, vendor])
-  }
-
-  const handleShareConfirm = () => {
-    if (shareModalVendors.length === 0) return
-    const senderName = currentUser === "groom" ? groomName : brideName
-    const commentText = shareComment.trim() || undefined
-
-    const vendorMsgs: Message[] = shareModalVendors.map((v, idx) => {
-      const vendorShare: VendorShare = {
-        id: `share-${Date.now()}-${v.id}`,
-        vendorId: v.id,
-        name: v.name,
-        category: (v.category as VendorShare["category"]) ?? "studio",
-        categoryLabel: v.categoryLabel ?? v.category,
-        price: v.price ?? "",
-        rating: v.rating ?? 0,
-        address: v.address ?? "",
-        tags: v.tags ?? [],
-        description: v.description ?? "",
-        sharedBy: currentUser,
-      }
-      return {
-        id: vendorShare.id,
-        role: currentUser as "groom" | "bride",
-        content: "",
-        sender: senderName,
-        vendorShare,
-        ...(idx === 0 && commentText ? { comment: commentText } : {}),
-      }
-    })
-
-    setMessages((prev) => [...prev, ...vendorMsgs])
-    vendorMsgs.forEach((msg) => {
-      if (msg.vendorShare) onVendorShared?.(msg.vendorShare)
-    })
-    prevSharedLengthRef.current += vendorMsgs.length
-    setShareModalVendors([])
-    setShareComment("")
+    onShareVendorFromDrop?.(vendor)
   }
 
   const handleSend = (content: string) => {
@@ -199,29 +162,18 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
           >
             <Heart className="size-4" />
           </button>
-          {/* 예산 */}
-          <button
-            onClick={() => onOpenTab?.("budget")}
-            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="예산"
-          >
-            <DollarSign className="size-4" />
-          </button>
-          {/* 일정 */}
-          <button
-            onClick={() => onOpenTab?.("schedule")}
-            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title="일정"
-          >
-            <Calendar className="size-4" />
-          </button>
           {/* 비밀 투표 */}
           <button
             onClick={() => onOpenTab?.("vote")}
-            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="relative flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             title="비밀 투표"
           >
             <Lock className="size-4" />
+            {voteBadge > 0 && (
+              <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white">
+                {voteBadge > 9 ? "9+" : voteBadge}
+              </span>
+            )}
           </button>
 
         </div>
@@ -277,6 +229,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
                   onUnfavoriteVendor={onUnfavoriteVendor}
                   favoriteVendorIds={favoriteVendorIds}
                   onOpenVendor={(vendorId) => onOpenTab?.(`vendor:${vendorId}`)}
+                  isMine={!!message.vendorShare && message.role === currentUser}
+                  onUnshare={(vendorId) => setUnshareTarget(vendorId)}
                 />
               ))}
               {isTyping && (
@@ -291,6 +245,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
         onSend={handleSend}
         disabled={isTyping}
         placeholder={inputPlaceholder}
+        onVendorDrop={(vendor) => handleVendorDrop(vendor)}
         extraButton={
           <button
             type="button"
@@ -307,63 +262,34 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
         }
       />
 
-      {/* 업체 공유 모달 */}
-      {shareModalVendors.length > 0 && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => { setShareModalVendors([]); setShareComment("") }} />
-          <div className="relative mx-4 w-full max-w-md rounded-2xl bg-background shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <h2 className="text-base font-semibold text-foreground">커플 방에 공유하기</h2>
-              <button onClick={() => { setShareModalVendors([]); setShareComment("") }} className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted">
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* 업체 정보 */}
-            <div className="max-h-60 overflow-y-auto px-5 py-4">
-              <div className="space-y-3">
-                {shareModalVendors.map((v) => (
-                  <div key={v.id} className="rounded-xl border border-border bg-muted/30 px-4 py-3">
-                    <p className="text-sm font-semibold text-foreground">[업체 공유] {v.name}</p>
-                    <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                      {v.address && <p>📍 {v.address}</p>}
-                      {v.price && <p>💰 {v.price}</p>}
-                      {v.rating > 0 && <p>⭐ {v.rating}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 코멘트 입력 */}
-              <textarea
-                value={shareComment}
-                onChange={(e) => setShareComment(e.target.value)}
-                placeholder="이 업체의 어떤 점이 마음에 드셨나요? 작성하면 AI가 더 잘 추천해줄 수 있어요"
-                rows={3}
-                className="mt-4 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            {/* 하단 버튼 */}
-            <div className="flex gap-2 border-t border-border px-5 py-4">
+      {/* 공유 취소 확인 모달 */}
+      {unshareTarget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setUnshareTarget(null)}>
+          <div className="mx-4 w-full max-w-xs rounded-2xl bg-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-center text-sm font-semibold text-foreground">공유를 취소할까요?</p>
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">채팅방에서 업체 카드가 사라져요</p>
+            <div className="mt-4 flex gap-2">
               <button
-                onClick={() => { setShareModalVendors([]); setShareComment("") }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                onClick={() => setUnshareTarget(null)}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
               >
-                취소
+                아니요
               </button>
               <button
-                onClick={handleShareConfirm}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+                onClick={() => {
+                  setMessages(prev => prev.filter(m => !(m.vendorShare?.vendorId === unshareTarget && m.role === currentUser)))
+                  onUnshareVendor?.(unshareTarget)
+                  setUnshareTarget(null)
+                }}
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
               >
-                <Send className="size-3.5" />
-                커플 방에 공유
+                취소하기
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }
@@ -462,7 +388,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   venue: "bg-blue-100 text-blue-700",
 }
 
-function VendorShareCard({ vendor, comment, onAddToVote, onFavorite, onUnfavorite, initialLiked = false, onOpenVendor }: {
+function VendorShareCard({ vendor, comment, onAddToVote, onFavorite, onUnfavorite, initialLiked = false, onOpenVendor, isMine = false, onUnshare }: {
   vendor: VendorShare
   comment?: string
   onAddToVote?: (v: VendorShare) => void
@@ -470,6 +396,8 @@ function VendorShareCard({ vendor, comment, onAddToVote, onFavorite, onUnfavorit
   onUnfavorite?: (vendorId: string) => void
   initialLiked?: boolean
   onOpenVendor?: () => void
+  isMine?: boolean
+  onUnshare?: (vendorId: string) => void
 }) {
   const [voteAdded, setVoteAdded] = useState(false)
   const [liked, setLiked] = useState(initialLiked)
@@ -481,9 +409,21 @@ function VendorShareCard({ vendor, comment, onAddToVote, onFavorite, onUnfavorit
 
   return (
     <div
-      className="w-64 cursor-pointer overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-shadow hover:shadow-md"
+      className="relative w-64 cursor-pointer overflow-hidden rounded-2xl border border-border bg-background shadow-sm transition-shadow hover:shadow-md"
       onClick={onOpenVendor}
     >
+      {/* 공유 취소 X 버튼 */}
+      {isMine && onUnshare && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onUnshare(vendor.vendorId)
+          }}
+          className="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
       {vendor.coverUrl ? (
         <img src={vendor.coverUrl} alt={vendor.name} className="h-32 w-full object-cover" />
       ) : (
@@ -555,6 +495,8 @@ function VendorShareCard({ vendor, comment, onAddToVote, onFavorite, onUnfavorit
             </button>
           )}
         </div>
+
+        {/* 공유 취소 (본인 공유만) */}
       </div>
     </div>
   )
@@ -571,6 +513,8 @@ function CoupleChatMessage({
   onUnfavoriteVendor,
   favoriteVendorIds = [],
   onOpenVendor,
+  isMine = false,
+  onUnshare,
 }: {
   role: "assistant" | "user" | "groom" | "bride"
   content: string
@@ -582,6 +526,8 @@ function CoupleChatMessage({
   onUnfavoriteVendor?: (vendorId: string) => void
   favoriteVendorIds?: string[]
   onOpenVendor?: (vendorId: string) => void
+  isMine?: boolean
+  onUnshare?: (vendorId: string) => void
 }) {
   const isAssistant = role === "assistant"
   const isGroom = role === "groom"
@@ -599,7 +545,7 @@ function CoupleChatMessage({
           <span className="text-sm font-medium">{sender?.[0]}</span>
         </div>
       )}
-      <div className={`max-w-[80%] ${isAssistant ? "" : "text-right"}`}>
+      <div className={`max-w-[80%] ${isAssistant ? "" : vendorShare ? "text-left" : "text-right"}`}>
         {!isAssistant && (
           <span className={`mb-1 block text-xs font-medium ${
             isGroom ? "text-blue-600" : "text-pink-600"
@@ -608,7 +554,7 @@ function CoupleChatMessage({
           </span>
         )}
         {vendorShare ? (
-          <VendorShareCard vendor={vendorShare} comment={comment} onAddToVote={onAddToVote} onFavorite={onFavoriteVendor} onUnfavorite={onUnfavoriteVendor} initialLiked={favoriteVendorIds.includes(vendorShare.vendorId)} onOpenVendor={() => onOpenVendor?.(vendorShare.vendorId)} />
+          <VendorShareCard vendor={vendorShare} comment={comment} onAddToVote={onAddToVote} onFavorite={onFavoriteVendor} onUnfavorite={onUnfavoriteVendor} initialLiked={favoriteVendorIds.includes(vendorShare.vendorId)} onOpenVendor={() => onOpenVendor?.(vendorShare.vendorId)} isMine={isMine} onUnshare={onUnshare} />
         ) : isAssistant ? (
           <div className="px-1 text-sm leading-relaxed text-foreground">
             <ReactMarkdown
