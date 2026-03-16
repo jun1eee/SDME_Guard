@@ -1,12 +1,15 @@
 package com.ssafy.sdme._global;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 @Getter
 @JsonPropertyOrder({"status", "message", "data"})
 public class ApiResponse<T> {
+    @Schema(example = "200")
     private final int status;
+    @Schema(example = "success")
     private final String message;
     private final T data;
 
