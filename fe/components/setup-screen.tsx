@@ -1,45 +1,60 @@
 "use client"
 
-import { useState } from "react"
-import { Heart, ArrowRight, Copy, Check } from "lucide-react"
+import { useMemo, useState } from "react"
+import { format } from "date-fns"
+import { ArrowRight, CalendarIcon, Check, Copy, Heart, MessageCircle } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface SetupScreenProps {
   onComplete: (name: string, nickname: string, coupleConnected: boolean, inviteCode: string, role: "groom" | "bride") => void
 }
 
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+function formatWeddingDate(date: Date | undefined) {
+  if (!date) return "날짜를 선택해주세요"
+  return format(date, "yyyy-MM-dd")
 }
 
 export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [name, setName] = useState("")
   const [nickname, setNickname] = useState("")
   const [role, setRole] = useState<"groom" | "bride" | null>(null)
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
+  const [step, setStep] = useState<Step>(0)
   const [inviteCode] = useState(generateCode)
   const [partnerCode, setPartnerCode] = useState("")
   const [copied, setCopied] = useState(false)
   const [tab, setTab] = useState<"send" | "enter">("send")
 
+  const [weddingDate, setWeddingDate] = useState<Date>()
+  const [totalBudget, setTotalBudget] = useState("")
+  const [sdmBudget, setSdmBudget] = useState("")
+  const [hallBudget, setHallBudget] = useState("")
+  const [hallReserved, setHallReserved] = useState<boolean | null>(null)
+  const [sdmReserved, setSdmReserved] = useState<boolean | null>(null)
+  const [hallStyle, setHallStyle] = useState("")
+  const [guestCount, setGuestCount] = useState("")
+  const [preferredRegion, setPreferredRegion] = useState("")
+
+  const shouldSkipPreferenceStep = useMemo(() => hallReserved === true, [hallReserved])
+  const showProgress = step > 0
+  const isSurveyFlow = step >= 4
+  const signupProgressStep = step >= 3 ? 3 : step
+  const signupProgressCount = 3
+  const surveyProgressStep = step >= 9 ? 5 : step - 3
+  const surveyProgressCount = 5
+
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleStep1 = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (name.trim()) setStep(2)
-  }
-
-  const handleStep2 = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (role) setStep(3)
-  }
-
-  const handleStep3 = (e: React.FormEvent) => {
-    e.preventDefault()
-    setStep(4)
   }
 
   const handleConnect = (e: React.FormEvent) => {
@@ -53,31 +68,68 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
     onComplete(name.trim(), nickname.trim() || name.trim(), false, inviteCode, role ?? "groom")
   }
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      {/* 브랜드 */}
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
       <div className="mb-10 flex flex-col items-center gap-3">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
           <img src="/favicon.png" alt="SDME Guard" className="size-9 object-contain" />
         </div>
-        <span className="text-lg font-semibold text-foreground tracking-tight">SDME Guard</span>
+        <span className="text-lg font-semibold tracking-tight text-foreground">SDME Guard</span>
       </div>
 
       <div className="w-full max-w-sm">
-        {/* 진행 표시 */}
-        <div className="mb-8 flex items-center gap-2">
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 1 ? "bg-primary" : "bg-muted"}`} />
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 2 ? "bg-primary" : "bg-muted"}`} />
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 3 ? "bg-primary" : "bg-muted"}`} />
-          <div className={`h-1 flex-1 rounded-full transition-colors ${step >= 4 ? "bg-primary" : "bg-muted"}`} />
-        </div>
+        {showProgress && (
+          <div className="mb-8 flex items-center gap-2">
+            {Array.from({ length: isSurveyFlow ? surveyProgressCount : signupProgressCount }).map((_, index) => (
+              <div
+                key={index}
+                className={`h-1 flex-1 rounded-full transition-colors ${
+                  (isSurveyFlow ? surveyProgressStep : signupProgressStep) >= index + 1 ? "bg-primary" : "bg-muted"
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
-        {step === 1 ? (
-          <form onSubmit={handleStep1} className="space-y-6">
+        {step === 0 ? (
+          <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">안녕하세요!</h1>
+              <h1 className="text-2xl font-bold text-foreground">카카오톡으로 시작하기</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                웨딩 플래너를 시작하기 위해 이름을 알려주세요
+                먼저 로그인한 뒤 프로필을 설정하고 사전질문을 진행해주세요.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#FEE500] py-3 text-sm font-medium text-[#191919] transition-all hover:bg-[#FEE500]/90"
+            >
+              <MessageCircle className="size-5 fill-current" />
+              카카오톡 로그인
+            </button>
+
+            <div className="rounded-xl border border-border bg-card px-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                로그인 후 이름, 닉네임, 역할과 몇 가지 결혼 준비 질문에 답하게 됩니다.
+              </p>
+            </div>
+          </div>
+        ) : step === 1 ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (name.trim()) setStep(2)
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">이름을 입력해주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                서비스에서 사용할 기본 이름입니다.
               </p>
             </div>
 
@@ -89,27 +141,42 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="홍길동"
+                placeholder="이름 입력"
                 autoFocus
-                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={!name.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
-            >
-              다음
-              <ArrowRight className="size-4" />
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(0)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={!name.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
           </form>
         ) : step === 2 ? (
-          <form onSubmit={handleStep2} className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (role) setStep(3)
+            }}
+            className="space-y-6"
+          >
             <div>
-              <h1 className="text-2xl font-bold text-foreground">반가워요, {name}님!</h1>
+              <h1 className="text-2xl font-bold text-foreground">역할을 선택해주세요</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                나의 역할을 선택해주세요
+                더 적절한 준비 흐름을 안내하기 위해 필요해요.
               </p>
             </div>
 
@@ -128,6 +195,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                   신랑
                 </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setRole("bride")}
@@ -163,18 +231,24 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             </div>
           </form>
         ) : step === 3 ? (
-          <form onSubmit={handleStep3} className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              setStep(4)
+            }}
+            className="space-y-6"
+          >
             <div>
-              <h1 className="text-2xl font-bold text-foreground">거의 다 됐어요!</h1>
+              <h1 className="text-2xl font-bold text-foreground">닉네임을 설정해주세요</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                서비스에서 사용할 닉네임을 설정해주세요
+                선택 항목이며, 비워두면 이름이 그대로 사용됩니다.
               </p>
             </div>
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-foreground">
                 닉네임
-                <span className="ml-1.5 text-xs text-muted-foreground">(선택사항)</span>
+                <span className="ml-1.5 text-xs text-muted-foreground">(선택)</span>
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
@@ -184,11 +258,11 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder={name.toLowerCase().replace(/\s/g, "")}
                   autoFocus
-                  className="w-full rounded-xl border border-border bg-card py-3 pl-8 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="w-full rounded-xl border border-border bg-card py-3 pl-8 pr-4 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                미입력 시 이름이 닉네임으로 사용됩니다
+                나중에 상대방이 나를 구분할 때 표시되는 이름입니다.
               </p>
             </div>
 
@@ -209,26 +283,368 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
               </button>
             </div>
           </form>
-        ) : (
+        ) : step === 4 ? (
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">파트너 연결</h1>
+              <h1 className="text-2xl font-bold text-foreground">회원가입이 완료되었습니다!</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                상대방과 초대 코드를 공유해 커플로 연결하세요
+                회원님의 맞춤형 서비스를 위해 간단한 사전질문에 답해주세요.
               </p>
             </div>
 
-            {/* 탭 */}
+            <div className="rounded-xl border border-border bg-card px-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                입력한 답변은 예산 계획, 웨딩홀 추천, 결혼 준비 흐름 설정에 활용됩니다.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(5)}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                시작하기
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </div>
+        ) : step === 5 ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (weddingDate && totalBudget.trim()) setStep(6)
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">결혼예정일과 총예산을 알려주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                전체 준비 일정과 예산 계획을 위한 기본 정보입니다.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  결혼예정일 <span className="text-primary">*</span>
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={`h-11 w-full justify-start rounded-xl text-left font-normal ${
+                        !weddingDate ? "text-muted-foreground" : "text-foreground"
+                      }`}
+                    >
+                      <CalendarIcon className="mr-2 size-4" />
+                      {formatWeddingDate(weddingDate)}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={weddingDate}
+                      onSelect={setWeddingDate}
+                      captionLayout="dropdown"
+                      disabled={(date) => date < today}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  총예산 <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={totalBudget}
+                  onChange={(e) => setTotalBudget(e.target.value)}
+                  placeholder="예: 3,000만원"
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={!weddingDate || !totalBudget.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </form>
+        ) : step === 6 ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (sdmBudget.trim() && hallBudget.trim()) setStep(7)
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">각각 예산 계획을 알려주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                스튜디오, 드레스, 메이크업에 생각 중인 예산을 입력해주세요.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground">
+                스드메 예산 <span className="text-primary">*</span>
+              </label>
+              <input
+                type="text"
+                value={sdmBudget}
+                onChange={(e) => setSdmBudget(e.target.value)}
+                placeholder="예: 150만원 ~ 250만원"
+                autoFocus
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-foreground">
+                웨딩홀 예산 <span className="text-primary">*</span>
+              </label>
+              <input
+                type="text"
+                value={hallBudget}
+                onChange={(e) => setHallBudget(e.target.value)}
+                placeholder="예: 1,000만원 ~ 1,500만원"
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(5)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={!sdmBudget.trim() || !hallBudget.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </form>
+        ) : step === 7 ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (hallReserved === null || sdmReserved === null) return
+              setStep(shouldSkipPreferenceStep ? 9 : 8)
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">웨딩홀과 스드메 예약 여부를 알려주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                웨딩홀이 이미 예약되어 있다면 마지막 선호 질문은 생략됩니다.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-foreground">
+                  웨딩홀 예약 여부 <span className="text-primary">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setHallReserved(true)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                      hallReserved === true
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    예약 완료
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHallReserved(false)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                      hallReserved === false
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    아직 미예약
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-foreground">
+                  스드메 예약 여부 <span className="text-primary">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSdmReserved(true)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                      sdmReserved === true
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    예약 완료
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSdmReserved(false)}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                      sdmReserved === false
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    아직 미예약
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(6)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={hallReserved === null || sdmReserved === null}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </form>
+        ) : step === 8 ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (hallStyle.trim() && guestCount.trim() && preferredRegion.trim()) setStep(9)
+            }}
+            className="space-y-6"
+          >
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">웨딩홀 선호 조건을 알려주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                웨딩홀과 스드메가 모두 미예약일 때만 표시되는 질문입니다.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  웨딩홀 선호 스타일 <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={hallStyle}
+                  onChange={(e) => setHallStyle(e.target.value)}
+                  placeholder="예: 호텔식, 채플식, 야외웨딩"
+                  autoFocus
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  예상 하객수 <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={guestCount}
+                  onChange={(e) => setGuestCount(e.target.value)}
+                  placeholder="예: 150명"
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  희망 지역 <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={preferredRegion}
+                  onChange={(e) => setPreferredRegion(e.target.value)}
+                  placeholder="예: 강남, 수원, 분당"
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(7)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="submit"
+                disabled={!hallStyle.trim() || !guestCount.trim() || !preferredRegion.trim()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">커플 연결하기</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                사전질문이 완료되었어요. 초대 코드를 보내거나 입력해서 상대방과 연결하세요.
+              </p>
+            </div>
+
             <div className="flex rounded-xl border border-border p-1">
               <button
+                type="button"
                 onClick={() => setTab("send")}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
                   tab === "send" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                초대 코드 공유
+                코드 보내기
               </button>
               <button
+                type="button"
                 onClick={() => setTab("enter")}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
                   tab === "enter" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
@@ -241,30 +657,28 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             {tab === "send" ? (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  아래 코드를 파트너에게 공유하세요. 파트너가 코드를 입력하면 연결됩니다.
+                  생성된 초대 코드를 상대방에게 전달하세요.
                 </p>
                 <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 px-4 py-4">
                   <span className="flex-1 text-center text-2xl font-bold tracking-[0.3em] text-foreground">
                     {inviteCode}
                   </span>
                   <button
+                    type="button"
                     onClick={handleCopy}
                     className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background transition-colors hover:bg-muted"
                   >
-                    {copied
-                      ? <Check className="size-4 text-primary" />
-                      : <Copy className="size-4 text-muted-foreground" />
-                    }
+                    {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4 text-muted-foreground" />}
                   </button>
                 </div>
                 <p className="text-center text-xs text-muted-foreground">
-                  파트너가 코드를 입력하면 자동으로 연결됩니다
+                  카카오톡이나 메시지로 코드를 공유할 수 있습니다.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleConnect} className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  파트너에게 받은 6자리 초대 코드를 입력하세요.
+                  상대방에게 받은 6자리 초대 코드를 입력해주세요.
                 </p>
                 <input
                   type="text"
@@ -273,7 +687,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                   placeholder="XXXXXX"
                   autoFocus
                   maxLength={6}
-                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-center text-xl font-bold tracking-[0.3em] text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-center text-xl font-bold tracking-[0.3em] text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <button
                   type="submit"
@@ -289,7 +703,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(3)}
+                onClick={() => setStep(shouldSkipPreferenceStep ? 7 : 8)}
                 className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
               >
                 이전
@@ -307,7 +721,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
       </div>
 
       <p className="mt-10 text-center text-xs text-muted-foreground">
-        AI가 함께하는 스마트 웨딩 플래닝
+        AI 기반 일정 관리로 결혼 준비를 더 차분하게 정리해보세요.
       </p>
     </div>
   )
