@@ -367,7 +367,7 @@ def main():
         # 최종 통계
         total_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
         total_rels  = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt").single()["cnt"]
-        print(f"✅ 전체 로드 완료 — 노드: {total_nodes}개 / 관계: {total_rels}개")
+        print(f"전체 로드 완료 -- 노드: {total_nodes}개 / 관계: {total_rels}개")
 
     driver.close()
 
