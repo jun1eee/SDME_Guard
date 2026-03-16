@@ -1,12 +1,15 @@
 import json
+import os
 from neo4j import GraphDatabase
 
-LIST_PATH = "weddingbook_halls_list.JSON"
-DETAIL_PATH = "weddingbook_halls_detail.JSON"
+_BASE = os.path.dirname(os.path.abspath(__file__))
+
+LIST_PATH   = os.path.join(_BASE, "json", "weddingbook_halls_list.json")
+DETAIL_PATH = os.path.join(_BASE, "json", "weddingbook_halls_detail.json")
 
 NEO4J_URI = "neo4j://127.0.0.1:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PW = "20010910"
+NEO4J_PW = "password123"
 
 
 def load_json(path):
