@@ -8,6 +8,8 @@ node_modules/
 # Env files
 .env
 .env.*
+!.env.example
+
 
 # Logs
 *.log
@@ -20,5 +22,6 @@ coverage/
 # OS
 .DS_Store
 .idea/
-.venv/
-.venv/
+
+# Claude Code
+.claude/
