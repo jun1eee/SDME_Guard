@@ -93,9 +93,15 @@ def insert_vendors(session, items, category, batch_size=100):
                 "viewCnt":         item.get("viewCnt", 0),
                 "orderCnt":        item.get("orderCnt", 0),
                 "holiday":         item.get("holiday", ""),
-                "packageInfoStr":  json.dumps(item.get("packageInfo", []), ensure_ascii=False),
-                "addcostStr":      json.dumps(item.get("addcostOptions", []), ensure_ascii=False),
-                "reviewsStr":      json.dumps(item.get("reviews", []), ensure_ascii=False),
+                "packages": [
+                    {"title": p.get("title", ""), "value": p.get("value", ""), "desc": p.get("desc", "")}
+                    for p in item.get("packageInfo", []) if p.get("title")
+                ],
+                "reviews": [
+                    {"name": r.get("name", ""), "contents": r.get("contents", ""),
+                     "score": r.get("score", 0), "date": r.get("date", "")}
+                    for r in item.get("reviews", []) if r.get("contents")
+                ],
                 "detailCmt":       item.get("detailCmt", ""),
                 "iweddingNo":      item.get("iwedding_no", ""),
                 "enterpriseCode":  item.get("iwedding_enterprise_code", ""),
@@ -118,8 +124,7 @@ def insert_vendors(session, items, category, batch_size=100):
                 productPrice: row.productPrice, salePrice: row.salePrice,
                 eventOptionPrice: row.eventOptionPrice, eventPrice: row.eventPrice,
                 likeCnt: row.likeCnt, viewCnt: row.viewCnt, orderCnt: row.orderCnt,
-                holiday: row.holiday, packageInfoStr: row.packageInfoStr,
-                addcostStr: row.addcostStr, reviewsStr: row.reviewsStr,
+                holiday: row.holiday,
                 detailCmt: row.detailCmt, iweddingNo: row.iweddingNo,
                 enterpriseCode: row.enterpriseCode, productName: row.productName,
                 subCategory: row.subCategory}
@@ -148,12 +153,49 @@ def insert_vendors(session, items, category, batch_size=100):
             MERGE (v)-[:HAS_STYLE]->(sf)
         """, batch=batch)
 
+        # Review 노드
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            UNWIND row.reviews AS rev
+            CREATE (rv:Review {name: rev.name, contents: rev.contents,
+                               score: rev.score, date: rev.date})
+            CREATE (v)-[:HAS_REVIEW]->(rv)
+        """, batch=batch)
+
+        # Package 노드
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            UNWIND row.packages AS pkg
+            CREATE (p:Package {title: pkg.title, value: pkg.value, desc: pkg.desc})
+            CREATE (v)-[:HAS_PACKAGE]->(p)
+        """, batch=batch)
+
         print(f"  [{category}] {min(i+len(batch), len(items))}/{len(items)}")
 
     cnt = session.run(
         "MATCH (v:Vendor {category: $cat}) RETURN count(v) AS cnt", cat=category
     ).single()["cnt"]
     print(f"  → [{category}] Vendor 노드 {cnt}개 완료\n")
+
+
+def create_tag_co_occurs(session, category):
+    """같은 카테고리에서 같은 Vendor에 동시 등장하는 Tag 쌍에 CO_OCCURS 관계 생성"""
+    session.run("""
+        MATCH (v:Vendor {category: $cat})-[:HAS_TAG]->(t1:Tag {category: $cat}),
+              (v)-[:HAS_TAG]->(t2:Tag {category: $cat})
+        WHERE id(t1) < id(t2)
+        WITH t1, t2, count(v) AS cnt
+        WHERE cnt >= 2
+        MERGE (t1)-[r:CO_OCCURS]->(t2)
+        SET r.count = cnt
+    """, cat=category)
+    co_cnt = session.run("""
+        MATCH (:Tag {category: $cat})-[r:CO_OCCURS]->(:Tag {category: $cat})
+        RETURN count(r) AS cnt
+    """, cat=category).single()["cnt"]
+    print(f"  → [{category}] CO_OCCURS 관계 {co_cnt}개 생성\n")
 
 
 # ──────────────────────────────────────────
@@ -307,6 +349,10 @@ def main():
             items = load_json(path)
             print(f"  {len(items)}개 항목 로드됨")
             insert_vendors(session, items, category)
+
+        # Tag 동시출현 관계
+        for category in VENDOR_FILES:
+            create_tag_co_occurs(session, category)
 
         # 웨딩홀
         print("[hall] 로딩 시작...")
