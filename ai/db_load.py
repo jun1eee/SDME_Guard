@@ -1,11 +1,14 @@
 import json
 import os
+from dotenv import load_dotenv
 from neo4j import GraphDatabase
 
-# === 설정 ===
-NEO4J_URI = "neo4j://127.0.0.1:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PW = "password123"
+# === 설정 (.env에서 로드) ===
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
+NEO4J_URI = os.environ["NEO4J_URI"]
+NEO4J_USER = os.environ["NEO4J_USER"]
+NEO4J_PW = os.environ["NEO4J_PW"]
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 _BASE = os.path.dirname(os.path.abspath(__file__))
