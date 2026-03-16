@@ -1,12 +1,14 @@
 package com.ssafy.sdme._global.exception;
 
 import com.ssafy.sdme._global.ApiResponse;
+import com.ssafy.sdme._global.common.constant.ErrorMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -61,6 +63,13 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleConflictException(ConflictException ex) {
         log.warn("[Conflict] {}", ex.getMessage());
         return ApiResponse.fail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    @ExceptionHandler(HttpClientErrorException.class)
+    public ApiResponse<Void> handleHttpClientErrorException(HttpClientErrorException ex) {
+        log.error("[ExternalApiError] {} - {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+        return ApiResponse.fail(HttpStatus.BAD_GATEWAY, ErrorMessage.EXTERNAL_API_FAILED);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
