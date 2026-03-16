@@ -25,6 +25,9 @@ coverage/
 # Gradio
 .gradio/
 
+# Jupyter
+.ipynb_checkpoints/
+
 # OS
 .DS_Store
 .idea/
