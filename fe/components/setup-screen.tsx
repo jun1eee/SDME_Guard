@@ -2,21 +2,18 @@
 
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
-import { ArrowRight, CalendarIcon, Check, Copy, Heart, MessageCircle } from "lucide-react"
+import { ArrowRight, CalendarIcon, Check, Copy, Heart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { signup, savePreference, createInviteCode, connectCouple } from "@/lib/api"
 
 interface SetupScreenProps {
-  onComplete: (name: string, nickname: string, coupleConnected: boolean, inviteCode: string, role: "groom" | "bride") => void
+  onComplete: () => void
 }
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-
-function generateCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
-}
 
 function formatWeddingDate(date: Date | undefined) {
   if (!date) return "날짜를 선택해주세요"
@@ -27,11 +24,12 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [name, setName] = useState("")
   const [nickname, setNickname] = useState("")
   const [role, setRole] = useState<"groom" | "bride" | null>(null)
-  const [step, setStep] = useState<Step>(0)
-  const [inviteCode] = useState(generateCode)
+  const [step, setStep] = useState<Step>(1)
+  const [inviteCode, setInviteCode] = useState("")
   const [partnerCode, setPartnerCode] = useState("")
   const [copied, setCopied] = useState(false)
   const [tab, setTab] = useState<"send" | "enter">("send")
+  const [isLoading, setIsLoading] = useState(false)
 
   const [weddingDate, setWeddingDate] = useState<Date>()
   const [totalBudget, setTotalBudget] = useState("")
@@ -44,7 +42,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [preferredRegion, setPreferredRegion] = useState("")
 
   const shouldSkipPreferenceStep = useMemo(() => hallReserved === true, [hallReserved])
-  const showProgress = step > 0
+  const showProgress = step >= 1
   const isSurveyFlow = step >= 4
   const signupProgressStep = step >= 3 ? 3 : step
   const signupProgressCount = 3
@@ -57,15 +55,23 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleConnect = (e: React.FormEvent) => {
+  const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (partnerCode.trim().length === 6) {
-      onComplete(name.trim(), nickname.trim() || name.trim(), true, inviteCode, role ?? "groom")
+    if (partnerCode.trim().length !== 6 || isLoading) return
+    setIsLoading(true)
+    try {
+      await connectCouple(partnerCode.trim())
+      onComplete()
+    } catch (err) {
+      console.error("커플 연결 실패:", err)
+      alert("커플 연결에 실패했습니다. 코드를 확인해주세요.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleSkip = () => {
-    onComplete(name.trim(), nickname.trim() || name.trim(), false, inviteCode, role ?? "groom")
+    onComplete()
   }
 
   const today = new Date()
@@ -94,31 +100,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
           </div>
         )}
 
-        {step === 0 ? (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">카카오톡으로 시작하기</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                먼저 로그인한 뒤 프로필을 설정하고 사전질문을 진행해주세요.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#FEE500] py-3 text-sm font-medium text-[#191919] transition-all hover:bg-[#FEE500]/90"
-            >
-              <MessageCircle className="size-5 fill-current" />
-              카카오톡 로그인
-            </button>
-
-            <div className="rounded-xl border border-border bg-card px-4 py-4">
-              <p className="text-sm text-muted-foreground">
-                로그인 후 이름, 닉네임, 역할과 몇 가지 결혼 준비 질문에 답하게 됩니다.
-              </p>
-            </div>
-          </div>
-        ) : step === 1 ? (
+        {step === 1 ? (
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -147,23 +129,14 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
               />
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(0)}
-                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-              >
-                이전
-              </button>
-              <button
-                type="submit"
-                disabled={!name.trim()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
-              >
-                다음
-                <ArrowRight className="size-4" />
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={!name.trim()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+            >
+              다음
+              <ArrowRight className="size-4" />
+            </button>
           </form>
         ) : step === 2 ? (
           <form
@@ -232,9 +205,23 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
           </form>
         ) : step === 3 ? (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault()
-              setStep(4)
+              if (isLoading) return
+              setIsLoading(true)
+              try {
+                await signup({
+                  name: name.trim(),
+                  role: role === "groom" ? "g" : "b",
+                  nickname: nickname.trim() || name.trim(),
+                })
+                setStep(4)
+              } catch (err) {
+                console.error("회원가입 실패:", err)
+                alert("회원가입에 실패했습니다. 다시 시도해주세요.")
+              } finally {
+                setIsLoading(false)
+              }
             }}
             className="space-y-6"
           >
@@ -455,10 +442,35 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
           </form>
         ) : step === 7 ? (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault()
-              if (hallReserved === null || sdmReserved === null) return
-              setStep(shouldSkipPreferenceStep ? 9 : 8)
+              if (hallReserved === null || sdmReserved === null || isLoading) return
+              if (shouldSkipPreferenceStep) {
+                setIsLoading(true)
+                try {
+                  const parsedTotal = parseInt(totalBudget.replace(/[^0-9]/g, "")) || 0
+                  const parsedSdm = parseInt(sdmBudget.replace(/[^0-9]/g, "")) || 0
+                  const parsedHall = parseInt(hallBudget.replace(/[^0-9]/g, "")) || 0
+                  await savePreference({
+                    weddingDate: weddingDate ? format(weddingDate, "yyyy-MM-dd") : "",
+                    totalBudget: parsedTotal,
+                    sdmBudget: parsedSdm,
+                    hallBudget: parsedHall,
+                    weddingHallReserved: hallReserved ?? false,
+                    sdmReserved: sdmReserved ?? false,
+                  })
+                  const res = await createInviteCode()
+                  setInviteCode(res.data.inviteCode)
+                  setStep(9)
+                } catch (err) {
+                  console.error("저장 실패:", err)
+                  alert("저장에 실패했습니다. 다시 시도해주세요.")
+                } finally {
+                  setIsLoading(false)
+                }
+              } else {
+                setStep(8)
+              }
             }}
             className="space-y-6"
           >
@@ -551,9 +563,36 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
           </form>
         ) : step === 8 ? (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault()
-              if (hallStyle.trim() && guestCount.trim() && preferredRegion.trim()) setStep(9)
+              if (!hallStyle.trim() || !guestCount.trim() || !preferredRegion.trim() || isLoading) return
+              setIsLoading(true)
+              try {
+                const parsedTotal = parseInt(totalBudget.replace(/[^0-9]/g, "")) || 0
+                const parsedSdm = parseInt(sdmBudget.replace(/[^0-9]/g, "")) || 0
+                const parsedHall = parseInt(hallBudget.replace(/[^0-9]/g, "")) || 0
+                const parsedGuest = parseInt(guestCount.replace(/[^0-9]/g, "")) || 0
+                const regions = preferredRegion.split(",").map((r) => r.trim()).filter(Boolean)
+                await savePreference({
+                  weddingDate: weddingDate ? format(weddingDate, "yyyy-MM-dd") : "",
+                  totalBudget: parsedTotal,
+                  sdmBudget: parsedSdm,
+                  hallBudget: parsedHall,
+                  weddingHallReserved: hallReserved ?? false,
+                  sdmReserved: sdmReserved ?? false,
+                  hallStyle: hallStyle.trim(),
+                  guestCount: parsedGuest,
+                  preferredRegions: regions.map((r) => ({ city: r, districts: [] })),
+                })
+                const res = await createInviteCode()
+                setInviteCode(res.data.inviteCode)
+                setStep(9)
+              } catch (err) {
+                console.error("저장 실패:", err)
+                alert("저장에 실패했습니다. 다시 시도해주세요.")
+              } finally {
+                setIsLoading(false)
+              }
             }}
             className="space-y-6"
           >
