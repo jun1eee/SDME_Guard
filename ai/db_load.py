@@ -1,7 +1,9 @@
 import json
 import os
+import re
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
+from openai import OpenAI
 
 # === 설정 (.env에서 로드) ===
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
@@ -9,6 +11,10 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 NEO4J_URI = os.environ["NEO4J_URI"]
 NEO4J_USER = os.environ["NEO4J_USER"]
 NEO4J_PW = os.environ["NEO4J_PW"]
+
+openai_client = OpenAI()
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIM = 1536
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -202,6 +208,97 @@ def create_tag_co_occurs(session, category):
 
 
 # ──────────────────────────────────────────
+# 스드메 임베딩 생성
+# ──────────────────────────────────────────
+CATEGORY_KR = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}
+
+
+def _clean_html(text):
+    """HTML 태그 및 불필요한 공백 제거"""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("\r\n", " ").replace("\n", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_embedding_text(item, category):
+    """Vendor 1개의 임베딩용 텍스트 조합"""
+    parts = [
+        item.get("name", ""),
+        CATEGORY_KR.get(category, category),
+        item.get("region", ""),
+    ]
+
+    tags = [t["name"] for t in item.get("tags", []) if t.get("name")]
+    if tags:
+        parts.append(" ".join(tags))
+
+    detail = _clean_html(item.get("detailCmt", ""))
+    if detail:
+        parts.append(detail)
+
+    reviews = sorted(
+        [r for r in item.get("reviews", []) if r.get("contents")],
+        key=lambda r: r.get("score", 0),
+        reverse=True,
+    )[:3]
+    for r in reviews:
+        parts.append(_clean_html(r["contents"])[:200])
+
+    return " | ".join(p for p in parts if p)
+
+
+def _batch_embed(texts, batch_size=100):
+    """OpenAI 임베딩 API 배치 호출"""
+    embeddings = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        resp = openai_client.embeddings.create(input=batch, model=EMBEDDING_MODEL)
+        embeddings.extend([d.embedding for d in resp.data])
+    return embeddings
+
+
+def create_vendor_embeddings(session, items, category):
+    """Vendor 노드에 embedding 속성 추가"""
+    texts = [_build_embedding_text(item, category) for item in items]
+    partner_ids = [item.get("partnerId", 0) for item in items]
+
+    print(f"  [{category}] 임베딩 생성 중... ({len(texts)}개)")
+    embeddings = _batch_embed(texts)
+
+    for i in range(0, len(embeddings), 100):
+        batch = [
+            {"partnerId": partner_ids[j], "embedding": embeddings[j]}
+            for j in range(i, min(i + 100, len(embeddings)))
+        ]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: $cat})
+            SET v.embedding = row.embedding
+        """, batch=batch, cat=category)
+
+    print(f"  → [{category}] 임베딩 {len(embeddings)}개 저장 완료")
+
+
+def create_vector_index(session):
+    """Vendor 벡터 인덱스 생성 (기존 인덱스 있으면 삭제 후 재생성)"""
+    existing = session.run("SHOW INDEXES YIELD name, type WHERE type = 'VECTOR' RETURN name").data()
+    for idx in existing:
+        name = idx["name"]
+        session.run(f"DROP INDEX {name}")
+        print(f"  기존 벡터 인덱스 삭제: {name}")
+
+    session.run("""
+        CREATE VECTOR INDEX vendor_embedding_index IF NOT EXISTS
+        FOR (v:Vendor) ON (v.embedding)
+        OPTIONS {indexConfig: {
+            `vector.dimensions`: $dim,
+            `vector.similarity_function`: 'COSINE'
+        }}
+    """, dim=EMBEDDING_DIM)
+    print(f"  → vendor_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
+
+
+# ──────────────────────────────────────────
 # 웨딩홀 (Hall 노드) — DB.py 로직 그대로
 # ──────────────────────────────────────────
 def _upsert_hall(tx, list_item, detail_item):
@@ -356,6 +453,13 @@ def main():
         # Tag 동시출현 관계
         for category in VENDOR_FILES:
             create_tag_co_occurs(session, category)
+
+        # 스드메 임베딩 생성 + 벡터 인덱스
+        print("\n[embedding] 임베딩 생성 시작...")
+        for category, path in VENDOR_FILES.items():
+            items = load_json(path)
+            create_vendor_embeddings(session, items, category)
+        create_vector_index(session)
 
         # 웨딩홀
         print("[hall] 로딩 시작...")
