@@ -16,8 +16,9 @@ spring:
         default_batch_fetch_size: 100
 
   flyway:
-    enabled: false
+    enabled: true
     locations: classpath:db/migration
+    baseline-on-migrate: true
 
   jackson:
     default-property-inclusion: non_null
