@@ -57,6 +57,8 @@ export default function ChatPage() {
 
   // 인증 상태
   const [authChecked, setAuthChecked] = useState(false)
+  const [userId, setUserId] = useState<number | null>(null)
+  const [coupleId, setCoupleId] = useState<number | null>(null)
   const [userName, setUserName] = useState("")
   const [userNickname, setUserNickname] = useState("")
   const [userRole, setUserRole] = useState<"groom" | "bride">("groom")
@@ -93,6 +95,8 @@ export default function ChatPage() {
           return
         }
         const r = res.data.role === "g" ? "groom" : "bride"
+        setUserId(res.data.id)
+        setCoupleId(res.data.coupleId)
         setUserName(res.data.name || "")
         setUserNickname(res.data.nickname || "")
         setUserRole(r)
@@ -574,6 +578,8 @@ export default function ChatPage() {
             groomName={weddingConfig.groomName}
             brideName={weddingConfig.brideName}
             currentUser={userRole}
+            coupleId={coupleId}
+            userId={userId}
             sharedVendors={sharedVendors}
             onAddToVote={(v) => handleAddToVote({ ...v, id: v.vendorId }, "partner-share")}
             onOpenTab={(type) => {
