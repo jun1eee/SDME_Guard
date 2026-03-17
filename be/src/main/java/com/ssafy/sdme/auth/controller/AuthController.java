@@ -15,12 +15,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.CookieValue;
 import jakarta.validation.Valid;
+import com.ssafy.sdme.auth.jwt.JwtUtil;
+import com.ssafy.sdme.user.domain.User;
+import com.ssafy.sdme.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 
 @Tag(name = "Auth", description = "인증 관련 (카카오 로그인/회원가입/로그아웃) API")
 @Slf4j
@@ -30,6 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @Operation(summary = "카카오 로그인", description = "카카오 인가 코드로 로그인합니다. 신규/기존 모두 JWT를 발급합니다.")
     @PostMapping("/kakao")
@@ -77,5 +80,34 @@ public class AuthController {
         response.addCookie(CookieUtil.createCookie("refresh", null, ExpiredTime.COOKIE_DELETE_AGE));
 
         return ApiResponse.ok(null);
+    }
+
+    @Operation(summary = "회원탈퇴", description = "회원탈퇴 처리합니다. 커플 매칭 시 자동 해제됩니다.")
+    @DeleteMapping("/withdraw")
+    public ApiResponse<Void> withdraw(HttpServletRequest request, HttpServletResponse response) {
+        Long userId = (Long) request.getAttribute("userId");
+        log.info("[AuthController] 회원탈퇴 요청 - userId: {}", userId);
+
+        authService.withdraw(userId);
+        response.addCookie(CookieUtil.createCookie("refresh", null, ExpiredTime.COOKIE_DELETE_AGE));
+
+        return ApiResponse.ok(null);
+    }
+
+    // TODO: 운영 환경에서 반드시 제거할 것
+    @Operation(summary = "[테스트] userId로 토큰 발급", description = "테스트용 - userId만으로 JWT를 발급합니다.")
+    @PostMapping("/test-login/{userId}")
+    public ApiResponse<LoginResponse> testLogin(@PathVariable Long userId, HttpServletResponse response) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        String role = user.getRole() != null ? user.getRole().name() : "";
+        String accessToken = jwtUtil.createAccessToken(user.getId(), user.getKakaoId(), role);
+        String refreshToken = jwtUtil.createRefreshToken(user.getId(), user.getKakaoId(), role);
+
+        response.addCookie(CookieUtil.createCookie("refresh", refreshToken, ExpiredTime.COOKIE_REFRESH_MAX_AGE));
+
+        log.info("[AuthController] 테스트 로그인 - userId: {}", userId);
+        return ApiResponse.ok(LoginResponse.of(false, accessToken, refreshToken, user.getNickname(), user.getProfileImage()));
     }
 }

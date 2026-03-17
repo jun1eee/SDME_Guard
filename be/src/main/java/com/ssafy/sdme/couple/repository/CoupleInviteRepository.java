@@ -10,5 +10,5 @@ public interface CoupleInviteRepository extends JpaRepository<CoupleInvite, Long
 
     Optional<CoupleInvite> findByInviteCodeAndStatus(String inviteCode, CoupleInviteStatus status);
 
-    Optional<CoupleInvite> findByInviterIdAndStatus(Long inviterId, CoupleInviteStatus status);
+    Optional<CoupleInvite> findFirstByInviterIdAndStatusOrderByIdDesc(Long inviterId, CoupleInviteStatus status);
 }

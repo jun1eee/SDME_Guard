@@ -7,13 +7,14 @@ import { ArrowRight, CalendarIcon, Check, Copy, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { signup, savePreference, createInviteCode, connectCouple } from "@/lib/api"
+import { signup, savePreference, createInviteCode, connectCouple, updateTastes } from "@/lib/api"
+import { Sparkles, Palette, Heart as HeartIcon, Utensils } from "lucide-react"
 
 interface SetupScreenProps {
   onComplete: () => void
 }
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
 
 function formatWeddingDate(date: Date | undefined) {
   if (!date) return "날짜를 선택해주세요"
@@ -41,13 +42,32 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
   const [guestCount, setGuestCount] = useState("")
   const [preferredRegion, setPreferredRegion] = useState("")
 
+  // 취향 선택
+  const TASTE_CATEGORIES = [
+    { id: "style", title: "웨딩 스타일", icon: <Sparkles className="size-5" />, options: ["클래식", "모던", "빈티지", "가든", "미니멀", "보헤미안"] },
+    { id: "color", title: "컬러 테마", icon: <Palette className="size-5" />, options: ["화이트", "골드", "블러쉬핑크", "네이비", "아이보리", "그린"] },
+    { id: "mood", title: "분위기", icon: <HeartIcon className="size-5" />, options: ["로맨틱", "우아함", "캐주얼", "럭셔리", "따뜻한", "심플"] },
+    { id: "food", title: "식사 선호", icon: <Utensils className="size-5" />, options: ["한식뷔페", "양식코스", "중식", "퓨전", "디저트바", "칵테일"] },
+  ]
+  const [selectedTastes, setSelectedTastes] = useState<Record<string, string[]>>({
+    style: [], color: [], mood: [], food: [],
+  })
+  const toggleTaste = (categoryId: string, option: string) => {
+    setSelectedTastes((prev) => ({
+      ...prev,
+      [categoryId]: prev[categoryId].includes(option)
+        ? prev[categoryId].filter((o) => o !== option)
+        : [...prev[categoryId], option],
+    }))
+  }
+
   const shouldSkipPreferenceStep = useMemo(() => hallReserved === true, [hallReserved])
   const showProgress = step >= 1
   const isSurveyFlow = step >= 4
   const signupProgressStep = step >= 3 ? 3 : step
   const signupProgressCount = 3
-  const surveyProgressStep = step >= 9 ? 5 : step - 3
-  const surveyProgressCount = 5
+  const surveyProgressStep = step >= 10 ? 6 : step - 3
+  const surveyProgressCount = 6
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteCode)
@@ -459,8 +479,6 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                     weddingHallReserved: hallReserved ?? false,
                     sdmReserved: sdmReserved ?? false,
                   })
-                  const res = await createInviteCode()
-                  setInviteCode(res.data.inviteCode)
                   setStep(9)
                 } catch (err) {
                   console.error("저장 실패:", err)
@@ -584,8 +602,6 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                   guestCount: parsedGuest,
                   preferredRegions: regions.map((r) => ({ city: r, districts: [] })),
                 })
-                const res = await createInviteCode()
-                setInviteCode(res.data.inviteCode)
                 setStep(9)
               } catch (err) {
                 console.error("저장 실패:", err)
@@ -663,6 +679,92 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
               </button>
             </div>
           </form>
+        ) : step === 9 ? (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">취향을 선택해주세요</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                원하는 항목을 자유롭게 선택하세요. 마이페이지에서 수정할 수 있습니다.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              {TASTE_CATEGORIES.map((cat) => (
+                <div key={cat.id} className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-primary">{cat.icon}</span>
+                    <span className="text-sm font-semibold text-foreground">{cat.title}</span>
+                    {selectedTastes[cat.id].length > 0 && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        {selectedTastes[cat.id].length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {cat.options.map((opt) => {
+                      const selected = selectedTastes[cat.id].includes(opt)
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => toggleTaste(cat.id, opt)}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(shouldSkipPreferenceStep ? 7 : 8)}
+                className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              >
+                이전
+              </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={async () => {
+                  setIsLoading(true)
+                  try {
+                    await updateTastes({
+                      styles: selectedTastes.style,
+                      colors: selectedTastes.color,
+                      moods: selectedTastes.mood,
+                      foods: selectedTastes.food,
+                    })
+                    const res = await createInviteCode()
+                    setInviteCode(res.data.inviteCode)
+                    setStep(10)
+                  } catch (err) {
+                    console.error("취향 저장 실패:", err)
+                    // 실패해도 다음 단계로
+                    try {
+                      const res = await createInviteCode()
+                      setInviteCode(res.data.inviteCode)
+                    } catch { /* ignore */ }
+                    setStep(10)
+                  } finally {
+                    setIsLoading(false)
+                  }
+                }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-40"
+              >
+                다음
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-6">
             <div>
@@ -742,7 +844,7 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setStep(shouldSkipPreferenceStep ? 7 : 8)}
+                onClick={() => setStep(9)}
                 className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
               >
                 이전

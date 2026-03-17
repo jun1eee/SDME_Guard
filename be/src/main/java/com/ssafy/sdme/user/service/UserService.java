@@ -2,6 +2,8 @@ package com.ssafy.sdme.user.service;
 
 import com.ssafy.sdme.user.dto.request.UserEditRequest;
 import com.ssafy.sdme.user.dto.request.UserPreferenceRequest;
+import com.ssafy.sdme.user.dto.request.UserSharedInfoRequest;
+import com.ssafy.sdme.user.dto.request.UserTastesRequest;
 import com.ssafy.sdme.user.dto.response.UserEditResponse;
 import com.ssafy.sdme.user.dto.response.UserPreferenceResponse;
 import com.ssafy.sdme.user.dto.response.UserResponse;
@@ -15,4 +17,10 @@ public interface UserService {
     UserPreferenceResponse savePreference(Long userId, UserPreferenceRequest request);
 
     UserPreferenceResponse getPreference(Long userId);
+
+    UserPreferenceResponse updateTastes(Long userId, UserTastesRequest request);
+
+    UserPreferenceResponse getPartnerPreference(Long userId);
+
+    UserPreferenceResponse updateSharedInfo(Long userId, UserSharedInfoRequest request);
 }

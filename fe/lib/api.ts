@@ -112,6 +112,19 @@ export async function logout() {
   return fetchApi<void>("/auth/logout", { method: "POST" })
 }
 
+// Test Login API
+export async function testLogin(userId: number) {
+  return fetchApi<{
+    isNewUser: boolean
+    accessToken: string
+    refreshToken: string
+    nickname: string
+    profileImage: string
+  }>(`/auth/test-login/${userId}`, {
+    method: "POST",
+  })
+}
+
 // User API
 export async function getMyInfo() {
   return fetchApi<{
@@ -121,19 +134,25 @@ export async function getMyInfo() {
     nickname: string
     profileImage: string
     coupleId: number | null
-    partnerNickname: string | null
     createdAt: string
   }>("/user/me")
 }
 
+export async function getCoupleProfile() {
+  return fetchApi<{
+    coupleId: number
+    weddingDate: string | null
+    totalBudget: number | null
+    connectedAt: string | null
+    status: string
+    groom: { id: number; name: string; nickname: string; profileImage: string | null } | null
+    bride: { id: number; name: string; nickname: string; profileImage: string | null } | null
+  }>("/couples/me")
+}
+
 export async function editUser(data: {
+  name?: string
   nickname?: string
-  groomName?: string
-  brideName?: string
-  groomNickname?: string
-  brideNickname?: string
-  groomPhoto?: string
-  bridePhoto?: string
 }) {
   return fetchApi("/user/edit", {
     method: "PUT",
@@ -160,7 +179,65 @@ export async function savePreference(data: {
 }
 
 export async function getPreference() {
-  return fetchApi("/user/preference")
+  return fetchApi<{
+    surveyId: number
+    weddingDate: string
+    totalBudget: number
+    sdmBudget: number
+    hallBudget: number
+    weddingHallReserved: boolean
+    sdmReserved: boolean
+    hallStyle: string
+    guestCount: number
+    preferredRegions: { city: string; districts: string[] }[]
+    styles: string[] | null
+    colors: string[] | null
+    moods: string[] | null
+    foods: string[] | null
+  }>("/user/preference")
+}
+
+export async function getCouplePreferences() {
+  return fetchApi<{
+    groom: {
+      styles: string[] | null; colors: string[] | null
+      moods: string[] | null; foods: string[] | null
+      weddingDate: string | null; totalBudget: number | null
+      guestCount: number | null
+      preferredRegions: { city: string; districts: string[] }[] | null
+    }
+    bride: {
+      styles: string[] | null; colors: string[] | null
+      moods: string[] | null; foods: string[] | null
+      weddingDate: string | null; totalBudget: number | null
+      guestCount: number | null
+      preferredRegions: { city: string; districts: string[] }[] | null
+    }
+  }>("/couples/me/preferences")
+}
+
+export async function updateSharedInfo(data: {
+  weddingDate: string
+  totalBudget: number
+  guestCount: number
+  preferredRegions?: { city: string; districts: string[] }[]
+}) {
+  return fetchApi("/user/preference/shared-info", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTastes(data: {
+  styles: string[]
+  colors: string[]
+  moods: string[]
+  foods: string[]
+}) {
+  return fetchApi("/user/preference/tastes", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
 }
 
 // Couple API
@@ -171,7 +248,7 @@ export async function createInviteCode() {
 }
 
 export async function connectCouple(inviteCode: string) {
-  return fetchApi<{ coupleId: number; partnerNickname: string }>("/couples/connect", {
+  return fetchApi<{ coupleId: number; partnerNickname: string }>("/couples/invite/accept", {
     method: "POST",
     body: JSON.stringify({ inviteCode }),
   })
@@ -179,4 +256,12 @@ export async function connectCouple(inviteCode: string) {
 
 export async function getMyCoupleInfo() {
   return fetchApi("/couples/me")
+}
+
+export async function disconnectCouple() {
+  return fetchApi("/couples/disconnect", { method: "POST" })
+}
+
+export async function withdraw() {
+  return fetchApi("/auth/withdraw", { method: "DELETE" })
 }

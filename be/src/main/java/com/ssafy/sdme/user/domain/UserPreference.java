@@ -49,12 +49,30 @@ public class UserPreference extends BaseTimeEntity {
     @Column(name = "preferred_regions", columnDefinition = "json")
     private List<PreferredRegion> preferredRegions;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "styles", columnDefinition = "json")
+    private List<String> styles;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "colors", columnDefinition = "json")
+    private List<String> colors;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "moods", columnDefinition = "json")
+    private List<String> moods;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "foods", columnDefinition = "json")
+    private List<String> foods;
+
     @Builder
     public UserPreference(Long userId, LocalDate weddingDate, Integer totalBudget,
                           Integer sdmBudget, Integer hallBudget,
                           Boolean weddingHallReserved, Boolean sdmReserved,
                           String hallStyle, Integer guestCount,
-                          List<PreferredRegion> preferredRegions) {
+                          List<PreferredRegion> preferredRegions,
+                          List<String> styles, List<String> colors,
+                          List<String> moods, List<String> foods) {
         this.userId = userId;
         this.weddingDate = weddingDate;
         this.totalBudget = totalBudget;
@@ -65,6 +83,10 @@ public class UserPreference extends BaseTimeEntity {
         this.hallStyle = hallStyle;
         this.guestCount = guestCount;
         this.preferredRegions = preferredRegions;
+        this.styles = styles;
+        this.colors = colors;
+        this.moods = moods;
+        this.foods = foods;
     }
 
     public void update(LocalDate weddingDate, Integer totalBudget,
@@ -81,5 +103,21 @@ public class UserPreference extends BaseTimeEntity {
         this.hallStyle = hallStyle;
         this.guestCount = guestCount;
         this.preferredRegions = preferredRegions;
+    }
+
+    public void updateSharedInfo(LocalDate weddingDate, Integer totalBudget,
+                                 Integer guestCount, List<PreferredRegion> preferredRegions) {
+        this.weddingDate = weddingDate;
+        this.totalBudget = totalBudget;
+        this.guestCount = guestCount;
+        this.preferredRegions = preferredRegions;
+    }
+
+    public void updateTastes(List<String> styles, List<String> colors,
+                             List<String> moods, List<String> foods) {
+        this.styles = styles;
+        this.colors = colors;
+        this.moods = moods;
+        this.foods = foods;
     }
 }

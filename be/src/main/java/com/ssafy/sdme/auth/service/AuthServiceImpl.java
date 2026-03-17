@@ -11,6 +11,7 @@ import com.ssafy.sdme.couple.domain.Couple;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
 import com.ssafy.sdme.user.domain.Role;
 import com.ssafy.sdme.user.domain.User;
+import com.ssafy.sdme.user.repository.UserPreferenceRepository;
 import com.ssafy.sdme.user.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
     private final CoupleRepository coupleRepository;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     @Override
     public LoginResponse kakaoLogin(String code) {
@@ -44,8 +46,19 @@ public class AuthServiceImpl implements AuthService {
         Optional<User> existingUser = userRepository.findByKakaoId(kakaoId);
 
         if (existingUser.isPresent()) {
-            // 기존 사용자 → JWT 발급
             User user = existingUser.get();
+
+            // 탈퇴한 사용자 → 재가입 처리 (신규 유저처럼)
+            if (user.getDeletedAt() != null) {
+                user.rejoin(userInfo.getNickname(), userInfo.getProfileImageUrl());
+                String accessToken = jwtUtil.createAccessToken(user.getId(), user.getKakaoId(), "");
+                String refreshToken = jwtUtil.createRefreshToken(user.getId(), user.getKakaoId(), "");
+                log.info("[Auth] 탈퇴 유저 재가입 - userId: {}", user.getId());
+                return LoginResponse.of(true, accessToken, refreshToken,
+                        userInfo.getNickname(), userInfo.getProfileImageUrl());
+            }
+
+            // 기존 사용자 → JWT 발급
             String role = user.getRole() != null ? user.getRole().name() : "";
             String accessToken = jwtUtil.createAccessToken(user.getId(), user.getKakaoId(), role);
             String refreshToken = jwtUtil.createRefreshToken(user.getId(), user.getKakaoId(), role);
@@ -148,5 +161,33 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String accessToken) {
         // TODO: 토큰 블랙리스트 처리 (Redis 도입 시)
         log.info("[Auth] 로그아웃 처리");
+    }
+
+    @Override
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 커플 매칭 되어있으면 해제
+        if (user.getCoupleId() != null) {
+            Couple couple = coupleRepository.findById(user.getCoupleId()).orElse(null);
+            if (couple != null && couple.getStatus() == com.ssafy.sdme.couple.domain.CoupleStatus.MATCHED) {
+                couple.disconnect();
+                Long partnerId = user.getRole() == Role.g ? couple.getBrideId() : couple.getGroomId();
+                User partner = userRepository.findById(partnerId).orElse(null);
+                if (partner != null) {
+                    partner.updateCoupleId(null);
+                }
+            }
+        }
+
+        // 선호도 삭제
+        userPreferenceRepository.findByUserId(userId)
+                .ifPresent(userPreferenceRepository::delete);
+
+        // soft delete
+        user.withdraw();
+
+        log.info("[Auth] 회원탈퇴 - userId: {}", userId);
     }
 }

@@ -2,6 +2,7 @@ package com.ssafy.sdme.couple.service;
 
 import com.ssafy.sdme.couple.dto.response.CoupleConnectResponse;
 import com.ssafy.sdme.couple.dto.response.CoupleInviteResponse;
+import com.ssafy.sdme.couple.dto.response.CouplePreferencesResponse;
 import com.ssafy.sdme.couple.dto.response.CoupleResponse;
 
 public interface CoupleService {
@@ -11,4 +12,8 @@ public interface CoupleService {
     CoupleConnectResponse connect(Long userId, String inviteCode);
 
     CoupleResponse getMyCouple(Long userId);
+
+    CouplePreferencesResponse getCouplePreferences(Long userId);
+
+    void disconnect(Long userId);
 }

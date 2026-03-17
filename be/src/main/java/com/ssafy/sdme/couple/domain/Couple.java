@@ -22,24 +22,6 @@ public class Couple extends BaseTimeEntity {
     @Column(name = "bride_id")
     private Long brideId;
 
-    @Column(name = "groom_name", length = 50)
-    private String groomName;
-
-    @Column(name = "bride_name", length = 50)
-    private String brideName;
-
-    @Column(name = "groom_nickname", length = 100)
-    private String groomNickname;
-
-    @Column(name = "bride_nickname", length = 100)
-    private String brideNickname;
-
-    @Column(name = "groom_photo", length = 500)
-    private String groomPhoto;
-
-    @Column(name = "bride_photo", length = 500)
-    private String bridePhoto;
-
     @Column(name = "wedding_date")
     private LocalDate weddingDate;
 
@@ -74,14 +56,7 @@ public class Couple extends BaseTimeEntity {
         this.connectedAt = LocalDateTime.now();
     }
 
-    public void updateInfo(String groomName, String brideName,
-                           String groomNickname, String brideNickname,
-                           String groomPhoto, String bridePhoto) {
-        this.groomName = groomName;
-        this.brideName = brideName;
-        this.groomNickname = groomNickname;
-        this.brideNickname = brideNickname;
-        this.groomPhoto = groomPhoto;
-        this.bridePhoto = bridePhoto;
+    public void disconnect() {
+        this.status = CoupleStatus.DISCONNECTED;
     }
 }
