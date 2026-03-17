@@ -18,6 +18,7 @@ function CallbackHandler() {
       .then((res) => {
         setAccessToken(res.data.accessToken)
 
+        sessionStorage.setItem("loggedIn", "true")
         if (res.data.isNewUser) {
           sessionStorage.setItem("kakaoNickname", res.data.kakaoNickname || "")
           sessionStorage.setItem("kakaoProfileImage", res.data.kakaoProfileImage || "")

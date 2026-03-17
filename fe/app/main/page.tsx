@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getAccessToken, tryReissue, logout, clearAccessToken, createInviteCode } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -57,6 +57,7 @@ export default function ChatPage() {
 
   // 인증 상태
   const [authChecked, setAuthChecked] = useState(false)
+  const [userName, setUserName] = useState("")
   const [userNickname, setUserNickname] = useState("")
   const [userRole, setUserRole] = useState<"groom" | "bride">("groom")
   const [coupleConnected, setCoupleConnected] = useState(false)
@@ -65,6 +66,19 @@ export default function ChatPage() {
   // 로그인 체크: 미인증이면 /login, 미가입이면 /signup으로 리다이렉트
   useEffect(() => {
     const init = async () => {
+      // 브라우저 닫으면 sessionStorage가 사라지므로 로그인 페이지로
+      if (!sessionStorage.getItem("loggedIn")) {
+        clearAccessToken()
+        router.replace("/login")
+        return
+      }
+
+      // 테스트 로그인 토큰 복원
+      const testToken = sessionStorage.getItem("testAccessToken")
+      if (testToken && !getAccessToken()) {
+        setAccessToken(testToken)
+      }
+
       if (!getAccessToken()) {
         const ok = await tryReissue()
         if (!ok) {
@@ -75,25 +89,73 @@ export default function ChatPage() {
       try {
         const res = await getMyInfo()
         if (!res.data.role) {
-          router.replace("/signup") // 카카오 로그인은 됐지만 가입 미완료
+          router.replace("/signup")
           return
         }
         const r = res.data.role === "g" ? "groom" : "bride"
+        setUserName(res.data.name || "")
         setUserNickname(res.data.nickname || "")
         setUserRole(r)
-        setCoupleConnected(res.data.partnerNickname != null)
-        setWeddingConfig((prev) => ({
-          ...prev,
-          groomName: r === "groom" ? (res.data.name || "") : prev.groomName,
-          brideName: r === "bride" ? (res.data.name || "") : prev.brideName,
-          groomNickname: r === "groom" ? (res.data.nickname || "") : prev.groomNickname,
-          brideNickname: r === "bride" ? (res.data.nickname || "") : prev.brideNickname,
-        }))
-        if (res.data.coupleId == null) {
+
+        // 커플 프로필 조회
+        if (res.data.coupleId) {
+          try {
+            const coupleRes = await getCoupleProfile()
+            const g = coupleRes.data.groom
+            const b = coupleRes.data.bride
+            setCoupleConnected(coupleRes.data.status === "MATCHED" && g != null && b != null)
+            setWeddingConfig((prev) => ({
+              ...prev,
+              groomName: g?.name || "",
+              brideName: b?.name || "",
+              groomNickname: g?.nickname || "",
+              brideNickname: b?.nickname || "",
+              groomPhoto: g?.profileImage || "",
+              bridePhoto: b?.profileImage || "",
+            }))
+            if (coupleRes.data.status !== "MATCHED" || !g || !b) {
+              createInviteCode()
+                .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+                .catch(() => {})
+            }
+          } catch {
+            // 커플 정보 없음 → 본인 정보만 세팅
+            setWeddingConfig((prev) => ({
+              ...prev,
+              groomName: r === "groom" ? (res.data.name || "") : "",
+              brideName: r === "bride" ? (res.data.name || "") : "",
+              groomNickname: r === "groom" ? (res.data.nickname || "") : "",
+              brideNickname: r === "bride" ? (res.data.nickname || "") : "",
+              groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
+              bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+            }))
+            createInviteCode()
+              .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+              .catch(() => {})
+          }
+        } else {
+          // coupleId 없음 → 본인 정보만 세팅
+          setWeddingConfig((prev) => ({
+            ...prev,
+            groomName: r === "groom" ? (res.data.name || "") : "",
+            brideName: r === "bride" ? (res.data.name || "") : "",
+            groomNickname: r === "groom" ? (res.data.nickname || "") : "",
+            brideNickname: r === "bride" ? (res.data.nickname || "") : "",
+            groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
+            bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+          }))
           createInviteCode()
             .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
             .catch(() => {})
         }
+        // /mypage에서 리다이렉트된 경우 마이페이지 뷰 활성화
+        const pendingView = sessionStorage.getItem("pendingView")
+        if (pendingView) {
+          sessionStorage.removeItem("pendingView")
+          setCurrentView(pendingView as ViewType)
+          window.history.replaceState(null, "", `/${pendingView === "my-page" ? "mypage" : "main"}`)
+        }
+
         setAuthChecked(true)
       } catch {
         clearAccessToken()
@@ -323,12 +385,17 @@ export default function ChatPage() {
     // 풀페이지 뷰
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
+    // URL 업데이트 (페이지 이동 없이)
+    const urlMap: Record<string, string> = { "my-page": "/mypage" }
+    window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
   const handleAccountNavigate = (view: string) => {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
+      const urlMap: Record<string, string> = { "my-page": "/mypage" }
+      window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
 
@@ -436,6 +503,8 @@ export default function ChatPage() {
       // 서버 에러여도 로그아웃 진행
     }
     clearAccessToken()
+    sessionStorage.removeItem("testAccessToken")
+    sessionStorage.removeItem("loggedIn")
     router.replace("/login")
   }
 
@@ -625,7 +694,16 @@ export default function ChatPage() {
             bridePhoto={weddingConfig.bridePhoto}
             coupleConnected={coupleConnected}
             myInviteCode={myInviteCode}
-            onCoupleConnect={() => setCoupleConnected(true)}
+            userRole={userRole}
+            onCoupleConnect={async (inviteCode) => {
+              try {
+                const res = await connectCouple(inviteCode)
+                setCoupleConnected(true)
+                toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
+              } catch {
+                toast.error("연결 실패", { description: "초대코드를 확인해주세요." })
+              }
+            }}
             onUpdateProfile={handleUpdateProfile}
             onDeleteAccount={handleLogout}
           />
@@ -686,9 +764,12 @@ export default function ChatPage() {
         groomPhoto={weddingConfig.groomPhoto}
         bridePhoto={weddingConfig.bridePhoto}
         dDay={weddingConfig.dDay}
+        coupleConnected={coupleConnected}
+        userRole={userRole}
         currentView={currentView ?? "chat"}
         activeSessionId={activeSessionId}
         chatHistory={chatHistory}
+        userName={userName}
         userNickname={userNickname}
         voteBadge={voteBadge}
         coupleChatBadge={coupleChatBadge}

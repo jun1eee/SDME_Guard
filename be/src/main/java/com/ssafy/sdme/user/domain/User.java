@@ -53,7 +53,22 @@ public class User extends BaseTimeEntity {
         this.nickname = nickname;
     }
 
-    public void editInfo(String nickname) {
+    public void editInfo(String name, String nickname) {
+        if (name != null) this.name = name;
+        if (nickname != null) this.nickname = nickname;
+    }
+
+    public void withdraw() {
+        this.deletedAt = LocalDateTime.now();
+        this.coupleId = null;
+    }
+
+    public void rejoin(String nickname, String profileImage) {
+        this.deletedAt = null;
+        this.name = null;
+        this.role = null;
         this.nickname = nickname;
+        this.profileImage = profileImage;
+        this.coupleId = null;
     }
 }

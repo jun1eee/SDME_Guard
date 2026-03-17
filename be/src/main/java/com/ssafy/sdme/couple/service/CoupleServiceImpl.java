@@ -6,11 +6,15 @@ import com.ssafy.sdme._global.exception.NotFoundException;
 import com.ssafy.sdme.couple.domain.*;
 import com.ssafy.sdme.couple.dto.response.CoupleConnectResponse;
 import com.ssafy.sdme.couple.dto.response.CoupleInviteResponse;
+import com.ssafy.sdme.couple.dto.response.CouplePreferencesResponse;
 import com.ssafy.sdme.couple.dto.response.CoupleResponse;
 import com.ssafy.sdme.couple.repository.CoupleInviteRepository;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
 import com.ssafy.sdme.user.domain.Role;
 import com.ssafy.sdme.user.domain.User;
+import com.ssafy.sdme.user.domain.UserPreference;
+import com.ssafy.sdme.user.dto.response.UserPreferenceResponse;
+import com.ssafy.sdme.user.repository.UserPreferenceRepository;
 import com.ssafy.sdme.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,11 +32,12 @@ public class CoupleServiceImpl implements CoupleService {
     private final CoupleInviteRepository coupleInviteRepository;
     private final CoupleRepository coupleRepository;
     private final UserRepository userRepository;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     @Override
     public CoupleInviteResponse createInviteCode(Long userId) {
         // 기존 PENDING 초대코드가 있으면 그대로 반환
-        return coupleInviteRepository.findByInviterIdAndStatus(userId, CoupleInviteStatus.PENDING)
+        return coupleInviteRepository.findFirstByInviterIdAndStatusOrderByIdDesc(userId, CoupleInviteStatus.PENDING)
                 .map(existing -> {
                     if (existing.isExpired()) {
                         existing.expire();
@@ -128,17 +133,84 @@ public class CoupleServiceImpl implements CoupleService {
         Couple couple = coupleRepository.findById(user.getCoupleId())
                 .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
 
-        // 상대방 닉네임 조회
-        String partnerNickname = null;
-        if (couple.getStatus() == CoupleStatus.MATCHED) {
-            Long partnerId = user.getRole() == Role.g ? couple.getBrideId() : couple.getGroomId();
-            partnerNickname = userRepository.findById(partnerId)
-                    .map(User::getNickname)
-                    .orElse(null);
-        }
+        User groom = couple.getGroomId() != null ? userRepository.findById(couple.getGroomId()).orElse(null) : null;
+        User bride = couple.getBrideId() != null ? userRepository.findById(couple.getBrideId()).orElse(null) : null;
 
         log.info("[Couple] 커플 정보 조회 - userId: {}, coupleId: {}", userId, couple.getId());
-        return CoupleResponse.of(couple, partnerNickname);
+        return CoupleResponse.of(couple, groom, bride);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CouplePreferencesResponse getCouplePreferences(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        if (user.getCoupleId() == null) {
+            throw new NotFoundException("커플 매칭이 되어있지 않습니다.");
+        }
+
+        Couple couple = coupleRepository.findById(user.getCoupleId())
+                .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
+
+        if (couple.getStatus() != CoupleStatus.MATCHED) {
+            throw new NotFoundException("커플 매칭이 완료되지 않았습니다.");
+        }
+
+        UserPreferenceResponse groomPref = userPreferenceRepository.findByUserId(couple.getGroomId())
+                .map(UserPreferenceResponse::from)
+                .orElse(UserPreferenceResponse.empty());
+
+        UserPreferenceResponse bridePref = userPreferenceRepository.findByUserId(couple.getBrideId())
+                .map(UserPreferenceResponse::from)
+                .orElse(UserPreferenceResponse.empty());
+
+        log.info("[Couple] 커플 선호도 조회 - userId: {}, coupleId: {}", userId, couple.getId());
+        return CouplePreferencesResponse.of(groomPref, bridePref);
+    }
+
+    @Override
+    public void disconnect(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        if (user.getCoupleId() == null) {
+            throw new NotFoundException("커플 매칭 정보가 없습니다.");
+        }
+
+        Couple couple = coupleRepository.findById(user.getCoupleId())
+                .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
+
+        if (couple.getStatus() != CoupleStatus.MATCHED) {
+            throw new BadRequestException("매칭된 커플이 아닙니다.");
+        }
+
+        // 커플 상태 변경
+        couple.disconnect();
+
+        // 양쪽 유저에게 새 PENDING 커플 생성
+        Long partnerId = user.getRole() == Role.g ? couple.getBrideId() : couple.getGroomId();
+        User partner = userRepository.findById(partnerId).orElse(null);
+
+        // 본인 새 커플
+        Couple myNewCouple = Couple.builder()
+                .groomId(user.getRole() == Role.g ? user.getId() : null)
+                .brideId(user.getRole() == Role.b ? user.getId() : null)
+                .build();
+        coupleRepository.save(myNewCouple);
+        user.updateCoupleId(myNewCouple.getId());
+
+        // 파트너 새 커플
+        if (partner != null) {
+            Couple partnerNewCouple = Couple.builder()
+                    .groomId(partner.getRole() == Role.g ? partner.getId() : null)
+                    .brideId(partner.getRole() == Role.b ? partner.getId() : null)
+                    .build();
+            coupleRepository.save(partnerNewCouple);
+            partner.updateCoupleId(partnerNewCouple.getId());
+        }
+
+        log.info("[Couple] 커플 매칭 해제 - userId: {}, coupleId: {}", userId, couple.getId());
     }
 
     private String generateCode() {
