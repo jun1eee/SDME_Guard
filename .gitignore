@@ -24,3 +24,8 @@ coverage/
 # OS
 .DS_Store
 .idea/
+.venv/
+
+# Claude Code
+.claude/
+CLAUDE.md
