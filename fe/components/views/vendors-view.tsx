@@ -151,14 +151,16 @@ interface VendorListItem {
   id: number
   name: string
   category: string
-  price: number | null
+  price?: number | null
   rating: number | null
-  image: string | null
-  hashtags: string[]
+  reviewCount?: number
+  imageUrl?: string | null
+  hashtags?: string[]
   description?: string | null
 }
 
 interface VendorListPage {
+  items?: VendorListItem[]
   content?: VendorListItem[]
   nextCursor?: string | null
   hasNext?: boolean
@@ -168,19 +170,21 @@ interface VendorListEnvelope {
   status?: number
   message?: string
   data?: VendorListPage | VendorListItem[]
+  items?: VendorListItem[]
   content?: VendorListItem[]
   nextCursor?: string | null
 }
 
 function parseListResponse(json: VendorListEnvelope): { items: VendorListItem[]; nextCursor: string | null } {
+  // { status, message, data: { items: [...], nextCursor } }
   if (json.data && !Array.isArray(json.data)) {
     const page = json.data as VendorListPage
-    return { items: page.content ?? [], nextCursor: page.nextCursor ?? null }
+    return { items: page.items ?? page.content ?? [], nextCursor: page.nextCursor ?? null }
   }
   if (Array.isArray(json.data)) {
     return { items: json.data, nextCursor: json.nextCursor ?? null }
   }
-  return { items: json.content ?? [], nextCursor: json.nextCursor ?? null }
+  return { items: json.items ?? json.content ?? [], nextCursor: json.nextCursor ?? null }
 }
 
 function mapListItemToVendor(item: VendorListItem): Vendor {
@@ -197,12 +201,12 @@ function mapListItemToVendor(item: VendorListItem): Vendor {
     contact: "문의 필요",
     address: "주소 정보 없음",
     rating: Number(((item.rating ?? 0) / 20).toFixed(1)),
-    reviewCount: 0,
+    reviewCount: item.reviewCount ?? 0,
     paymentStep: 1,
     price: item.price != null ? `${item.price.toLocaleString("ko-KR")}원` : "문의",
     isFavorite: false,
-    coverUrl: item.image ?? undefined,
-    logoUrl: item.image ?? undefined,
+    coverUrl: item.imageUrl ?? undefined,
+    logoUrl: item.imageUrl ?? undefined,
   }
 }
 
@@ -812,15 +816,16 @@ function VendorCard({
       draggable
       onDragStart={handleDragStart}
     >
-      {/* Image placeholder */}
+      {/* Image */}
       <div className="relative h-52 bg-[#f0eaf2]">
+        {vendor.coverUrl
+          ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
+          : <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">{catLabel}</div>
+        }
         <div className="absolute inset-x-3 top-3 flex items-center justify-end">
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
             {stepLabel}
           </span>
-        </div>
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">
-          {catLabel}
         </div>
       </div>
 
