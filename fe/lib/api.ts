@@ -265,3 +265,16 @@ export async function disconnectCouple() {
 export async function withdraw() {
   return fetchApi("/auth/withdraw", { method: "DELETE" })
 }
+
+export async function getChatMessages() {
+  return fetchApi<{
+    id: number
+    senderId: number
+    senderName: string
+    senderRole: string
+    content: string
+    messageType: string
+    vendorId: number | null
+    createdAt: string
+  }[]>("/chat/couple/messages")
+}

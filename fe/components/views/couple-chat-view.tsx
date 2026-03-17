@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput } from "@/components/chat-input"
 import { Users, Bot, BotOff, Star, MapPin, Lock, Store, DollarSign, Calendar, Heart, Send, X } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
+import { Client } from "@stomp/stompjs"
+import SockJS from "sockjs-client"
+import { getChatMessages } from "@/lib/api"
 
 export interface VendorShare {
   id: string
@@ -31,12 +34,15 @@ interface Message {
   sender?: string
   vendorShare?: VendorShare
   comment?: string
+  createdAt?: string
 }
 
 interface CoupleChatViewProps {
   groomName: string
   brideName: string
   currentUser: "groom" | "bride"
+  coupleId?: number | null
+  userId?: number | null
   sharedVendors?: VendorShare[]
   onAddToVote?: (vendor: VendorShare) => void
   onOpenTab?: (type: string) => void
@@ -61,12 +67,12 @@ interface PendingVendor {
   description: string
 }
 
-export function CoupleChatView({ groomName, brideName, currentUser, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [], onShareVendorFromDrop, voteBadge = 0, onUnshareVendor }: CoupleChatViewProps) {
+export function CoupleChatView({ groomName, brideName, currentUser, coupleId, userId, sharedVendors = [], onAddToVote, onOpenTab, onVendorShared, onFavoriteVendor, onUnfavoriteVendor, favoriteVendorIds = [], onShareVendorFromDrop, voteBadge = 0, onUnshareVendor }: CoupleChatViewProps) {
   const [vendorDragOver, setVendorDragOver] = useState(false)
   const [unshareTarget, setUnshareTarget] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: "1",
+      id: "welcome",
       role: "assistant",
       content: `안녕하세요! ${groomName}님과 ${brideName}님의 커플 채팅방입니다.\n\n기본은 두 분만의 대화 공간이에요. AI 플래너의 도움이 필요할 땐 두 가지 방법을 사용해보세요:\n\n• **@AI** 를 메시지 앞에 붙이면 언제든 AI에게 물어볼 수 있어요\n• 우측 상단 AI 버튼을 켜면 모든 대화에 AI가 함께해요`,
     },
@@ -74,6 +80,57 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
   const [isTyping, setIsTyping] = useState(false)
   const [aiMode, setAiMode] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const stompClientRef = useRef<Client | null>(null)
+
+  // 채팅 히스토리 로드
+  useEffect(() => {
+    if (!coupleId) return
+    getChatMessages()
+      .then((res) => {
+        if (res.data.length > 0) {
+          const loaded: Message[] = res.data.map((m) => ({
+            id: m.id.toString(),
+            role: m.senderRole as "groom" | "bride",
+            content: m.content,
+            sender: m.senderName,
+            createdAt: m.createdAt,
+          }))
+          setMessages((prev) => [prev[0], ...loaded]) // 안내 메시지 + 히스토리
+        }
+      })
+      .catch(() => {})
+  }, [coupleId])
+
+  // WebSocket 연결
+  useEffect(() => {
+    if (!coupleId) return
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/couple/${coupleId}`, (message) => {
+          const data = JSON.parse(message.body)
+          // 내가 보낸 메시지는 이미 로컬에 추가했으므로 무시
+          if (data.senderId === userId) return
+          const newMsg: Message = {
+            id: data.id.toString(),
+            role: data.senderRole as "groom" | "bride",
+            content: data.content,
+            sender: data.senderName,
+            createdAt: data.createdAt,
+          }
+          setMessages((prev) => [...prev, newMsg])
+        })
+      },
+    })
+    client.activate()
+    stompClientRef.current = client
+
+    return () => {
+      client.deactivate()
+    }
+  }, [coupleId, userId])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -121,6 +178,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
 
   const handleSend = (content: string) => {
     if (!content.trim()) return
+    if (aiMode) return // AI 모드에서는 커플 채팅 불가
     const isAiMention = content.trimStart().toLowerCase().startsWith("@ai")
     const cleanContent = isAiMention ? content.trimStart().slice(3).trim() : content
     const senderName = currentUser === "groom" ? groomName : brideName
@@ -130,16 +188,45 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
       role: currentUser,
       content,
       sender: senderName,
+      createdAt: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, userMessage])
 
-    if (aiMode || isAiMention) {
+    if (aiMode) {
+      // AI 모드: AI 응답만, 상대방에게 안 보냄
       triggerAiResponse(cleanContent || content)
+    } else if (isAiMention) {
+      // @AI 멘션: 상대방에게도 보내고 AI 응답도
+      if (stompClientRef.current?.connected && coupleId && userId) {
+        stompClientRef.current.publish({
+          destination: "/app/chat.send",
+          body: JSON.stringify({
+            senderId: userId,
+            coupleId: coupleId,
+            content: content,
+            messageType: "text",
+          }),
+        })
+      }
+      triggerAiResponse(cleanContent || content)
+    } else {
+      // 일반 메시지: 상대방에게만
+      if (stompClientRef.current?.connected && coupleId && userId) {
+        stompClientRef.current.publish({
+          destination: "/app/chat.send",
+          body: JSON.stringify({
+            senderId: userId,
+            coupleId: coupleId,
+            content: content,
+            messageType: "text",
+          }),
+        })
+      }
     }
   }
 
   const inputPlaceholder = aiMode
-    ? `${currentUser === "groom" ? groomName : brideName}(으)로 메시지 보내기... (AI 동행 중)`
+    ? "AI 모드에서는 커플 채팅을 사용할 수 없습니다. AI OFF로 전환하세요."
     : `${currentUser === "groom" ? groomName : brideName}(으)로 메시지 보내기... (@AI 로 AI 호출)`
 
   return (
@@ -216,23 +303,46 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
               </div>
             )}
             <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-              {messages.map((message) => (
-                <CoupleChatMessage
-                  key={message.id}
-                  role={message.role}
-                  content={message.content}
-                  sender={message.sender}
-                  vendorShare={message.vendorShare}
-                  comment={message.comment}
-                  onAddToVote={onAddToVote}
-                  onFavoriteVendor={onFavoriteVendor}
-                  onUnfavoriteVendor={onUnfavoriteVendor}
-                  favoriteVendorIds={favoriteVendorIds}
-                  onOpenVendor={(vendorId) => onOpenTab?.(`vendor:${vendorId}`)}
-                  isMine={!!message.vendorShare && message.role === currentUser}
-                  onUnshare={(vendorId) => setUnshareTarget(vendorId)}
-                />
-              ))}
+              {messages.map((message, index) => {
+                // 날짜 구분선
+                let dateSeparator = null
+                if (message.createdAt) {
+                  const msgDate = new Date(message.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })
+                  const prevMsg = messages[index - 1]
+                  const prevDate = prevMsg?.createdAt ? new Date(prevMsg.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }) : null
+                  if (msgDate !== prevDate) {
+                    dateSeparator = (
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex-1 border-t border-border" />
+                        <span className="text-xs text-muted-foreground">{msgDate}</span>
+                        <div className="flex-1 border-t border-border" />
+                      </div>
+                    )
+                  }
+                }
+
+                return (
+                  <div key={message.id}>
+                    {dateSeparator}
+                    <CoupleChatMessage
+                      role={message.role}
+                      content={message.content}
+                      sender={message.sender}
+                      currentUser={currentUser}
+                      createdAt={message.createdAt}
+                      vendorShare={message.vendorShare}
+                      comment={message.comment}
+                      onAddToVote={onAddToVote}
+                      onFavoriteVendor={onFavoriteVendor}
+                      onUnfavoriteVendor={onUnfavoriteVendor}
+                      favoriteVendorIds={favoriteVendorIds}
+                      onOpenVendor={(vendorId) => onOpenTab?.(`vendor:${vendorId}`)}
+                      isMine={!!message.vendorShare && message.role === currentUser}
+                      onUnshare={(vendorId) => setUnshareTarget(vendorId)}
+                    />
+                  </div>
+                )
+              })}
               {isTyping && (
                 <ChatMessage role="assistant" content="" isTyping />
               )}
@@ -243,7 +353,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, sharedVendor
           {/* Input */}
           <ChatInput
         onSend={handleSend}
-        disabled={isTyping}
+        disabled={isTyping || aiMode}
         placeholder={inputPlaceholder}
         onVendorDrop={(vendor) => handleVendorDrop(vendor)}
         extraButton={
@@ -506,6 +616,8 @@ function CoupleChatMessage({
   role,
   content,
   sender,
+  currentUser,
+  createdAt,
   vendorShare,
   comment,
   onAddToVote,
@@ -519,6 +631,8 @@ function CoupleChatMessage({
   role: "assistant" | "user" | "groom" | "bride"
   content: string
   sender?: string
+  currentUser?: "groom" | "bride"
+  createdAt?: string
   vendorShare?: VendorShare
   comment?: string
   onAddToVote?: (vendor: VendorShare) => void
@@ -531,9 +645,10 @@ function CoupleChatMessage({
 }) {
   const isAssistant = role === "assistant"
   const isGroom = role === "groom"
+  const isMe = role === currentUser
 
   return (
-    <div className={`flex gap-3 ${isAssistant ? "" : "flex-row-reverse"}`}>
+    <div className={`flex gap-3 ${isAssistant ? "" : isMe ? "flex-row-reverse" : ""}`}>
       {isAssistant ? (
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <span className="text-sm">AI</span>
@@ -545,7 +660,7 @@ function CoupleChatMessage({
           <span className="text-sm font-medium">{sender?.[0]}</span>
         </div>
       )}
-      <div className={`max-w-[80%] ${isAssistant ? "" : vendorShare ? "text-left" : "text-right"}`}>
+      <div className={`max-w-[80%] ${isAssistant ? "" : isMe ? (vendorShare ? "text-left" : "text-right") : "text-left"}`}>
         {!isAssistant && (
           <span className={`mb-1 block text-xs font-medium ${
             isGroom ? "text-blue-600" : "text-pink-600"
@@ -586,6 +701,11 @@ function CoupleChatMessage({
           <div className={isGroom ? "rounded-2xl bg-blue-500 px-4 py-3 text-white" : "rounded-2xl bg-primary px-4 py-3 text-white"}>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
           </div>
+        )}
+        {createdAt && !isAssistant && (
+          <span className={`mt-1 block text-[10px] text-muted-foreground ${isMe ? "text-right" : "text-left"}`}>
+            {new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+          </span>
         )}
       </div>
     </div>
