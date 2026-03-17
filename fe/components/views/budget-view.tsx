@@ -121,7 +121,7 @@ function buildSegments(
 const fmt = (n: number) =>
   new Intl.NumberFormat("ko-KR").format(n)
 
-const fmtShort = (n: number) => {
+const fmtShort = (n: number): string => {
   if (n >= 100000000) {
     const eok = Math.floor(n / 100000000)
     const remainder = n % 100000000

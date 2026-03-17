@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -28,7 +29,8 @@ interface MyPageViewProps {
   bridePhoto?: string
   coupleConnected?: boolean
   myInviteCode?: string
-  onCoupleConnect?: () => void
+  userRole?: "groom" | "bride"
+  onCoupleConnect?: (inviteCode: string) => void
   onUpdateProfile: (data: {
     groomName: string
     brideName: string
@@ -57,11 +59,13 @@ export function MyPageView({
   bridePhoto,
   coupleConnected = false,
   myInviteCode = "",
+  userRole = "groom",
   onCoupleConnect,
   onUpdateProfile,
   onDeleteAccount,
 }: MyPageViewProps) {
-  // ── 회원탈퇴 확인 상태 ────────────────────────────────────────
+  // ── 커플 해제 / 회원탈퇴 확인 상태 ──────────────────────────
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
   // ── 파트너 연결 상태 ──────────────────────────────────────────
@@ -78,7 +82,7 @@ export function MyPageView({
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault()
     if (partnerCode.trim().length === 6) {
-      onCoupleConnect?.()
+      onCoupleConnect?.(partnerCode.trim())
       setPartnerCode("")
     }
   }
@@ -107,74 +111,150 @@ export function MyPageView({
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
-    onUpdateProfile({
-      groomName: tempGroomName,
-      brideName: tempBrideName,
-      groomNickname: tempGroomNickname,
-      brideNickname: tempBrideNickname,
-      groomPhoto: groomPhotoData,
-      bridePhoto: bridePhotoData,
-    })
+  const handleSave = async () => {
+    const newNickname = userRole === "groom" ? tempGroomNickname : tempBrideNickname
+    try {
+      await editUser({ nickname: newNickname })
+    } catch {
+      alert("닉네임 수정에 실패했습니다.")
+    }
     setEditing(false)
   }
 
+  // ── 선호도 보기 대상 (내 것 / 파트너) ────────────────────────
+  const [viewingTarget, setViewingTarget] = useState<"groom" | "bride">(userRole)
+  const isViewingMyOwn = viewingTarget === userRole
+  const [partnerPreferences, setPartnerPreferences] = useState<PreferenceSection[] | null>(null)
+
   // ── 취향 선호도 ───────────────────────────────────────────────
-  const [preferences, setPreferences] = useState<PreferenceSection[]>([
+  const ALL_SUGGESTIONS: Record<string, string[]> = {
+    style: ["클래식", "모던", "빈티지", "가든", "미니멀", "보헤미안"],
+    color: ["화이트", "골드", "블러쉬핑크", "네이비", "아이보리", "그린"],
+    mood: ["로맨틱", "우아함", "캐주얼", "럭셔리", "따뜻한", "심플"],
+    food: ["한식뷔페", "양식코스", "중식", "퓨전", "디저트바", "칵테일"],
+  }
+
+  const buildPreferences = useCallback((styles: string[], colors: string[], moods: string[], foods: string[]): PreferenceSection[] => [
     {
       id: "style",
       title: "웨딩 스타일",
       icon: <Sparkles className="size-5" />,
-      selected: ["클래식", "모던"],
-      suggestions: ["빈티지", "가든", "미니멀", "보헤미안"],
+      selected: styles,
+      suggestions: ALL_SUGGESTIONS.style.filter(s => !styles.includes(s)),
     },
     {
       id: "color",
       title: "컬러 테마",
       icon: <Palette className="size-5" />,
-      selected: ["화이트", "골드"],
-      suggestions: ["블러쉬핑크", "네이비", "아이보리", "그린"],
+      selected: colors,
+      suggestions: ALL_SUGGESTIONS.color.filter(s => !colors.includes(s)),
     },
     {
       id: "mood",
       title: "분위기",
       icon: <Heart className="size-5" />,
-      selected: ["로맨틱", "우아함"],
-      suggestions: ["캐주얼", "럭셔리", "따뜻한", "심플"],
+      selected: moods,
+      suggestions: ALL_SUGGESTIONS.mood.filter(s => !moods.includes(s)),
     },
     {
       id: "food",
       title: "식사 선호",
       icon: <Utensils className="size-5" />,
-      selected: ["한식뷔페", "양식코스"],
-      suggestions: ["중식", "퓨전", "디저트바", "칵테일"],
+      selected: foods,
+      suggestions: ALL_SUGGESTIONS.food.filter(s => !foods.includes(s)),
     },
-  ])
+  ], [])
+
+  const [preferences, setPreferences] = useState<PreferenceSection[]>(() => buildPreferences([], [], [], []))
   const [expandedSections, setExpandedSections] = useState<string[]>(["style", "color"])
+
+  // API에서 선호도 불러오기
+  useEffect(() => {
+    getPreference()
+      .then((res) => {
+        const d = res.data
+        setPreferences(buildPreferences(
+          d.styles ?? [], d.colors ?? [], d.moods ?? [], d.foods ?? []
+        ))
+        setInfo({
+          weddingDate: d.weddingDate || "",
+          guestCount: d.guestCount ?? 0,
+          budgetAmount: d.totalBudget ?? 0,
+          preferredAreas: d.preferredRegions
+            ? d.preferredRegions.map((r: { city: string; districts: string[] }) =>
+                r.districts?.length ? `${r.city} ${r.districts[0]}` : r.city
+              )
+            : [],
+        })
+      })
+      .catch(() => {})
+  }, [buildPreferences])
+
+  // 파트너 선호도 불러오기
+  const loadPartnerPreference = useCallback(() => {
+    if (partnerPreferences) return // 이미 로드됨
+    getCouplePreferences()
+      .then((res) => {
+        const partner = userRole === "groom" ? res.data.bride : res.data.groom
+        setPartnerPreferences(buildPreferences(
+          partner.styles ?? [], partner.colors ?? [], partner.moods ?? [], partner.foods ?? []
+        ))
+      })
+      .catch(() => {
+        setPartnerPreferences(buildPreferences([], [], [], []))
+      })
+  }, [partnerPreferences, buildPreferences, userRole])
+
+  const handleSelectTarget = (target: "groom" | "bride") => {
+    setViewingTarget(target)
+    if (target !== userRole) {
+      loadPartnerPreference()
+    }
+  }
+
+  const displayPreferences = isViewingMyOwn ? preferences : (partnerPreferences ?? preferences)
 
   const toggleSection = (id: string) =>
     setExpandedSections((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     )
 
+  const saveTastes = (updated: PreferenceSection[]) => {
+    const find = (id: string) => updated.find(s => s.id === id)?.selected ?? []
+    const payload = {
+      styles: find("style"),
+      colors: find("color"),
+      moods: find("mood"),
+      foods: find("food"),
+    }
+    console.log("[saveTastes] 저장 요청:", payload)
+    updateTastes(payload)
+      .then((res) => console.log("[saveTastes] 저장 성공:", res))
+      .catch((err) => console.error("[saveTastes] 저장 실패:", err))
+  }
+
   const addTag = (sectionId: string, tag: string) => {
-    setPreferences((prev) =>
-      prev.map((section) =>
+    setPreferences((prev) => {
+      const updated = prev.map((section) =>
         section.id === sectionId && !section.selected.includes(tag)
           ? { ...section, selected: [...section.selected, tag], suggestions: section.suggestions.filter((s) => s !== tag) }
           : section
       )
-    )
+      saveTastes(updated)
+      return updated
+    })
   }
 
   const removeTag = (sectionId: string, tag: string) => {
-    setPreferences((prev) =>
-      prev.map((section) =>
+    setPreferences((prev) => {
+      const updated = prev.map((section) =>
         section.id === sectionId
           ? { ...section, selected: section.selected.filter((s) => s !== tag), suggestions: [...section.suggestions, tag] }
           : section
       )
-    )
+      saveTastes(updated)
+      return updated
+    })
   }
 
   // ── 추가 정보 ─────────────────────────────────────────────────
@@ -190,10 +270,10 @@ export function MyPageView({
     "경기 북부", "경기 남부", "인천", "부산", "대구", "대전", "광주", "기타",
   ]
   const [info, setInfo] = useState<AdditionalInfo>({
-    weddingDate: "2026-08-06",
-    guestCount: 200,
-    budgetAmount: 5000,
-    preferredAreas: ["서울 강남/서초"],
+    weddingDate: "",
+    guestCount: 0,
+    budgetAmount: 0,
+    preferredAreas: [],
   })
   const [editingInfo, setEditingInfo] = useState(false)
   const [tempInfo, setTempInfo] = useState<AdditionalInfo>(info)
@@ -351,18 +431,10 @@ export function MyPageView({
           </div>
         )}
 
-        {/* 연결 완료 배너 */}
-        {coupleConnected && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 px-5 py-4 dark:border-green-900 dark:bg-green-950/30">
-            <Heart className="size-4 fill-green-500 text-green-500 shrink-0" />
-            <p className="text-sm font-medium text-green-700 dark:text-green-400">파트너와 연결되었습니다</p>
-          </div>
-        )}
-
-        {/* 커플 프로필 카드 */}
+        {/* 프로필 카드 */}
         <div className="mb-6 rounded-2xl bg-card p-6 shadow-sm">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">커플 프로필</h2>
+            <h2 className="text-lg font-semibold text-foreground">{coupleConnected ? "커플 프로필" : "내 프로필"}</h2>
             {editing ? (
               <div className="flex gap-2">
                 <button
@@ -389,85 +461,94 @@ export function MyPageView({
           </div>
 
           <div className="flex items-start justify-center gap-10">
-            {/* 신랑 */}
-            <div className="flex flex-col items-center gap-3">
+            {/* 본인 프로필 (항상 표시) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => !editing && coupleConnected && handleSelectTarget(userRole)}
+              onKeyDown={(e) => e.key === "Enter" && !editing && coupleConnected && handleSelectTarget(userRole)}
+              className={`flex flex-col items-center gap-3 rounded-2xl p-3 transition-all ${
+                !editing && coupleConnected && viewingTarget === userRole
+                  ? "bg-primary/5 ring-2 ring-primary/30"
+                  : !editing && coupleConnected ? "hover:bg-muted/50 cursor-pointer" : ""
+              }`}
+            >
               <Avatar
-                photoData={groomPhotoData}
-                name={tempGroomName}
-                inputRef={groomInputRef}
-                onPhotoChange={(e) => handlePhotoChange(e, setGroomPhotoData)}
+                photoData={userRole === "groom" ? groomPhotoData : bridePhotoData}
+                name={userRole === "groom" ? tempGroomName : tempBrideName}
+                inputRef={userRole === "groom" ? groomInputRef : brideInputRef}
+                onPhotoChange={(e) => handlePhotoChange(e, userRole === "groom" ? setGroomPhotoData : setBridePhotoData)}
               />
-              {editing ? (
-                <div className="flex w-28 flex-col gap-1.5">
-                  <Input
-                    value={tempGroomName}
-                    onChange={(e) => setTempGroomName(e.target.value)}
-                    className="h-8 text-center text-sm"
-                    placeholder="이름"
-                  />
-                  <div className="relative">
+              <div className="text-center">
+                <p className="font-medium text-foreground">{userRole === "groom" ? tempGroomName : tempBrideName}</p>
+                {editing ? (
+                  <div className="relative mt-1">
                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">@</span>
                     <Input
-                      value={tempGroomNickname}
-                      onChange={(e) => setTempGroomNickname(e.target.value)}
-                      className="h-7 pl-6 text-center text-xs"
+                      value={userRole === "groom" ? tempGroomNickname : tempBrideNickname}
+                      onChange={(e) => (userRole === "groom" ? setTempGroomNickname : setTempBrideNickname)(e.target.value)}
+                      className="h-7 w-28 pl-6 text-center text-xs"
                       placeholder="닉네임"
                     />
                   </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="font-medium text-foreground">{tempGroomName}</p>
-                  {tempGroomNickname && (
-                    <p className="text-xs text-muted-foreground">@{tempGroomNickname}</p>
-                  )}
-                </div>
-              )}
-              <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">신랑</span>
+                ) : (
+                  (userRole === "groom" ? tempGroomNickname : tempBrideNickname) && (
+                    <p className="text-xs text-muted-foreground">@{userRole === "groom" ? tempGroomNickname : tempBrideNickname}</p>
+                  )
+                )}
+              </div>
+              <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                userRole === "groom"
+                  ? (viewingTarget === "groom" ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600")
+                  : (viewingTarget === "bride" ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")
+              }`}>{userRole === "groom" ? "신랑" : "신부"}</span>
             </div>
 
-            {/* 하트 */}
-            <div className="mt-8">
-              <Heart className="size-6 fill-primary text-primary" />
-            </div>
+            {/* 파트너 프로필 (매칭 후에만 표시) */}
+            {coupleConnected && (
+              <>
+                <div className="mt-8">
+                  <Heart className="size-6 fill-primary text-primary" />
+                </div>
 
-            {/* 신부 */}
-            <div className="flex flex-col items-center gap-3">
-              <Avatar
-                photoData={bridePhotoData}
-                name={tempBrideName}
-                inputRef={brideInputRef}
-                onPhotoChange={(e) => handlePhotoChange(e, setBridePhotoData)}
-              />
-              {editing ? (
-                <div className="flex w-28 flex-col gap-1.5">
-                  <Input
-                    value={tempBrideName}
-                    onChange={(e) => setTempBrideName(e.target.value)}
-                    className="h-8 text-center text-sm"
-                    placeholder="이름"
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !editing && handleSelectTarget(userRole === "groom" ? "bride" : "groom")}
+                  onKeyDown={(e) => e.key === "Enter" && !editing && handleSelectTarget(userRole === "groom" ? "bride" : "groom")}
+                  className={`flex flex-col items-center gap-3 rounded-2xl p-3 transition-all ${
+                    !editing && viewingTarget === (userRole === "groom" ? "bride" : "groom")
+                      ? "bg-primary/5 ring-2 ring-primary/30"
+                      : !editing ? "hover:bg-muted/50 cursor-pointer" : ""
+                  }`}
+                >
+                  <Avatar
+                    photoData={userRole === "groom" ? bridePhotoData : groomPhotoData}
+                    name={userRole === "groom" ? tempBrideName : tempGroomName}
+                    inputRef={userRole === "groom" ? brideInputRef : groomInputRef}
+                    onPhotoChange={(e) => handlePhotoChange(e, userRole === "groom" ? setBridePhotoData : setGroomPhotoData)}
                   />
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">@</span>
-                    <Input
-                      value={tempBrideNickname}
-                      onChange={(e) => setTempBrideNickname(e.target.value)}
-                      className="h-7 pl-6 text-center text-xs"
-                      placeholder="닉네임"
-                    />
+                  <div className="text-center">
+                    <p className="font-medium text-foreground">{userRole === "groom" ? tempBrideName : tempGroomName}</p>
+                    {(userRole === "groom" ? tempBrideNickname : tempGroomNickname) && (
+                      <p className="text-xs text-muted-foreground">@{userRole === "groom" ? tempBrideNickname : tempGroomNickname}</p>
+                    )}
                   </div>
+                  <span className={`rounded-full px-3 py-0.5 text-xs font-medium ${
+                    userRole === "groom"
+                      ? (viewingTarget === "bride" ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")
+                      : (viewingTarget === "groom" ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600")
+                  }`}>{userRole === "groom" ? "신부" : "신랑"}</span>
                 </div>
-              ) : (
-                <div className="text-center">
-                  <p className="font-medium text-foreground">{tempBrideName}</p>
-                  {tempBrideNickname && (
-                    <p className="text-xs text-muted-foreground">@{tempBrideNickname}</p>
-                  )}
-                </div>
-              )}
-              <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">신부</span>
-            </div>
+              </>
+            )}
           </div>
+
+          {coupleConnected && !editing && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              클릭하여 {viewingTarget === "groom" ? "신랑" : "신부"}의 취향을 보고 있습니다
+            </p>
+          )}
 
           {editing && (
             <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -478,9 +559,16 @@ export function MyPageView({
 
         {/* 취향 & 선호도 카드 */}
         <div className="mb-6 rounded-2xl bg-card p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">취향 & 선호도</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">
+              {isViewingMyOwn ? "취향 & 선호도" : `${viewingTarget === "groom" ? "신랑" : "신부"}의 취향`}
+            </h2>
+            {!isViewingMyOwn && (
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">보기 전용</span>
+            )}
+          </div>
           <div className="space-y-4">
-            {preferences.map((section) => {
+            {displayPreferences.map((section) => {
               const isExpanded = expandedSections.includes(section.id)
               return (
                 <div key={section.id} className="border-b border-border pb-4 last:border-b-0 last:pb-0">
@@ -511,27 +599,36 @@ export function MyPageView({
                             className="flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-sm font-medium text-background"
                           >
                             {tag}
-                            <button onClick={() => removeTag(section.id, tag)} className="ml-1 hover:text-red-300">
-                              <X className="size-3" />
-                            </button>
+                            {isViewingMyOwn && (
+                              <button onClick={() => removeTag(section.id, tag)} className="ml-1 hover:text-red-300">
+                                <X className="size-3" />
+                              </button>
+                            )}
                           </span>
                         ))}
-                        <button className="flex items-center gap-1 rounded-full border-2 border-dashed border-muted-foreground px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary">
-                          <Plus className="size-3" />
-                          추가
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {section.suggestions.map((tag) => (
-                          <button
-                            key={tag}
-                            onClick={() => addTag(section.id, tag)}
-                            className="rounded-full border border-dashed border-muted-foreground px-3 py-1 text-sm text-muted-foreground hover:border-primary hover:text-primary"
-                          >
-                            + {tag}
+                        {isViewingMyOwn && (
+                          <button className="flex items-center gap-1 rounded-full border-2 border-dashed border-muted-foreground px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary">
+                            <Plus className="size-3" />
+                            추가
                           </button>
-                        ))}
+                        )}
+                        {!isViewingMyOwn && section.selected.length === 0 && (
+                          <span className="text-sm text-muted-foreground">선택된 항목이 없습니다</span>
+                        )}
                       </div>
+                      {isViewingMyOwn && (
+                        <div className="flex flex-wrap gap-2">
+                          {section.suggestions.map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => addTag(section.id, tag)}
+                              className="rounded-full border border-dashed border-muted-foreground px-3 py-1 text-sm text-muted-foreground hover:border-primary hover:text-primary"
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -553,7 +650,18 @@ export function MyPageView({
                   취소
                 </button>
                 <button
-                  onClick={() => { setInfo(tempInfo); setEditingInfo(false) }}
+                  onClick={() => {
+                    setInfo(tempInfo)
+                    setEditingInfo(false)
+                    updateSharedInfo({
+                      weddingDate: tempInfo.weddingDate,
+                      totalBudget: tempInfo.budgetAmount,
+                      guestCount: tempInfo.guestCount,
+                      preferredRegions: tempInfo.preferredAreas.map((a) => ({ city: a, districts: [] })),
+                    })
+                      .then(() => console.log("[추가정보] 저장 + 커플 동기화 성공"))
+                      .catch((err) => console.error("[추가정보] 저장 실패:", err))
+                  }}
                   className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   저장
@@ -581,7 +689,7 @@ export function MyPageView({
                   className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               ) : (
-                <span className="text-sm font-medium text-foreground">{displayDate(info.weddingDate)}</span>
+                <span className="text-sm font-medium text-foreground">{info.weddingDate ? displayDate(info.weddingDate) : "미설정"}</span>
               )}
             </div>
 
@@ -615,7 +723,7 @@ export function MyPageView({
                   <span className="text-sm text-muted-foreground">명</span>
                 </div>
               ) : (
-                <span className="text-sm font-medium text-foreground">{info.guestCount.toLocaleString("ko-KR")}명</span>
+                <span className="text-sm font-medium text-foreground">{info.guestCount ? `${info.guestCount.toLocaleString("ko-KR")}명` : "미설정"}</span>
               )}
             </div>
 
@@ -638,7 +746,7 @@ export function MyPageView({
                   </div>
                 ) : (
                   <span className="text-sm font-medium text-foreground">
-                    {info.budgetAmount.toLocaleString("ko-KR")}만원
+                    {info.budgetAmount ? `${info.budgetAmount.toLocaleString("ko-KR")}만원` : "미설정"}
                   </span>
                 )}
               </div>
@@ -683,8 +791,57 @@ export function MyPageView({
           </div>
         </div>
 
+        {/* 커플 매칭 해제 */}
+        {coupleConnected && (
+          <div className="mt-10 border-t border-border pt-6">
+            {!disconnectConfirm ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">커플 매칭 해제</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground/60">파트너와의 연결이 해제됩니다</p>
+                </div>
+                <button
+                  onClick={() => setDisconnectConfirm(true)}
+                  className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
+                >
+                  해제하기
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border bg-muted/30 p-5">
+                <p className="mb-1 text-sm font-medium text-foreground">정말 커플 매칭을 해제하시겠어요?</p>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  파트너와의 연결이 해제되며, 커플 채팅 등 공유 데이터에 접근할 수 없게 됩니다.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDisconnectConfirm(false)}
+                    className="flex-1 rounded-xl border border-border bg-background py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await disconnectCouple()
+                        setDisconnectConfirm(false)
+                        window.location.reload()
+                      } catch {
+                        alert("매칭 해제에 실패했습니다.")
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    해제 확인
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 회원탈퇴 */}
-        <div className="mt-10 border-t border-border pt-6">
+        <div className={`${coupleConnected ? "mt-6" : "mt-10"} border-t border-border pt-6`}>
           {!deleteConfirm ? (
             <div className="flex items-center justify-between">
               <div>
@@ -712,11 +869,16 @@ export function MyPageView({
                   취소
                 </button>
                 <button
-                  onClick={() => {
-                    setDeleteConfirm(false)
-                    onDeleteAccount?.()
+                  onClick={async () => {
+                    try {
+                      await withdraw()
+                      setDeleteConfirm(false)
+                      onDeleteAccount?.()
+                    } catch {
+                      alert("회원탈퇴에 실패했습니다.")
+                    }
                   }}
-                  className="flex-1 rounded-xl border border-border bg-background py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  className="flex-1 rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
                 >
                   탈퇴 확인
                 </button>

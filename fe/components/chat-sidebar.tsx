@@ -62,9 +62,12 @@ interface ChatSidebarProps {
   groomPhoto?: string
   bridePhoto?: string
   dDay: number
+  coupleConnected?: boolean
+  userRole?: "groom" | "bride"
   currentView: ViewType
   activeSessionId: string | null
   chatHistory: ChatSession[]
+  userName?: string
   userNickname?: string
   voteBadge?: number
   coupleChatBadge?: number
@@ -175,9 +178,12 @@ export function ChatSidebar({
   groomPhoto,
   bridePhoto,
   dDay,
+  coupleConnected = false,
+  userRole = "groom",
   currentView,
   activeSessionId,
   chatHistory,
+  userName,
   userNickname,
   voteBadge = 0,
   coupleChatBadge = 0,
@@ -256,6 +262,8 @@ export function ChatSidebar({
         bridePhoto={bridePhoto}
         dDay={dDay}
         collapsed={collapsed}
+        coupleConnected={coupleConnected}
+        userRole={userRole}
       />
 
       {/* 내비게이션 */}
@@ -379,7 +387,7 @@ export function ChatSidebar({
       {/* 하단 계정 */}
       <div className="border-t border-sidebar-border p-3">
         <AccountPopover
-          userName={groomName}
+          userName={userName || groomName}
           userNickname={userNickname}
           collapsed={collapsed}
           onNavigate={onAccountNavigate}
