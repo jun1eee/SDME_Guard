@@ -550,7 +550,14 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       .finally(() => { if (!controller.signal.aborted) setIsDetailLoading(false) })
   }
 
-  // 카테고리 변경 시 업체 목록 재조회
+  // 검색어 디바운스
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // 카테고리/검색어 변경 시 업체 목록 재조회
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -559,14 +566,17 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       setNextCursor(null)
       try {
         const apiCategory = API_CATEGORY_MAP[selectedCategory]
-        const url = buildVendorListEndpoint({ size: VENDOR_PAGE_SIZE, ...(apiCategory ? { category: apiCategory } : {}) })
+        const url = buildVendorListEndpoint({
+          size: VENDOR_PAGE_SIZE,
+          ...(apiCategory ? { category: apiCategory } : {}),
+          ...(debouncedSearch ? { keyword: debouncedSearch } : {}),
+        })
         const res = await fetch(url, { credentials: "include" })
         if (!res.ok) {
           console.error("업체 목록 조회 실패:", res.status, res.statusText)
           return
         }
         const json = (await res.json()) as VendorListEnvelope
-        console.log("업체 목록 응답:", JSON.stringify(json).slice(0, 300))
         const { items, nextCursor: cursor } = parseListResponse(json)
         if (!cancelled) {
           const mapped = items.map(mapListItemToVendor).map((v) => ({
@@ -584,7 +594,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
     }
     void load()
     return () => { cancelled = true }
-  }, [selectedCategory])
+  }, [selectedCategory, debouncedSearch])
 
   // 무한 스크롤
   useEffect(() => {
@@ -643,9 +653,8 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
 
   const filtered = vendors.filter((v) => {
     const catOk = selectedCategory === "all" || v.category === selectedCategory
-    const searchOk = v.name.toLowerCase().includes(searchQuery.toLowerCase())
     const styleOk = !selectedStyle || (v.styleFilter?.includes(selectedStyle) ?? false)
-    return catOk && searchOk && styleOk
+    return catOk && styleOk
   })
 
   const currentStyleFilters = selectedCategory !== "all" ? (STYLE_FILTERS[selectedCategory] ?? []) : []
