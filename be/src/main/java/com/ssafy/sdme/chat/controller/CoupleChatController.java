@@ -35,6 +35,13 @@ public class  CoupleChatController {
         messagingTemplate.convertAndSend("/topic/couple/" + request.getCoupleId(), response);
     }
 
+    // WebSocket: DB 저장 없이 브로드캐스트만 (삭제 신호 등)
+    @MessageMapping("/chat.notify")
+    public void notify(ChatMessageRequest request) {
+        String payload = "{\"type\":\"vendor_unshare\",\"vendorId\":\"" + request.getVendorId() + "\",\"senderId\":" + request.getSenderId() + "}";
+        messagingTemplate.convertAndSend("/topic/couple/" + request.getCoupleId(), payload);
+    }
+
     // REST: 채팅 히스토리 조회
     @Operation(summary = "커플 채팅 히스토리 조회", description = "커플 채팅 메시지 목록을 조회합니다.")
     @GetMapping("/couple/messages")

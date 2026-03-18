@@ -181,7 +181,9 @@ export function mapDetailToVendor(detail: VendorDetailResponse): Vendor {
 }
 
 export async function fetchVendorDetail(vendorId: string | number): Promise<Vendor> {
-  const response = await fetch(`/api/vendors/${vendorId}`, { credentials: "include" })
+  const base = typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? `${window.location.origin}/api` : "http://localhost:8080/api"
+  const response = await fetch(`${base}/vendors/${vendorId}`, { credentials: "include" })
   if (!response.ok) throw new Error(String(response.status))
   const result = normalizeResponse((await response.json()) as VendorDetailApiEnvelope | VendorDetailResponse)
   return mapDetailToVendor(result)

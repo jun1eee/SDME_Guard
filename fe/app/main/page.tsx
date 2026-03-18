@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -204,8 +204,7 @@ export default function ChatPage() {
         loadFavorites()
         // 3초마다 찜 데이터 폴링
         const favInterval = setInterval(loadFavorites, 3000)
-        // cleanup은 컴포넌트 언마운트 시
-        window.__favInterval = favInterval as any
+        ;(window as any).__favInterval = favInterval
 
         setAuthChecked(true)
       } catch {
@@ -328,6 +327,27 @@ export default function ChatPage() {
     // 풀페이지 뷰 해제
     setCurrentView(null)
   }
+
+  // 투표 알림 WebSocket 구독
+  useEffect(() => {
+    if (!authChecked || !coupleId || !userId) return
+    const SockJS = require("sockjs-client")
+    const { Client } = require("@stomp/stompjs")
+    const client = new Client({
+      webSocketFactory: () => new SockJS(window.location.hostname !== "localhost" ? `${window.location.origin}/ws` : "http://localhost:8080/ws"),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/vote/${coupleId}`, (message: any) => {
+          const data = JSON.parse(message.body)
+          if (data.senderId !== userId) {
+            setVoteBadge((prev) => prev + 1)
+          }
+        })
+      },
+    })
+    client.activate()
+    return () => { client.deactivate() }
+  }, [authChecked, coupleId, userId])
 
   // panelState 변경 시 sessionStorage에 저장
   useEffect(() => {
@@ -535,8 +555,18 @@ export default function ChatPage() {
       imageBg: VOTE_BG_MAP[vendor.category] ?? "bg-rose-100",
       partnerVoted: false,
     }
-    setPendingVoteItems((prev) => [...prev, newItem])
-    setVoteBadge((prev) => prev + 1)
+    // DB에 투표 항목 생성
+    createVoteItem({
+      vendorId: Number(vendor.id),
+      sourceType: source === "my-wish" ? "my_wish" : "partner_share",
+    }).then((res) => {
+      // DB id로 아이템 추가
+      newItem.id = res.data.id.toString()
+      setPendingVoteItems((prev) => [...prev, newItem])
+      setVoteBadge((prev) => prev + 1)
+    }).catch((err) => {
+      toast.error(err.message || "투표 항목 추가에 실패했습니다.")
+    })
     toast.success("비밀 투표에 추가됐어요", { description: vendor.name, duration: 3000 })
   }
 
@@ -587,26 +617,43 @@ export default function ChatPage() {
   }
 
   const confirmShareVendor = () => {
-    if (!shareModalVendor) return
-    const share: VendorShare = {
-      id: Date.now().toString(),
+    if (!shareModalVendor || !coupleId || !userId) return
+    console.log("[공유] coverUrl:", shareModalVendor.coverUrl)
+    // 업체 공유를 채팅 메시지로 전송 (vendor_share 타입)
+    const vendorData = JSON.stringify({
       vendorId: shareModalVendor.id,
       name: shareModalVendor.name,
       category: shareModalVendor.category,
-      categoryLabel: CATEGORY_LABELS[shareModalVendor.category] ?? shareModalVendor.category,
       price: shareModalVendor.price,
       rating: shareModalVendor.rating,
-      address: shareModalVendor.address,
-      tags: shareModalVendor.tags,
-      description: shareModalVendor.description,
       coverUrl: shareModalVendor.coverUrl,
-      sharedBy: userRole,
-      comment: shareModalComment.trim() || undefined,
-    }
-    setSharedVendors((prev) => [...prev, share])
-    const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
-    if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
-    toast.success(`커플 채팅에 공유됐어요`, { description: shareModalVendor.name, duration: 3000 })
+      comment: shareModalComment.trim() || "",
+    })
+
+    // DB에 먼저 저장
+    shareVendor(Number(shareModalVendor.id), shareModalComment.trim() || undefined)
+      .then(() => {
+        // WebSocket으로 채팅 메시지 전송
+        const stompClient = (window as any).__stompClient
+        if (stompClient?.connected) {
+          stompClient.publish({
+            destination: "/app/chat.send",
+            body: JSON.stringify({
+              senderId: userId,
+              coupleId: coupleId,
+              content: vendorData,
+              messageType: "vendor_share",
+              vendorId: Number(shareModalVendor.id),
+            }),
+          })
+        }
+        const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
+        if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
+        toast.success(`커플 채팅에 공유됐어요`, { description: shareModalVendor.name, duration: 3000 })
+      })
+      .catch(() => {
+        toast.error("이미 공유한 업체입니다.")
+      })
     setShareModalVendor(null)
     setShareModalComment("")
   }
@@ -726,12 +773,22 @@ export default function ChatPage() {
                 address: vendor.address,
                 tags: vendor.tags,
                 description: vendor.description,
+                coverUrl: (vendor as any).coverUrl,
               })
               setShareModalComment("")
             }}
             onUnshareVendor={(vendorId) => {
               setSharedVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
               setPendingVoteItems((prev) => prev.filter((v) => !v.id.startsWith(`vote-${vendorId}-`)))
+              unshareVendor(Number(vendorId)).catch(() => {})
+              // 상대방 채팅에서도 카드 제거
+              const stompClient = (window as any).__stompClient
+              if (stompClient?.connected && coupleId && userId) {
+                stompClient.publish({
+                  destination: "/app/chat.notify",
+                  body: JSON.stringify({ senderId: userId, coupleId, vendorId: Number(vendorId) }),
+                })
+              }
               toast.success("공유가 취소됐어요", { duration: 2000 })
             }}
           />
@@ -753,7 +810,10 @@ export default function ChatPage() {
         return <ScheduleView />
 
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+          const numId = Number(itemId)
+          if (numId) submitVote(numId, { score, reason }).catch(() => {})
+        }} />
 
       case "budget":
         return <BudgetView totalBudget={weddingConfig.budget} />
@@ -842,7 +902,20 @@ export default function ChatPage() {
           />
         )
       case "wishlist":
-        return <WishlistView />
+        return <WishlistView onShareVendor={(vendor) => {
+          setShareModalVendor({
+            id: vendor.id,
+            name: vendor.name,
+            category: vendor.category as "studio" | "dress" | "makeup" | "venue",
+            price: vendor.price,
+            rating: vendor.rating,
+            address: "",
+            tags: [],
+            description: "",
+            coverUrl: vendor.coverUrl,
+          })
+          setShareModalComment("")
+        }} />
       case "payment":
         return <PaymentView />
       case "reservation":
@@ -850,7 +923,10 @@ export default function ChatPage() {
       case "reviews":
         return <ReviewView />
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+          const numId = Number(itemId)
+          if (numId) submitVote(numId, { score, reason }).catch(() => {})
+        }} />
       default:
         return null
     }

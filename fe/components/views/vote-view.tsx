@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
+import { getVoteItems, deleteVote, deleteVoteItem } from "@/lib/api"
 import {
   Lock, CheckCircle2, Clock,
   Sparkles, Heart, MessageSquareDiff,
@@ -104,63 +105,7 @@ interface MyVote {
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
-const INITIAL_ITEMS: VendorItem[] = [
-  {
-    id: "1",
-    category: "웨딩홀",
-    name: "더 그랜드 파빌리온",
-    location: "서울 강남구",
-    price: "800~1,000만원",
-    source: "ai",
-    imageEmoji: "🏛️",
-    imageBg: "bg-rose-100",
-    partnerVoted: true,
-  },
-  {
-    id: "2",
-    category: "스튜디오",
-    name: "로앤스튜디오",
-    location: "서울 마포구",
-    price: "200~350만원",
-    source: "my-wish",
-    imageEmoji: "📷",
-    imageBg: "bg-purple-100",
-    partnerVoted: false,
-  },
-  {
-    id: "3",
-    category: "드레스",
-    name: "모니카블랑쉬",
-    location: "서울 서초구",
-    price: "150~300만원",
-    source: "partner-share",
-    imageEmoji: "👗",
-    imageBg: "bg-pink-100",
-    partnerVoted: true,
-  },
-  {
-    id: "4",
-    category: "메이크업",
-    name: "글로우 뷰티",
-    location: "서울 강남구",
-    price: "80~150만원",
-    source: "ai",
-    imageEmoji: "💄",
-    imageBg: "bg-amber-100",
-    partnerVoted: true,
-  },
-  {
-    id: "5",
-    category: "웨딩홀",
-    name: "아펠가모 청담",
-    location: "서울 강남구",
-    price: "600~900만원",
-    source: "ai",
-    imageEmoji: "💍",
-    imageBg: "bg-emerald-100",
-    partnerVoted: false,
-  },
-]
+const INITIAL_ITEMS: VendorItem[] = []
 
 const CATEGORY_ORDER = ["웨딩홀", "스튜디오", "드레스", "메이크업"] as const
 
@@ -520,30 +465,70 @@ function VoteProgressBar({
 export function VoteView({
   currentUser,
   pendingItems = [],
+  onVoteSubmitApi,
 }: {
   currentUser: "groom" | "bride"
   pendingItems?: VendorItem[]
+  onVoteSubmitApi?: (vendorId: string, score: string, reason: string) => void
 }) {
-  const [items, setItems] = useState<VendorItem[]>(INITIAL_ITEMS)
+  const [items, setItems] = useState<VendorItem[]>([])
   const prevPendingLengthRef = useRef(0)
 
+  const CATEGORY_MAP: Record<string, VendorItem["category"]> = {
+    STUDIO: "스튜디오", DRESS: "드레스", MAKEUP: "메이크업", HALL: "웨딩홀",
+    studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀",
+  }
+  const EMOJI_MAP: Record<string, string> = {
+    "웨딩홀": "🏛️", "스튜디오": "📷", "드레스": "👗", "메이크업": "💄",
+  }
+  const BG_MAP: Record<string, string> = {
+    "웨딩홀": "bg-rose-100", "스튜디오": "bg-purple-100", "드레스": "bg-pink-100", "메이크업": "bg-amber-100",
+  }
+
+  const [myVotes, setMyVotes] = useState<Record<string, MyVote>>({})
+
+  // DB에서 투표 항목 로드
+  useEffect(() => {
+    getVoteItems()
+      .then((res) => {
+        const loaded: VendorItem[] = res.data.map((v) => {
+          const cat = CATEGORY_MAP[v.category] ?? "웨딩홀"
+          return {
+            id: v.id.toString(),
+            category: cat,
+            name: v.vendorName || "",
+            location: "",
+            price: v.price ? `${v.price.toLocaleString()}원` : "",
+            source: (v.sourceType === "my_wish" ? "my-wish" : v.sourceType === "partner_share" ? "partner-share" : "ai") as Source,
+            imageEmoji: EMOJI_MAP[cat] || "🏛️",
+            imageBg: BG_MAP[cat] || "bg-rose-100",
+            partnerVoted: v.partnerVoted,
+          }
+        })
+        setItems(loaded)
+        // 기존 투표 복원
+        const votes: Record<string, MyVote> = {}
+        res.data.forEach((v) => {
+          if (v.myScore) {
+            votes[v.id.toString()] = { score: v.myScore as VoteScore, reason: v.myReason || "", isEdited: false }
+          }
+        })
+        setMyVotes(votes)
+      })
+      .catch(() => {})
+  }, [])
+
+  // 로컬에서 추가된 항목 반영
   useEffect(() => {
     if (pendingItems.length > prevPendingLengthRef.current) {
-      // 새 아이템 추가
       const newItems = pendingItems.slice(prevPendingLengthRef.current)
       setItems(prev => {
         const existingIds = new Set(prev.map(i => i.id))
         return [...prev, ...newItems.filter(i => !existingIds.has(i.id))]
       })
-    } else if (pendingItems.length < prevPendingLengthRef.current) {
-      // 아이템 삭제 반영
-      const pendingIds = new Set(pendingItems.map(i => i.id))
-      setItems(prev => prev.filter(i => !i.id.startsWith("vote-") || pendingIds.has(i.id)))
     }
     prevPendingLengthRef.current = pendingItems.length
   }, [pendingItems])
-
-  const [myVotes, setMyVotes] = useState<Record<string, MyVote>>({})
   const [filter, setFilter] = useState<"전체" | "미투표" | "투표완료">("전체")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER))
@@ -553,6 +538,11 @@ export function VoteView({
       ...prev,
       [id]: { score, reason, isEdited: !!prev[id] },
     }))
+    // DB에도 저장
+    const item = items.find(i => i.id === id)
+    if (item) {
+      onVoteSubmitApi?.(item.id, score, reason)
+    }
   }
 
   const handleVoteDelete = (id: string) => {
@@ -561,6 +551,8 @@ export function VoteView({
       delete next[id]
       return next
     })
+    const numId = Number(id)
+    if (numId) deleteVote(numId).catch(() => {})
   }
 
   const handleItemDelete = (id: string) => {
@@ -571,6 +563,8 @@ export function VoteView({
       return next
     })
     if (expandedId === id) setExpandedId(null)
+    const numId = Number(id)
+    if (numId) deleteVoteItem(numId).catch(() => {})
   }
 
   const myVoteCount = Object.keys(myVotes).length
