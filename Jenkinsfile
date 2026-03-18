@@ -28,8 +28,8 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d --build'
+                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down'
+                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
             }
         }
     }
