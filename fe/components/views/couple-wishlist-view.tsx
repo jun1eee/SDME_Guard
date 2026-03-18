@@ -208,6 +208,24 @@ export function CoupleWishlistView({
                     }
                   }
                 }}
+                onShareVendor={() => {
+                  const v: VendorShare = {
+                    id: modalVendor.id,
+                    vendorId: modalVendor.id,
+                    name: modalVendor.name,
+                    category: modalVendor.category,
+                    categoryLabel: "",
+                    price: modalVendor.price,
+                    rating: modalVendor.rating,
+                    address: modalVendor.address || "",
+                    tags: modalVendor.tags || [],
+                    description: modalVendor.description || "",
+                    coverUrl: modalVendor.coverUrl,
+                    sharedBy: currentUser,
+                  }
+                  onShareVendor?.(v)
+                  setModalVendor(null)
+                }}
                 onAddReview={() => {}}
               />
             </div>
