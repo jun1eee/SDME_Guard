@@ -3,7 +3,7 @@ version: "3.8"
 services:
   mysql:
     image: mysql:8.0
-    container_name: weddirect-mysql
+    container_name: mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
@@ -18,7 +18,7 @@ services:
   backend:
     build:
       context: ./be
-    container_name: weddirect-backend
+    container_name: backend
     restart: unless-stopped
     env_file:
       - ./be/.env
@@ -32,7 +32,7 @@ services:
   frontend:
     build:
       context: ./fe
-    container_name: weddirect-frontend
+    container_name: frontend
     ports:
       - "3000:3000"
     networks:
