@@ -569,7 +569,11 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
         console.log("업체 목록 응답:", JSON.stringify(json).slice(0, 300))
         const { items, nextCursor: cursor } = parseListResponse(json)
         if (!cancelled) {
-          setVendors(items.map(mapListItemToVendor))
+          const mapped = items.map(mapListItemToVendor).map((v) => ({
+            ...v,
+            isFavorite: favoriteVendorIds?.includes(v.id) ?? false,
+          }))
+          setVendors(mapped.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i))
           setNextCursor(cursor)
         }
       } catch (e) {
@@ -585,7 +589,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
   // 무한 스크롤
   useEffect(() => {
     const el = loadMoreRef.current
-    if (!el || !nextCursor || isFetchingMore) return
+    if (!el || !nextCursor || isFetchingMore || searchQuery.trim()) return
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting || !nextCursor || isFetchingMore) return
@@ -615,7 +619,14 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
   useEffect(() => {
     if (initialVendorId) {
       const v = vendors.find((v) => v.id === initialVendorId)
-      if (v) openVendorDetail(v)
+      if (v) {
+        openVendorDetail(v)
+      } else {
+        // 목록에 없으면 API로 직접 조회
+        fetchVendorDetail(initialVendorId)
+          .then((detail) => setSelectedVendor(detail))
+          .catch(() => {})
+      }
     }
   }, [initialVendorId])
 
