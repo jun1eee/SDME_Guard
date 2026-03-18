@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { fetchVendorDetail } from "@/lib/api/vendor-detail"
+import { buildVendorListEndpoint } from "@/lib/api/endpoints"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -62,6 +64,24 @@ interface VendorBenefit {
   linkUrl: string | null
 }
 
+export interface VendorHall {
+  id: number
+  name: string
+  guestMin: number | null
+  guestMax: number | null
+  hallType: string | null
+  style: string | null
+  mealType: string | null
+  mealPrice: number | null
+  ceremonyType: string | null
+  ceremonyIntervalMin: number | null
+  ceremonyIntervalMax: number | null
+  hasSubway: boolean | null
+  hasParking: boolean | null
+  hasValet: boolean | null
+  hasVirginRoad: boolean | null
+}
+
 interface Vendor {
   id: string
   category: "studio" | "dress" | "makeup" | "venue"
@@ -93,6 +113,8 @@ interface Vendor {
   benefits?: VendorBenefit[]
   logoUrl?: string
   coverUrl?: string
+  halls?: VendorHall[]
+  hallFacilities?: string[]
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -114,6 +136,79 @@ const CATEGORIES = [
 ] as const
 
 type CategoryType = typeof CATEGORIES[number]["id"]
+
+const VENDOR_PAGE_SIZE = 20
+
+const API_CATEGORY_MAP: Record<CategoryType, string | undefined> = {
+  all: undefined,
+  studio: "STUDIO",
+  dress: "DRESS",
+  makeup: "MAKEUP",
+  venue: "HALL",
+}
+
+interface VendorListItem {
+  id: number
+  name: string
+  category: string
+  price?: number | null
+  rating: number | null
+  reviewCount?: number
+  imageUrl?: string | null
+  hashtags?: string[]
+  description?: string | null
+}
+
+interface VendorListPage {
+  items?: VendorListItem[]
+  content?: VendorListItem[]
+  nextCursor?: string | null
+  hasNext?: boolean
+}
+
+interface VendorListEnvelope {
+  status?: number
+  message?: string
+  data?: VendorListPage | VendorListItem[]
+  items?: VendorListItem[]
+  content?: VendorListItem[]
+  nextCursor?: string | null
+}
+
+function parseListResponse(json: VendorListEnvelope): { items: VendorListItem[]; nextCursor: string | null } {
+  // { status, message, data: { items: [...], nextCursor } }
+  if (json.data && !Array.isArray(json.data)) {
+    const page = json.data as VendorListPage
+    return { items: page.items ?? page.content ?? [], nextCursor: page.nextCursor ?? null }
+  }
+  if (Array.isArray(json.data)) {
+    return { items: json.data, nextCursor: json.nextCursor ?? null }
+  }
+  return { items: json.items ?? json.content ?? [], nextCursor: json.nextCursor ?? null }
+}
+
+function mapListItemToVendor(item: VendorListItem): Vendor {
+  const catMap: Record<string, Vendor["category"]> = {
+    STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+    studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+  }
+  return {
+    id: String(item.id),
+    category: catMap[item.category] ?? "studio",
+    name: item.name,
+    tags: item.hashtags ?? [],
+    description: item.description ?? "",
+    contact: "문의 필요",
+    address: "주소 정보 없음",
+    rating: Number(((item.rating ?? 0) / 20).toFixed(1)),
+    reviewCount: item.reviewCount ?? 0,
+    paymentStep: 1,
+    price: item.price != null ? `${item.price.toLocaleString("ko-KR")}원` : "문의",
+    isFavorite: false,
+    coverUrl: item.imageUrl ?? undefined,
+    logoUrl: item.imageUrl ?? undefined,
+  }
+}
 
 const STYLE_FILTERS: Record<string, string[]> = {
   studio: ["다양한컨셉", "인물중심", "배경중심", "클래식", "트렌디", "내추럴", "러블리", "그리너리", "심플한"],
@@ -431,20 +526,96 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
   initialVendorId?: string | null
   favoriteVendorIds?: string[]
 }) {
-  const [vendors, setVendors] = useState<Vendor[]>(INITIAL_VENDORS)
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isFetchingMore, setIsFetchingMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("all")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(() => {
-    if (initialVendorId) return INITIAL_VENDORS.find((v) => v.id === initialVendorId) ?? null
-    return null
-  })
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const detailAbortRef = useRef<AbortController | null>(null)
+
+  const openVendorDetail = (vendor: Vendor) => {
+    detailAbortRef.current?.abort()
+    const controller = new AbortController()
+    detailAbortRef.current = controller
+    setSelectedVendor(vendor)
+    setIsDetailLoading(true)
+    fetchVendorDetail(vendor.id)
+      .then((detail) => { if (!controller.signal.aborted) setSelectedVendor({ ...detail, isFavorite: vendor.isFavorite }) })
+      .catch(() => undefined)
+      .finally(() => { if (!controller.signal.aborted) setIsDetailLoading(false) })
+  }
+
+  // 카테고리 변경 시 업체 목록 재조회
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setIsLoading(true)
+      setVendors([])
+      setNextCursor(null)
+      try {
+        const apiCategory = API_CATEGORY_MAP[selectedCategory]
+        const url = buildVendorListEndpoint({ size: VENDOR_PAGE_SIZE, ...(apiCategory ? { category: apiCategory } : {}) })
+        const res = await fetch(url, { credentials: "include" })
+        if (!res.ok) {
+          console.error("업체 목록 조회 실패:", res.status, res.statusText)
+          return
+        }
+        const json = (await res.json()) as VendorListEnvelope
+        console.log("업체 목록 응답:", JSON.stringify(json).slice(0, 300))
+        const { items, nextCursor: cursor } = parseListResponse(json)
+        if (!cancelled) {
+          setVendors(items.map(mapListItemToVendor))
+          setNextCursor(cursor)
+        }
+      } catch (e) {
+        console.error("업체 목록 fetch 오류:", e)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [selectedCategory])
+
+  // 무한 스크롤
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el || !nextCursor || isFetchingMore) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || !nextCursor || isFetchingMore) return
+        const load = async () => {
+          setIsFetchingMore(true)
+          try {
+            const apiCategory = API_CATEGORY_MAP[selectedCategory]
+            const url = buildVendorListEndpoint({ size: VENDOR_PAGE_SIZE, cursor: nextCursor, ...(apiCategory ? { category: apiCategory } : {}) })
+            const res = await fetch(url, { credentials: "include" })
+            if (!res.ok) return
+            const { items, nextCursor: cursor } = parseListResponse((await res.json()) as VendorListEnvelope)
+            setVendors((prev) => [...prev, ...items.map(mapListItemToVendor)])
+            setNextCursor(cursor)
+          } finally {
+            setIsFetchingMore(false)
+          }
+        }
+        void load()
+      },
+      { threshold: 0.1 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [nextCursor, isFetchingMore, selectedCategory])
 
   // initialVendorId가 바뀌면 해당 업체 상세로 이동
   useEffect(() => {
     if (initialVendorId) {
       const v = vendors.find((v) => v.id === initialVendorId)
-      if (v) setSelectedVendor(v)
+      if (v) openVendorDetail(v)
     }
   }, [initialVendorId])
 
@@ -498,11 +669,12 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
     return (
       <VendorDetailView
         vendor={selectedVendor}
-        onBack={() => setSelectedVendor(null)}
+        onBack={() => { detailAbortRef.current?.abort(); setSelectedVendor(null) }}
         onToggleFavorite={() => toggleFavorite(selectedVendor.id)}
         onAddReview={(r) => addReview(selectedVendor.id, r)}
         onShareVendor={onShareVendor}
         onAddToVote={onAddToVote}
+        isLoading={isDetailLoading}
       />
     )
   }
@@ -564,22 +736,33 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
         </div>
 
         {/* Card Grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {filtered.map((vendor) => (
-            <VendorCard
-              key={vendor.id}
-              vendor={vendor}
-              onClick={() => setSelectedVendor(vendor)}
-              onToggleFavorite={() => toggleFavorite(vendor.id)}
-              onShareToCouple={onShareVendor ? () => onShareVendor(vendor) : undefined}
-            />
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
+        {isLoading ? (
           <div className="py-12 text-center">
-            <p className="text-muted-foreground">해당 카테고리에 업체가 없습니다</p>
+            <p className="text-muted-foreground">업체 목록을 불러오는 중...</p>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {filtered.map((vendor) => (
+                <VendorCard
+                  key={vendor.id}
+                  vendor={vendor}
+                  onClick={() => openVendorDetail(vendor)}
+                  onToggleFavorite={() => toggleFavorite(vendor.id)}
+                  onShareToCouple={onShareVendor ? () => onShareVendor(vendor) : undefined}
+                />
+              ))}
+            </div>
+            {filtered.length === 0 && (
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground">해당 카테고리에 업체가 없습니다</p>
+              </div>
+            )}
+            <div ref={loadMoreRef} className="h-4" />
+            {isFetchingMore && (
+              <div className="py-4 text-center text-sm text-muted-foreground">더 불러오는 중...</div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -633,15 +816,16 @@ function VendorCard({
       draggable
       onDragStart={handleDragStart}
     >
-      {/* Image placeholder */}
+      {/* Image */}
       <div className="relative h-52 bg-[#f0eaf2]">
+        {vendor.coverUrl
+          ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
+          : <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">{catLabel}</div>
+        }
         <div className="absolute inset-x-3 top-3 flex items-center justify-end">
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
             {stepLabel}
           </span>
-        </div>
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">
-          {catLabel}
         </div>
       </div>
 
@@ -702,6 +886,7 @@ export function VendorDetailView({
   onAddReview,
   onShareVendor,
   onAddToVote,
+  isLoading = false,
 }: {
   vendor: Vendor
   onBack: () => void
@@ -709,8 +894,10 @@ export function VendorDetailView({
   onAddReview: (review: Omit<VendorReview, "id">) => void
   onShareVendor?: (v: Vendor) => void
   onAddToVote?: (v: Vendor) => void
+  isLoading?: boolean
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(vendor.packages?.[0]?.id ?? "")
+  const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
   const [showAddons, setShowAddons] = useState(false)
   const [showReservation, setShowReservation] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
@@ -736,14 +923,16 @@ export function VendorDetailView({
           <ArrowLeft className="size-4" />
           돌아가기
         </button>
+        {isLoading && <span className="ml-auto text-xs text-muted-foreground">불러오는 중...</span>}
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
         {/* Hero image */}
-        <div className="flex h-72 items-center justify-center bg-[#f0eaf2]">
-          <span className="text-sm text-muted-foreground/40">
-            {CATEGORIES.find((c) => c.id === vendor.category)?.label}
-          </span>
+        <div className="flex h-72 items-center justify-center overflow-hidden bg-[#f0eaf2]">
+          {vendor.coverUrl
+            ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
+            : <span className="text-sm text-muted-foreground/40">{CATEGORIES.find((c) => c.id === vendor.category)?.label}</span>
+          }
         </div>
 
         <div className="px-4 pb-16">
@@ -765,7 +954,7 @@ export function VendorDetailView({
             </div>
 
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {vendor.tags.map((tag) => (
+              {vendor.tags.slice(0, 5).map((tag) => (
                 <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
                   #{tag}
                 </span>
@@ -935,6 +1124,101 @@ export function VendorDetailView({
               )}
             </div>
           )}
+
+          {/* Halls */}
+          {vendor.halls && vendor.halls.length > 0 && (() => {
+            const selectedHall = vendor.halls!.find((h) => h.id === selectedHallId) ?? vendor.halls![0]
+            return (
+              <div className="mt-5 rounded-2xl bg-card p-5">
+                <h2 className="mb-4 text-sm font-semibold text-foreground">홀 정보</h2>
+                {vendor.halls!.length > 1 && (
+                  <div className="mb-4 flex gap-1.5 overflow-x-auto rounded-xl bg-muted p-1">
+                    {vendor.halls!.map((hall) => (
+                      <button
+                        key={hall.id}
+                        onClick={() => setSelectedHallId(hall.id)}
+                        className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          selectedHallId === hall.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                        }`}
+                      >
+                        {hall.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <h3 className="mb-3 font-semibold text-foreground">{selectedHall.name}</h3>
+                <div className="space-y-2.5">
+                  {selectedHall.hallType && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">홀 종류</span>
+                      <span className="text-foreground">{selectedHall.hallType}</span>
+                    </div>
+                  )}
+                  {(selectedHall.guestMin !== null || selectedHall.guestMax !== null) && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">수용 인원</span>
+                      <span className="text-foreground">{selectedHall.guestMin ?? "-"} ~ {selectedHall.guestMax ?? "-"}명</span>
+                    </div>
+                  )}
+                  {selectedHall.style && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">예식 스타일</span>
+                      <span className="text-foreground">{selectedHall.style}</span>
+                    </div>
+                  )}
+                  {selectedHall.ceremonyType && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">예식 형태</span>
+                      <span className="text-foreground">{selectedHall.ceremonyType}</span>
+                    </div>
+                  )}
+                  {(selectedHall.ceremonyIntervalMin !== null || selectedHall.ceremonyIntervalMax !== null) && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">예식 간격</span>
+                      <span className="text-foreground">
+                        {selectedHall.ceremonyIntervalMin === selectedHall.ceremonyIntervalMax
+                          ? `${selectedHall.ceremonyIntervalMin}분`
+                          : `${selectedHall.ceremonyIntervalMin ?? "-"} ~ ${selectedHall.ceremonyIntervalMax ?? "-"}분`}
+                      </span>
+                    </div>
+                  )}
+                  {selectedHall.mealType && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">식사 형태</span>
+                      <span className="text-foreground">
+                        {selectedHall.mealType}
+                        {selectedHall.mealPrice !== null && ` (식대 ${selectedHall.mealPrice.toLocaleString("ko-KR")}원)`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {([
+                    { label: "지하철", value: selectedHall.hasSubway },
+                    { label: "주차", value: selectedHall.hasParking },
+                    { label: "발렛", value: selectedHall.hasValet },
+                    { label: "버진로드", value: selectedHall.hasVirginRoad },
+                  ] as { label: string; value: boolean | null }[])
+                    .filter((item) => item.value !== null)
+                    .map((item) => (
+                      <span key={item.label} className={`rounded-full px-3 py-1 text-xs font-medium ${item.value ? "bg-foreground/10 text-foreground" : "bg-muted text-muted-foreground line-through"}`}>
+                        {item.label}
+                      </span>
+                    ))}
+                </div>
+                {vendor.hallFacilities && vendor.hallFacilities.length > 0 && (
+                  <div className="mt-5 border-t border-border pt-4">
+                    <p className="mb-2.5 text-sm font-medium text-muted-foreground">부대시설</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {vendor.hallFacilities.map((f) => (
+                        <span key={f} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{f}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Addons */}
           {vendor.addons && vendor.addons.length > 0 && (
