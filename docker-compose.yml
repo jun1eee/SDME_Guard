@@ -6,9 +6,9 @@ services:
     container_name: weddirect-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
+      MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql-data:/var/lib/mysql
@@ -20,10 +20,8 @@ services:
       context: ./be
     container_name: weddirect-backend
     restart: unless-stopped
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/${DB_NAME}
-      - SPRING_DATASOURCE_USERNAME=${DB_USER}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    env_file:
+      - ./be/.env
     depends_on:
       - mysql
     networks:
