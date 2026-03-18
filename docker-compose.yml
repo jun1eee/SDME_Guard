@@ -25,13 +25,12 @@ services:
       - weddirect-net
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
     container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
       - frontend
