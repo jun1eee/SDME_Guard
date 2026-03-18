@@ -17,6 +17,8 @@ services:
     build:
       context: ./fe
     container_name: frontend
+    env_file:
+      - ./fe/.env
     ports:
       - "3000:3000"
     networks:
