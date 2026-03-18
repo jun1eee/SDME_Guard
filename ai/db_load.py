@@ -19,13 +19,26 @@ EMBEDDING_DIM = 1536
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
+
+def pick_existing_path(*candidates):
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
 VENDOR_FILES = {
     "dress":  os.path.join(_BASE, "json", "iwedding_dress_detail.json"),
     "makeup": os.path.join(_BASE, "json", "iwedding_makeup_detail.json"),
     "studio": os.path.join(_BASE, "json", "iwedding_studio_detail.json"),
 }
-HALL_LIST_PATH   = os.path.join(_BASE, "json", "weddingbook_halls_list.json")
-HALL_DETAIL_PATH = os.path.join(_BASE, "json", "weddingbook_halls_detail.json")
+HALL_LIST_PATH = pick_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json"),
+    os.path.join(_BASE, "json", "weddingbook_halls_list.json"),
+)
+HALL_DETAIL_PATH = pick_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json"),
+    os.path.join(_BASE, "json", "weddingbook_halls_detail.json"),
+)
 
 
 # ──────────────────────────────────────────
@@ -311,22 +324,27 @@ def _upsert_hall(tx, list_item, detail_item):
         name        = detail_item.get("name") or list_item.get("partnerProfileName")
         tel         = detail_item.get("tel")
         address     = detail_item.get("address")
+        address2    = detail_item.get("address2")
         profileUrl  = detail_item.get("profileUrl")
         reviewCnt   = detail_item.get("reviewCnt")
         rating      = detail_item.get("rating")
         memoContent = detail_item.get("memoContent")
         typeName    = detail_item.get("typeName")
         modTsp      = detail_item.get("modTsp")
+        logoUrl     = detail_item.get("logoUrl")
+        coverUrl    = detail_item.get("coverUrl")
         uuid        = detail_item.get("uuid") or partnerUuid
     else:
         name = list_item.get("partnerProfileName")
-        tel = address = profileUrl = reviewCnt = rating = memoContent = modTsp = None
+        tel = address = address2 = profileUrl = reviewCnt = rating = memoContent = modTsp = None
         typeName = "웨딩홀"
+        logoUrl = coverUrl = None
         uuid = partnerUuid
 
     props = {
         "partnerId": partnerId, "uuid": uuid, "name": name, "typeName": typeName,
         "region": region, "subRegion": subRegion, "tel": tel, "address": address,
+        "address2": address2, "logoUrl": logoUrl, "coverUrl": coverUrl,
         "profileUrl": profileUrl, "reviewCnt": reviewCnt, "rating": rating,
         "memoContent": memoContent, "modTsp": modTsp,
         "minIndividualHallPrice": list_item.get("minIndividualHallPrice"),
@@ -337,6 +355,10 @@ def _upsert_hall(tx, list_item, detail_item):
         "maxMealPrice":    list_item.get("maxMealPrice"),
         "availableContract": list_item.get("availableContract"),
         "bookingState":      list_item.get("bookingState"),
+        "consultingUsed":    list_item.get("consultingUsed"),
+        "consultingUseAutoApproval": list_item.get("consultingUseAutoApproval"),
+        "storedToConsulting": list_item.get("storedToConsulting"),
+        "isLike":            list_item.get("isLike"),
         "partnerProfileId":   list_item.get("partnerProfileId"),
         "partnerProfileUuid": list_item.get("partnerProfileUuid"),
         "partnerProfileName": list_item.get("partnerProfileName"),
@@ -465,6 +487,8 @@ def main():
         print("[hall] 로딩 시작...")
         list_items   = load_json(HALL_LIST_PATH)
         detail_items = load_json(HALL_DETAIL_PATH)
+        print(f"  hall list source: {HALL_LIST_PATH}")
+        print(f"  hall detail source: {HALL_DETAIL_PATH}")
         print(f"  list {len(list_items)}개 / detail {len(detail_items)}개 로드됨")
         insert_halls(session, list_items, detail_items)
 
