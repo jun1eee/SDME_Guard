@@ -1,20 +1,6 @@
 version: "3.8"
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: sdm-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - weddirect-net
-
   backend:
     build:
       context: ./be
@@ -24,8 +10,6 @@ services:
       - ./be/.env
     ports:
       - "8080:8080"
-    depends_on:
-      - mysql
     networks:
       - weddirect-net
 
@@ -51,9 +35,6 @@ services:
       - frontend
     networks:
       - weddirect-net
-
-volumes:
-  mysql-data:
 
 networks:
   weddirect-net:
