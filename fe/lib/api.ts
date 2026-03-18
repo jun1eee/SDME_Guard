@@ -266,6 +266,41 @@ export async function withdraw() {
   return fetchApi("/auth/withdraw", { method: "DELETE" })
 }
 
+// 찜목록
+interface FavoriteItem {
+  id: number
+  vendorId: number
+  name: string
+  category: string
+  price: number
+  rating: number
+  imageUrl: string
+  description: string
+  createdAt: string
+}
+
+export async function getMyFavorites() {
+  return fetchApi<FavoriteItem[]>("/personal/favorites")
+}
+
+export async function addFavorite(vendorId: number) {
+  return fetchApi<FavoriteItem>(`/personal/favorites/${vendorId}`, {
+    method: "POST",
+  })
+}
+
+export async function removeFavorite(vendorId: number) {
+  return fetchApi(`/personal/favorites/${vendorId}`, { method: "DELETE" })
+}
+
+export async function getCoupleFavorites() {
+  return fetchApi<FavoriteItem[]>("/couple/favorites")
+}
+
+export async function getAllCoupleFavorites() {
+  return fetchApi<(FavoriteItem & { userId: number })[]>("/couple/favorites/all")
+}
+
 export async function getChatMessages() {
   return fetchApi<{
     id: number
