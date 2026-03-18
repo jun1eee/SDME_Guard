@@ -106,7 +106,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     if (!coupleId) return
 
     const client = new Client({
-      webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+      webSocketFactory: () => new SockJS(window.location.hostname !== "localhost" ? `${window.location.origin}/ws` : "http://localhost:8080/ws"),
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe(`/topic/couple/${coupleId}`, (message) => {

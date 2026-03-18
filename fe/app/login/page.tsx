@@ -85,7 +85,8 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => {
-            window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=d143e4e938c56d6325443d24bbebb2ac&redirect_uri=${encodeURIComponent("http://localhost:3000/login/callback")}&response_type=code&prompt=login`
+            const redirectUri = `${window.location.origin}/login/callback`
+            window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=d143e4e938c56d6325443d24bbebb2ac&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&prompt=login`
           }}
           className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#FEE500] py-3 text-sm font-medium text-[#191919] transition-all hover:bg-[#FEE500]/90"
         >

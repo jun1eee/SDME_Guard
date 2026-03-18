@@ -1,4 +1,6 @@
-const API_BASE = "http://localhost:8080/api"
+const API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
+  ? `${window.location.origin}/api`
+  : "http://localhost:8080/api"
 
 let accessToken: string | null = null
 
@@ -299,6 +301,26 @@ export async function getCoupleFavorites() {
 
 export async function getAllCoupleFavorites() {
   return fetchApi<(FavoriteItem & { userId: number })[]>("/couple/favorites/all")
+}
+
+// 업체 공유
+export async function shareVendor(vendorId: number, message?: string) {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sharedUserId: number; message: string; sharedAt: string
+  }>(`/vendors/${vendorId}/share`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  })
+}
+
+export async function getSharedVendors() {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sharedUserId: number; message: string; sharedAt: string
+  }[]>("/vendors/shared")
 }
 
 export async function getChatMessages() {
