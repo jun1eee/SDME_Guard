@@ -17,19 +17,20 @@ services:
     build:
       context: ./fe
     container_name: frontend
+    env_file:
+      - ./fe/.env
     ports:
       - "3000:3000"
     networks:
       - weddirect-net
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
     container_name: nginx
     restart: unless-stopped
     ports:
       - "80:80"
-    volumes:
-      - ./nginx:/etc/nginx/conf.d
     depends_on:
       - backend
       - frontend
