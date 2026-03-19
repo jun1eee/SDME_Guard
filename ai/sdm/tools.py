@@ -1,27 +1,35 @@
-"""스드메 Tool 함수 + 유틸"""
 import json
 import re
 import requests as http_requests
+from dataclasses import dataclass
+from typing import Any
 
-from deps import get_driver
 from config import settings
-from sdm.graphrag import get_rag_cypher, create_vector_rag
+from sdm.graphrag import SdmGraphRagEngine, NO_RESULT_PHRASES
 
-def _extract_location(query):
-    """쿼리에서 위치 키워드 추출. '가좌역 근처 스튜디오' → '가좌역'"""
-    # 패턴: ~역, ~동, ~구, ~시 등 위치 관련 단어 추출
+
+@dataclass
+class ToolResult:
+    result_type: str
+    data: str
+    vendors: list[str]
+
+
+# ── 지오코딩 (ai-dc) ──
+
+def _extract_location(query: str) -> str | None:
+    """쿼리에서 위치 키워드 추출"""
     m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|빌딩|아파트))", query)
     if m:
         return m.group(1)
-    # 패턴: "근처", "가까운" 앞의 단어
     m = re.search(r"(\S+)\s*(?:근처|가까운|주변|쪽|부근|인근)", query)
     if m:
         return m.group(1)
     return None
 
 
-def geocode_query(query):
-    """사용자 입력에서 위치를 추출 후 카카오맵으로 지오코딩. (lat, lng, place_name) 반환."""
+def geocode_query(query: str) -> tuple:
+    """사용자 입력에서 위치 추출 → 카카오맵 지오코딩. (lat, lng, place_name)"""
     if not settings.kakao_api_key:
         return None, None, None
     location = _extract_location(query)
@@ -43,16 +51,14 @@ def geocode_query(query):
     return None, None, None
 
 
-def search_nearest_vendors(category, lat, lng, limit=5):
-    """좌표 기반 가장 가까운 업체 검색 (Neo4j point.distance)"""
-    driver = get_driver()
+def search_nearest_vendors(driver, category: str, lat: float, lng: float, limit: int = 5) -> list[dict]:
+    """좌표 기반 가장 가까운 업체 검색"""
     with driver.session() as session:
-        records = session.run("""
+        return session.run("""
             MATCH (v:Vendor {category: $cat})
             WHERE v.location IS NOT NULL
             WITH v, point.distance(v.location, point({latitude: $lat, longitude: $lng})) AS dist
-            ORDER BY dist ASC
-            LIMIT $limit
+            ORDER BY dist ASC LIMIT $limit
             OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)
             WITH v, dist, collect(DISTINCT t.name) AS tags
             RETURN v.name AS name, v.category AS category,
@@ -60,177 +66,142 @@ def search_nearest_vendors(category, lat, lng, limit=5):
                    v.address AS address, v.profileUrl AS url,
                    round(dist) AS distanceMeters, tags
         """, cat=category, lat=lat, lng=lng, limit=limit).data()
-    return records
 
 
-NO_RESULT_PHRASES = [
-    "찾지 못했습니다", "없습니다", "검색 결과가 없",
-    "포함되어 있지 않습니다", "정보가 없", "찾을 수 없",
-    "데이터에 포함", "제공되지 않", "존재하지 않",
+# ── Tool Schema ──
+
+TOOLS_SCHEMA = [
+    {"type": "function", "function": {
+        "name": "search_structured",
+        "description": "가격, 지역, 태그 같은 구조적 조건으로 스드메 업체를 검색합니다.",
+        "parameters": {"type": "object", "properties": {
+            "query": {"type": "string"},
+            "category": {"type": "string", "enum": ["studio", "dress", "makeup"]},
+        }, "required": ["query", "category"]},
+    }},
+    {"type": "function", "function": {
+        "name": "search_semantic",
+        "description": "스타일, 분위기, 느낌 같은 추상 조건으로 스드메 업체를 검색합니다.",
+        "parameters": {"type": "object", "properties": {
+            "query": {"type": "string"},
+            "category": {"type": "string", "enum": ["studio", "dress", "makeup"]},
+            "region": {"type": "string"},
+            "max_price": {"type": "integer"},
+            "min_price": {"type": "integer"},
+        }, "required": ["query", "category"]},
+    }},
+    {"type": "function", "function": {
+        "name": "compare_vendors",
+        "description": "이전에 언급된 업체들을 비교합니다.",
+        "parameters": {"type": "object", "properties": {
+            "vendor_names": {"type": "array", "items": {"type": "string"}},
+            "criteria": {"type": "string"},
+        }, "required": ["vendor_names"]},
+    }},
+    {"type": "function", "function": {
+        "name": "filter_previous",
+        "description": "이전 추천 결과에서 재정렬하거나 필터링합니다.",
+        "parameters": {"type": "object", "properties": {
+            "vendor_names": {"type": "array", "items": {"type": "string"}},
+            "condition": {"type": "string"},
+            "count": {"type": "integer"},
+        }, "required": ["vendor_names", "condition"]},
+    }},
+    {"type": "function", "function": {
+        "name": "get_vendor_detail",
+        "description": "특정 업체의 상세 정보를 조회합니다.",
+        "parameters": {"type": "object", "properties": {
+            "vendor_name": {"type": "string"},
+        }, "required": ["vendor_name"]},
+    }},
+    {"type": "function", "function": {
+        "name": "get_user_preference",
+        "description": "사용자 선호도를 조회합니다.",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
+        "name": "get_user_likes",
+        "description": "사용자 찜 목록을 조회합니다.",
+        "parameters": {"type": "object", "properties": {}},
+    }},
 ]
 
 
-# ── 유틸 ──
+# ── Tool Registry ──
 
-def extract_vendors_from_retriever(result):
-    vendors = []
-    if hasattr(result, "retriever_result") and result.retriever_result:
-        for item in getattr(result.retriever_result, "items", []):
-            name = None
-            if item.metadata and isinstance(item.metadata, dict):
-                name = item.metadata.get("name")
-            if not name and item.content and isinstance(item.content, str):
-                m = re.search(r'"name":\s*"([^"]+)"', item.content)
-                if m:
-                    name = m.group(1)
-                if not name:
-                    m = re.search(r"name='([^']+)'", item.content)
-                    if m:
-                        name = m.group(1)
-            if name and 2 <= len(name) <= 30 and name not in vendors:
-                vendors.append(name)
-    return vendors
+class SdmToolRegistry:
+    def __init__(self, engine: SdmGraphRagEngine) -> None:
+        self.engine = engine
+        self.tool_map = {
+            "search_structured": self.search_structured,
+            "search_semantic": self.search_semantic,
+            "compare_vendors": self.compare_vendors,
+            "filter_previous": self.filter_previous,
+            "get_vendor_detail": self.get_vendor_detail,
+            "get_user_preference": self.get_user_preference,
+            "get_user_likes": self.get_user_likes,
+        }
 
+    def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
+        return self.tool_map[tool_name](couple_id=couple_id, **kwargs)
 
-def extract_vendors_from_answer(answer):
-    """답변 텍스트에서 업체명 추출 — **볼드** 텍스트 기반"""
-    # 답변에서 **볼드** 텍스트 전부 추출
-    bold_names = re.findall(r"\*\*([^*]{2,30})\*\*", answer)
+    def search_structured(self, query: str, category: str, couple_id: int, **_) -> ToolResult:
+        answer, vendors = self.engine.search_structured(query=query, category=category)
+        # 결과 없으면 거리 기반 fallback (ai-dc)
+        if answer and any(p in answer for p in NO_RESULT_PHRASES):
+            lat, lng, place = geocode_query(query)
+            if lat and lng and self.engine.driver:
+                records = search_nearest_vendors(self.engine.driver, category, lat, lng)
+                if records:
+                    for r in records:
+                        d = r.get("distanceMeters", 0)
+                        r["distanceText"] = f"{d/1000:.1f}km" if d >= 1000 else f"{int(d)}m"
+                    return ToolResult(
+                        result_type="raw",
+                        data=json.dumps(records, ensure_ascii=False, default=str),
+                        vendors=[r["name"] for r in records],
+                    )
+        return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
-    # 필드 라벨 제외 (가격, 평점, 특징 등)
-    skip = {"가격", "평점", "특징", "주소", "웹사이트", "링크", "리뷰", "참고"}
-    vendors = []
-    for name in bold_names:
-        name = name.strip()
-        if name in skip or any(s in name for s in skip):
-            continue
-        if 2 <= len(name) <= 30 and name not in vendors:
-            vendors.append(name)
-    return vendors
+    def search_semantic(self, query: str, category: str, couple_id: int,
+                        region=None, max_price=None, min_price=None, **_) -> ToolResult:
+        answer, vendors = self.engine.search_semantic(
+            query=query, category=category, region=region, max_price=max_price, min_price=min_price,
+        )
+        return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
+    def compare_vendors(self, vendor_names: list[str], couple_id: int, criteria=None, **_) -> ToolResult:
+        records = self.engine.query_vendors_by_names(vendor_names)
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(records, ensure_ascii=False, default=str),
+            vendors=list(dict.fromkeys(r["name"] for r in records)),
+        )
 
-def query_vendors_by_names(vendor_names):
-    driver = get_driver()
-    with driver.session() as session:
-        records = session.run("""
-            MATCH (v:Vendor)
-            WHERE any(name IN $names WHERE v.name = name)
-            WITH v
-            OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)
-            WITH v, collect(DISTINCT t.name) AS tags
-            OPTIONAL MATCH (v)-[:HAS_PACKAGE]->(p:Package)
-            WITH v, tags, collect(DISTINCT {title: p.title, value: p.value})[..3] AS packages
-            OPTIONAL MATCH (v)-[:HAS_REVIEW]->(rv:Review)
-            WITH v, tags, packages,
-                 round(avg(rv.score), 1) AS avgReviewScore,
-                 count(rv) AS reviewCount,
-                 collect(rv.contents)[..2] AS recentReviews
-            RETURN v.name AS name, v.category AS category,
-                   v.salePrice AS price, v.rating AS rating,
-                   v.address AS address, v.region AS region,
-                   v.profileUrl AS url, v.holiday AS holiday,
-                   v.reviewCnt AS reviewCnt,
-                   tags, packages, avgReviewScore,
-                   reviewCount, recentReviews
-            ORDER BY v.rating DESC
-        """, names=vendor_names).data()
-    return records
+    def filter_previous(self, vendor_names: list[str], condition: str, couple_id: int, count=None, **_) -> ToolResult:
+        records = self.engine.query_vendors_by_names(vendor_names)
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(records, ensure_ascii=False, default=str),
+            vendors=list(dict.fromkeys(r["name"] for r in records)),
+        )
 
+    def get_vendor_detail(self, vendor_name: str, couple_id: int, **_) -> ToolResult:
+        records = self.engine.query_vendors_by_names([vendor_name])
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(records, ensure_ascii=False, default=str),
+            vendors=[vendor_name],
+        )
 
-# ── Tool 함수 ──
+    def get_user_preference(self, couple_id: int, **_) -> ToolResult:
+        pref = self.engine.get_user_preference(couple_id)
+        lines = [f"- {k}: {v}" for k, v in pref.items() if k != "couple_id" and v]
+        return ToolResult(result_type="direct", data="현재 저장된 취향 정보입니다.\n" + "\n".join(lines), vendors=[])
 
-def tool_search_structured(query, category, **kwargs):
-    rag = get_rag_cypher()
-    result = rag.search(query_text=query)
-    vendors = extract_vendors_from_retriever(result)
-    answer = result.answer
-    if not vendors:
-        vendors = extract_vendors_from_answer(answer)
-    if answer and any(p in answer for p in NO_RESULT_PHRASES):
-        cat_kr = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}
-        # 거리 기반 fallback: 사용자 입력에서 위치 추출 → 지오코딩 → 가까운 업체 검색
-        lat, lng, place = geocode_query(query)
-        if lat and lng:
-            records = search_nearest_vendors(category, lat, lng, limit=5)
-            if records:
-                # 거리 정보를 포함한 안내 메시지 추가
-                for r in records:
-                    dist_m = r.get("distanceMeters", 0)
-                    if dist_m >= 1000:
-                        r["distanceText"] = f"{dist_m / 1000:.1f}km"
-                    else:
-                        r["distanceText"] = f"{int(dist_m)}m"
-                data = json.dumps(records, ensure_ascii=False, default=str)
-                vendors = [r["name"] for r in records]
-                return "raw", data, vendors
-        # 지오코딩 실패 시 일반 벡터 검색 fallback
-        fallback_query = f"{cat_kr.get(category, '')} 추천"
-        vec_rag, _ = create_vector_rag(category=category)
-        result = vec_rag.search(query_text=fallback_query)
-        vendors = extract_vendors_from_retriever(result)
-        if not vendors:
-            vendors = extract_vendors_from_answer(result.answer)
-        answer = f"해당 지역에 등록된 업체가 없어 가까운 업체를 추천드립니다.\n\n{result.answer}"
-    return "graphrag", answer, vendors
-
-
-def tool_search_semantic(query, category, region=None, max_price=None, min_price=None, **kwargs):
-    vec_rag, _ = create_vector_rag(
-        category=category, region=region, max_price=max_price, min_price=min_price,
-    )
-    result = vec_rag.search(query_text=query)
-    vendors = extract_vendors_from_retriever(result)
-    answer = result.answer
-    if not vendors:
-        vendors = extract_vendors_from_answer(answer)
-    # semantic 결과 없으면 structured로 교차 시도
-    if answer and any(p in answer for p in NO_RESULT_PHRASES):
-        rag = get_rag_cypher()
-        result2 = rag.search(query_text=query)
-        vendors2 = extract_vendors_from_retriever(result2)
-        if not vendors2:
-            vendors2 = extract_vendors_from_answer(result2.answer)
-        if vendors2:
-            return "graphrag", result2.answer, vendors2
-    return "graphrag", answer, vendors
-
-
-def tool_compare_vendors(vendor_names, criteria=None, **kwargs):
-    records = query_vendors_by_names(vendor_names)
-    data = json.dumps(records, ensure_ascii=False, default=str)
-    vendor_list = list(dict.fromkeys(r["name"] for r in records))
-    return "raw", data, vendor_list
-
-
-def tool_filter_previous(vendor_names, condition, count=None, **kwargs):
-    records = query_vendors_by_names(vendor_names)
-    data = json.dumps(records, ensure_ascii=False, default=str)
-    vendor_list = list(dict.fromkeys(r["name"] for r in records))
-    return "raw", data, vendor_list
-
-
-def tool_get_vendor_detail(vendor_name, **kwargs):
-    records = query_vendors_by_names([vendor_name])
-    data = json.dumps(records, ensure_ascii=False, default=str)
-    return "raw", data, [vendor_name]
-
-
-def tool_get_user_preference(**kwargs):
-    # TODO: Spring API 호출로 전환
-    return "direct", "현재 저장된 취향 정보입니다.\n- region: 서울\n- studio_style: 인물중심", []
-
-
-def tool_get_user_likes(**kwargs):
-    # TODO: Spring API 호출로 전환
-    return "direct", "좋아요한 업체가 없습니다.", []
-
-
-TOOL_MAP = {
-    "search_structured": tool_search_structured,
-    "search_semantic": tool_search_semantic,
-    "compare_vendors": tool_compare_vendors,
-    "filter_previous": tool_filter_previous,
-    "get_vendor_detail": tool_get_vendor_detail,
-    "get_user_preference": tool_get_user_preference,
-    "get_user_likes": tool_get_user_likes,
-}
+    def get_user_likes(self, couple_id: int, **_) -> ToolResult:
+        likes = self.engine.get_user_likes(couple_id)
+        if likes:
+            lines = [f"- {l.get('name', '알수없음')} ({l.get('category', '')})" for l in likes]
+            return ToolResult(result_type="direct", data=f"좋아요한 업체가 {len(likes)}건 있습니다.\n" + "\n".join(lines), vendors=[])
+        return ToolResult(result_type="direct", data="좋아요한 업체가 없습니다.", vendors=[])

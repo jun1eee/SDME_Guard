@@ -1,13 +1,11 @@
 """스드메 챗봇 라우터"""
-import json
-from typing import List
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
-from schemas.chat import ChatRequest, ChatResponse
-from session_store import get_session, reset_session
-from sdm.service import process_message
-from deps import get_driver
+from schemas.chat import ApiResponse, ChatRequest
+from deps import get_sdm_service, get_session_store
+from sdm.service import SdmChatService
+from session_store import InMemorySessionStore
 
 router = APIRouter(tags=["sdm"])
 
@@ -86,35 +84,44 @@ fetch('/api/chat/sdm/graph/data')
 </body></html>"""
 
 
-@router.post("/sdm", response_model=ChatResponse)
-async def chat_sdm(req: ChatRequest):
-    session = get_session(req.session_id)
-    result = await process_message(req.message, session, req.couple_id)
-    return ChatResponse(session_id=req.session_id, **result)
+@router.post("/sdm", response_model=ApiResponse)
+async def chat_sdm(
+    payload: ChatRequest,
+    request: Request,
+    service: SdmChatService = Depends(get_sdm_service),
+):
+    result = service.chat(payload, trace_id=request.state.trace_id)
+    return ApiResponse(data=result)
 
 
 @router.get("/sdm/session/{session_id}")
-async def get_sdm_session(session_id: str):
+async def get_sdm_session(
+    session_id: str,
+    store: InMemorySessionStore = Depends(get_session_store),
+):
     """디버그용: 세션 상태 확인"""
-    session = get_session(session_id)
+    session = store.get_or_create(session_id)
     return {
         "session_id": session_id,
-        "category": session.get("category"),
-        "vendors": session.get("vendors", []),
-        "last_mentioned": session.get("last_mentioned", []),
-        "chat_history_count": len(session.get("chat_history", [])),
-        "turn": session.get("turn", 0),
+        "category": session.category,
+        "vendors": session.vendors,
+        "last_mentioned": session.last_mentioned,
+        "chat_history_count": len(session.history),
+        "turn": session.turn,
     }
 
 
 @router.post("/sdm/graph")
-async def get_vendor_graph(req: dict):
+async def get_vendor_graph(
+    req: dict,
+    service: SdmChatService = Depends(get_sdm_service),
+):
     """검색 결과 업체들의 그래프 데이터 반환 (시각화용)"""
     vendor_names = req.get("vendor_names", [])
     if not vendor_names:
         return {"nodes": [], "edges": []}
 
-    driver = get_driver()
+    driver = service.engine.driver
     with driver.session() as session:
         records = session.run("""
             MATCH (v:Vendor)
@@ -276,7 +283,10 @@ async def graph_view():
 
 
 @router.post("/sdm/reset")
-async def reset_sdm_session(req: dict):
+async def reset_sdm_session(
+    req: dict,
+    store: InMemorySessionStore = Depends(get_session_store),
+):
     session_id = req.get("session_id", "")
-    reset_session(session_id)
+    store.clear(session_id)
     return {"success": True, "session_id": session_id}
