@@ -34,10 +34,16 @@ public class HallDetailImporter {
     @PostConstruct
     @Transactional
     public void importIfEmpty() {
+        // rentalPrice 컬럼 추가 후 기존 데이터 재임포트를 위해 전체 삭제 후 재삽입
+        long existing = vendorHallDetailRepository.count();
+        if (existing > 0) {
+            vendorHallDetailRepository.deleteAll();
+            log.info("Cleared {} existing hall details for re-import with rental prices", existing);
+        }
+
         List<Vendor> halls = vendorRepository.findAllByCategory("HALL");
         int count = 0;
         for (Vendor vendor : halls) {
-            if (vendorHallDetailRepository.existsByVendorId(vendor.getId())) continue;
             JsonNode detail = hallDetailStore.findBySourceId(vendor.getSourceId());
             if (detail == null) continue;
             count += importOne(vendor, detail);
@@ -59,6 +65,9 @@ public class HallDetailImporter {
         Integer sharedIntervalMin = extractIntervalFromTags(tags, 13);
         Integer sharedIntervalMax = extractIntervalFromTags(tags, 14);
 
+        // 크롤링된 홀별 대관료/식대 데이터
+        JsonNode hallDetailsNode = detail.path("hallDetails");
+
         // 공통 정보: 체크리스트에서 추출
         boolean hasSubway  = memoContent.contains("역 도보") || memoContent.contains("역에서 도보");
         boolean hasParking = memoContent.contains("주차");
@@ -72,11 +81,25 @@ public class HallDetailImporter {
         }
 
         List<VendorHallDetail> details = new ArrayList<>();
-        for (HallSection section : sections) {
+        for (int idx = 0; idx < sections.size(); idx++) {
+            HallSection section = sections.get(idx);
             Integer[] guests = parseGuests(section.body());
             String style        = pickFirst(extractStyleFromText(section.body()), sharedStyle);
             String mealType     = pickFirst(extractMealTypeFromText(section.body()), sharedMealType);
             String ceremonyType = pickFirst(extractCeremonyTypeFromText(section.body()), sharedCeremonyType);
+
+            // hallDetails에서 해당 홀의 대관료/식대 매칭
+            Integer rentalPrice = null;
+            Integer hallMealPrice = sharedMealPrice;
+            JsonNode matched = matchHallDetail(hallDetailsNode, section.name(), idx);
+            if (matched != null) {
+                if (matched.has("rentalPrice") && matched.path("rentalPrice").asInt(0) > 0) {
+                    rentalPrice = matched.path("rentalPrice").asInt();
+                }
+                if (matched.has("mealPrice") && matched.path("mealPrice").asInt(0) > 0) {
+                    hallMealPrice = matched.path("mealPrice").asInt();
+                }
+            }
 
             details.add(VendorHallDetail.builder()
                 .vendorId(vendor.getId())
@@ -86,7 +109,8 @@ public class HallDetailImporter {
                 .hallType(sharedHallType)
                 .style(style)
                 .mealType(mealType)
-                .mealPrice(sharedMealPrice)
+                .mealPrice(hallMealPrice)
+                .rentalPrice(rentalPrice)
                 .ceremonyType(ceremonyType)
                 .ceremonyIntervalMin(sharedIntervalMin)
                 .ceremonyIntervalMax(sharedIntervalMax)
@@ -100,6 +124,34 @@ public class HallDetailImporter {
 
         vendorHallDetailRepository.saveAll(details);
         return 1;
+    }
+
+    /** hallDetails 배열에서 홀 이름으로 매칭, 없으면 인덱스로 매칭 */
+    private JsonNode matchHallDetail(JsonNode hallDetailsNode, String hallName, int index) {
+        if (hallDetailsNode == null || !hallDetailsNode.isArray() || hallDetailsNode.isEmpty()) return null;
+
+        // 이름 매칭 (홀 이름이 포함되어 있는지)
+        for (JsonNode node : hallDetailsNode) {
+            String name = node.path("name").asText("");
+            if (!name.isBlank() && (name.contains(hallName) || hallName.contains(name))) {
+                return node;
+            }
+        }
+
+        // 홀 이름에서 핵심 부분 추출해서 매칭 (예: "보르도홀 (LL층)" -> "보르도홀")
+        String coreName = hallName.replaceAll("\\s*\\(.*\\)", "").trim();
+        for (JsonNode node : hallDetailsNode) {
+            String name = node.path("name").asText("");
+            if (!name.isBlank() && (name.contains(coreName) || coreName.contains(name))) {
+                return node;
+            }
+        }
+
+        // 인덱스로 매칭
+        if (index < hallDetailsNode.size()) {
+            return hallDetailsNode.get(index);
+        }
+        return null;
     }
 
     // ── 홀 섹션 파싱 ────────────────────────────────────────────────────────

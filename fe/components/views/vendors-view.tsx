@@ -4,13 +4,15 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
-  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock,
+  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
+import { createReservation, reportVendor, getBookedTimes } from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -73,6 +75,7 @@ export interface VendorHall {
   style: string | null
   mealType: string | null
   mealPrice: number | null
+  rentalPrice: number | null
   ceremonyType: string | null
   ceremonyIntervalMin: number | null
   ceremonyIntervalMax: number | null
@@ -115,6 +118,8 @@ interface Vendor {
   coverUrl?: string
   halls?: VendorHall[]
   hallFacilities?: string[]
+  scheduleSlots?: string[]
+  closedDays?: string
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -852,8 +857,8 @@ function VendorCard({
         </div>
 
         <div className="mt-2 flex flex-wrap gap-1">
-          {vendor.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="text-xs text-muted-foreground">
+          {vendor.tags.slice(0, 3).map((tag, i) => (
+            <span key={`${tag}-${i}`} className="text-xs text-muted-foreground">
               #{tag}
             </span>
           ))}
@@ -912,7 +917,6 @@ export function VendorDetailView({
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
   const [showAddons, setShowAddons] = useState(false)
   const [showReservation, setShowReservation] = useState(false)
-  const [showPayment, setShowPayment] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
@@ -1055,19 +1059,12 @@ export function VendorDetailView({
 
             {/* Action buttons */}
             <div className="mt-3 flex gap-2">
-              {vendor.paymentStep === 1 && (
-                <Button
-                  onClick={() => setShowReservation(true)}
-                  className="flex-1 bg-foreground text-background hover:bg-foreground/90"
-                >
-                  예약 생성
-                </Button>
-              )}
-              {vendor.paymentStep <= 3 && (
-                <Button onClick={() => setShowPayment(true)} variant="outline" className="flex-1">
-                  {vendor.paymentStep <= 1 ? "계약금 결제" : "잔금 결제"}
-                </Button>
-              )}
+              <Button
+                onClick={() => setShowReservation(true)}
+                className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+              >
+                예약 및 계약금 결제
+              </Button>
               {onAddToVote && (
                 <button
                   onClick={() => {
@@ -1199,6 +1196,18 @@ export function VendorDetailView({
                 )}
                 <h3 className="mb-3 font-semibold text-foreground">{selectedHall.name}</h3>
                 <div className="space-y-2.5">
+                  {selectedHall.rentalPrice !== null && selectedHall.rentalPrice > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">대관료</span>
+                      <span className="font-semibold text-foreground">{selectedHall.rentalPrice.toLocaleString("ko-KR")}원</span>
+                    </div>
+                  )}
+                  {selectedHall.mealPrice !== null && selectedHall.mealPrice > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">식대</span>
+                      <span className="font-semibold text-foreground">{selectedHall.mealPrice.toLocaleString("ko-KR")}원</span>
+                    </div>
+                  )}
                   {selectedHall.hallType && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">홀 종류</span>
@@ -1236,10 +1245,7 @@ export function VendorDetailView({
                   {selectedHall.mealType && (
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">식사 형태</span>
-                      <span className="text-foreground">
-                        {selectedHall.mealType}
-                        {selectedHall.mealPrice !== null && ` (식대 ${selectedHall.mealPrice.toLocaleString("ko-KR")}원)`}
-                      </span>
+                      <span className="text-foreground">{selectedHall.mealType}</span>
                     </div>
                   )}
                 </div>
@@ -1522,19 +1528,9 @@ export function VendorDetailView({
 
       {/* Modals */}
       {showReservation && (
-        <ReservationModal vendorName={vendor.name} onClose={() => setShowReservation(false)} />
+        <ReservationModal vendorId={vendor.id} vendorName={vendor.name} vendorCategory={vendor.category} vendorScheduleSlots={vendor.scheduleSlots} vendorClosedDays={vendor.closedDays} packages={vendor.packages} addons={vendor.addons} halls={vendor.halls} onClose={() => setShowReservation(false)} />
       )}
-      {showPayment && (
-        <PaymentModal
-          vendorName={vendor.name}
-          paymentStep={vendor.paymentStep}
-          price={selectedPkg?.price ?? vendor.packages?.[0]?.price ?? 0}
-          packageOptions={selectedPkg?.sections?.flatMap(s => s.options ?? [])}
-          addons={vendor.addons}
-          onClose={() => setShowPayment(false)}
-        />
-      )}
-      {showReview && (
+{showReview && (
         <ReviewModal
           vendorId={vendor.id}
           vendorName={vendor.name}
@@ -1543,7 +1539,7 @@ export function VendorDetailView({
         />
       )}
       {showReport && (
-        <ReportModal vendorName={vendor.name} onClose={() => setShowReport(false)} />
+        <ReportModal vendorId={vendor.id} vendorName={vendor.name} onClose={() => setShowReport(false)} />
       )}
     </div>
   )
@@ -1564,43 +1560,422 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
 
 // ─── Reservation Modal ────────────────────────────────────────────────────
 
-function ReservationModal({ vendorName, onClose }: { vendorName: string; onClose: () => void }) {
-  const [date, setDate] = useState("")
+function ReservationModal({ vendorId, vendorName, vendorCategory, vendorScheduleSlots, vendorClosedDays, packages, addons, halls, onClose }: {
+  vendorId: string; vendorName: string; vendorCategory?: string
+  vendorScheduleSlots?: string[]; vendorClosedDays?: string
+  packages?: VendorPackage[]; addons?: VendorAddon[]; halls?: VendorHall[]; onClose: () => void
+}) {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [time, setTime] = useState("")
   const [notes, setNotes] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [step, setStep] = useState<"schedule" | "package" | "payment" | "done">("schedule")
+  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null)
+  const [selectedHallId, setSelectedHallId] = useState<number | null>(null)
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([])
+  const [selectedMethod, setSelectedMethod] = useState("")
+  const [bookedTimes, setBookedTimes] = useState<string[]>([])
+  const [loadingTimes, setLoadingTimes] = useState(false)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const formatDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }
+  const date = selectedDate ? formatDateStr(selectedDate) : ""
+
+  const DAY_MAP: Record<string, number> = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 }
+  const closedDayNums = (vendorClosedDays ?? "")
+    .split(/[,，/·\s]+/)
+    .map((d) => DAY_MAP[d.trim()])
+    .filter((n) => n !== undefined)
+
+  const disabledDays = [
+    { before: today },
+    ...(closedDayNums.length > 0 ? [{ dayOfWeek: closedDayNums }] : []),
+  ]
+
+  const TIME_SLOTS_BY_CATEGORY: Record<string, string[]> = {
+    venue: ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"],
+    studio: ["09:00", "12:00", "15:00"],
+    dress: ["10:00", "12:00", "14:00", "16:00", "18:00"],
+    makeup: ["10:00", "12:00", "14:00", "16:00", "18:00"],
+  }
+  const timeSlots = (vendorScheduleSlots && vendorScheduleSlots.length > 0)
+    ? vendorScheduleSlots
+    : (TIME_SLOTS_BY_CATEGORY[vendorCategory ?? ""] || TIME_SLOTS_BY_CATEGORY.venue)
+
+  const handleDateSelect = async (day: Date | undefined) => {
+    setTime("")
+    if (!day) { setSelectedDate(undefined); return }
+    setSelectedDate(day)
+    const dateStr = formatDateStr(day)
+    setLoadingTimes(true)
+    try {
+      const res = await getBookedTimes(Number(vendorId), dateStr)
+      setBookedTimes(res.data)
+    } catch {
+      setBookedTimes([])
+    } finally {
+      setLoadingTimes(false)
+    }
+  }
+
+  const isVenue = vendorCategory === "venue"
+  const hasMultipleChoices = isVenue
+    ? (halls && halls.length > 1)
+    : (packages && packages.length > 1)
+
+  // 계약금 결제 버튼 클릭 → 선택 또는 결제 화면으로
+  const handleDepositClick = () => {
+    if (!date || !time) return
+    if (hasMultipleChoices) {
+      setStep("package")
+    } else {
+      if (isVenue && halls && halls.length === 1) setSelectedHallId(halls[0].id)
+      if (!isVenue && packages && packages.length === 1) setSelectedPkgId(packages[0].id)
+      setStep("payment")
+    }
+  }
+
+  // 선택 후 → 결제 화면으로
+  const handlePackageNext = () => {
+    if (isVenue && !selectedHallId) return
+    if (!isVenue && !selectedPkgId) return
+    setStep("payment")
+  }
+
+  // 최종 결제 (예약 생성 + 결제 완료)
+  const handlePayment = async () => {
+    if (!date || !time || !selectedMethod || isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await createReservation(Number(vendorId), {
+        reservationDate: date,
+        serviceDate: date,
+        reservationTime: time,
+        memo: notes || undefined,
+      })
+      setStep("done")
+      setTimeout(onClose, 2000)
+    } catch (err: any) {
+      alert(err.message || "예약 생성에 실패했습니다.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const selectedPkg = packages?.find(p => p.id === selectedPkgId)
+  const selectedHall = halls?.find(h => h.id === selectedHallId)
+
+  // 가격 계산: venue는 홀 대관료, 나머지는 패키지 가격
+  const basePrice = isVenue
+    ? (selectedHall?.rentalPrice ?? 0)
+    : (selectedPkg?.price ?? 0)
+
+  const addonsTotal = selectedAddons.reduce((sum, id) => {
+    const addon = addons?.find(a => a.id === id)
+    return sum + (addon?.price ?? 0)
+  }, 0)
+
+  const totalPrice = basePrice + addonsTotal
+  const depositAmount = Math.round(totalPrice * 0.1)
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddons(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  }
 
   return (
     <ModalShell onClose={onClose}>
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">예약 생성</h2>
+        <h2 className="text-lg font-bold text-foreground">
+          {step === "payment" ? "계약금 결제" : step === "package" ? (isVenue ? "홀 선택" : "패키지 선택") : "예약 생성"}
+        </h2>
         <button onClick={onClose}><X className="size-5 text-muted-foreground" /></button>
       </div>
       <p className="mb-5 text-sm text-muted-foreground">{vendorName}</p>
-      <div className="space-y-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">방문 날짜</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+
+      {step === "done" ? (
+        <div className="py-8 text-center">
+          <CalendarCheck className="mx-auto size-12 text-primary mb-3" />
+          <p className="text-lg font-semibold text-foreground">예약 및 결제가 완료되었습니다!</p>
+          <p className="mt-2 text-sm text-muted-foreground">{date} {time}</p>
+          {(selectedPkg || selectedHall) && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isVenue ? selectedHall?.name : selectedPkg?.name} · 계약금 {formatPrice(depositAmount)}
+            </p>
+          )}
         </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">방문 시간</label>
-          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">메모</label>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="상담 내용, 질문 사항 등"
-            rows={3}
-          />
-        </div>
-      </div>
-      <div className="mt-5 flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={onClose}>취소</Button>
-        <Button className="flex-1 bg-foreground text-background hover:bg-foreground/90" onClick={onClose}>
-          예약 생성
-        </Button>
-      </div>
+      ) : step === "payment" ? (
+        <>
+          <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
+            {/* 선택된 패키지/홀 */}
+            <div>
+              <p className="mb-2 text-sm font-semibold text-foreground">{isVenue ? "선택 홀" : "선택 패키지"}</p>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+              </div>
+            </div>
+
+            {/* 추가상품 */}
+            {addons && addons.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
+                <div className="space-y-2">
+                  {addons.map((addon) => {
+                    const checked = selectedAddons.includes(addon.id)
+                    return (
+                      <button
+                        key={addon.id}
+                        className="flex w-full items-center gap-3 text-left"
+                        onClick={() => toggleAddon(addon.id)}
+                      >
+                        <div className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                          checked ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                        }`}>
+                          {checked && <Check className="size-3" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-foreground">{addon.name}</span>
+                          {addon.description && (
+                            <p className="text-xs text-muted-foreground">{addon.description}</p>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-foreground shrink-0">
+                          {formatPrice(addon.price)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 예약 정보 */}
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">예약일</span>
+                <span className="font-medium text-foreground">{date}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">시간</span>
+                <span className="font-medium text-foreground">{time}</span>
+              </div>
+              {notes && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">메모</span>
+                  <span className="font-medium text-foreground truncate max-w-[200px]">{notes}</span>
+                </div>
+              )}
+            </div>
+
+            {/* 결제 금액 요약 */}
+            <div className="rounded-xl bg-muted p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "홀") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+              </div>
+              {selectedAddons.map(id => {
+                const addon = addons?.find(a => a.id === id)
+                if (!addon) return null
+                return (
+                  <div key={id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{addon.name}</span>
+                    <span className="font-medium">{formatPrice(addon.price)}</span>
+                  </div>
+                )
+              })}
+              <div className="border-t border-border pt-2 mt-1" />
+              <div className="flex justify-between text-sm">
+                <span className="font-semibold text-foreground">총 금액</span>
+                <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">계약금 (10%)</span>
+                <span className="text-lg font-bold text-foreground">{formatPrice(depositAmount)}</span>
+              </div>
+            </div>
+
+            {/* 결제 수단 */}
+            <div>
+              <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
+              <div className="space-y-2">
+                {["신용카드", "계좌이체", "카카오페이"].map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setSelectedMethod(method)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                      selectedMethod === method
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => {
+              if (packages && packages.length > 1) setStep("package")
+              else setStep("schedule")
+            }}>이전</Button>
+            <Button
+              className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+              onClick={handlePayment}
+              disabled={!selectedMethod || isSubmitting}
+            >
+              {isSubmitting ? "결제 중..." : `${formatPrice(depositAmount)} 결제하기`}
+            </Button>
+          </div>
+        </>
+      ) : step === "package" ? (
+        <>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {isVenue ? "예약할 홀을 선택해주세요" : "결제할 패키지를 선택해주세요"}
+            </p>
+            {isVenue ? halls?.map((hall) => (
+              <button
+                key={hall.id}
+                onClick={() => setSelectedHallId(hall.id)}
+                className={`w-full rounded-xl border p-4 text-left transition-all ${
+                  selectedHallId === hall.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">{hall.name}</span>
+                  <span className="font-bold text-foreground">{hall.rentalPrice ? formatPrice(hall.rentalPrice) : "가격 문의"}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {hall.guestMin != null && hall.guestMax != null && (
+                    <span>수용 {hall.guestMin}~{hall.guestMax}명</span>
+                  )}
+                  {hall.hallType && <span>{hall.hallType}</span>}
+                  {hall.mealType && <span>{hall.mealType}</span>}
+                  {hall.mealPrice != null && <span>식대 {formatPrice(hall.mealPrice)}</span>}
+                </div>
+              </button>
+            )) : packages?.map((pkg) => (
+              <button
+                key={pkg.id}
+                onClick={() => setSelectedPkgId(pkg.id)}
+                className={`w-full rounded-xl border p-4 text-left transition-all ${
+                  selectedPkgId === pkg.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">{pkg.name}</span>
+                  <span className="font-bold text-foreground">{pkg.price ? formatPrice(pkg.price) : "가격 문의"}</span>
+                </div>
+                {pkg.mainItems && pkg.mainItems.length > 0 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">
+                    {pkg.mainItems.map(i => i.name).join(" · ")}
+                  </p>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 flex gap-2">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setStep("schedule")}>이전</Button>
+            <Button
+              className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+              onClick={handlePackageNext}
+              disabled={isVenue ? !selectedHallId : !selectedPkgId}
+            >
+              다음
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">방문 날짜</label>
+              {vendorClosedDays && (
+                <p className="mb-2 text-xs text-muted-foreground">휴무일: 매주 {vendorClosedDays}요일</p>
+              )}
+              <div className="flex justify-center rounded-xl border border-border p-1">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  disabled={disabledDays}
+                  className="!w-full"
+                  classNames={{
+                    today: "",
+                  }}
+                />
+              </div>
+              {selectedDate && (
+                <p className="mt-2 text-center text-sm font-medium text-foreground">{date}</p>
+              )}
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">방문 시간</label>
+              {loadingTimes ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">예약 가능 시간 확인 중...</p>
+              ) : !date ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">날짜를 먼저 선택해주세요</p>
+              ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {timeSlots.map((t) => {
+                  const isBooked = bookedTimes.includes(t)
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => !isBooked && setTime(t)}
+                      disabled={isBooked}
+                      className={`rounded-xl border py-2.5 text-sm font-medium transition-all ${
+                        isBooked
+                          ? "border-border bg-muted text-muted-foreground/50 cursor-not-allowed"
+                          : time === t
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border text-foreground hover:border-primary/50 hover:bg-primary/5"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  )
+                })}
+              </div>
+              )}
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-foreground">메모 <span className="text-xs text-muted-foreground font-normal">(선택)</span></label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="상담 내용, 질문 사항, 요청 사항 등을 적어주세요"
+                rows={3}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex gap-2">
+            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={onClose}>취소</Button>
+            <Button
+              className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+              onClick={handleDepositClick}
+              disabled={!date || !time || isSubmitting}
+            >
+              계약금 결제
+            </Button>
+          </div>
+        </>
+      )}
     </ModalShell>
   )
 }
@@ -1916,10 +2291,23 @@ function ReviewModal({
 
 // ─── Report Modal ─────────────────────────────────────────────────────────
 
-function ReportModal({ vendorName, onClose }: { vendorName: string; onClose: () => void }) {
+function ReportModal({ vendorId, vendorName, onClose }: { vendorId: string; vendorName: string; onClose: () => void }) {
   const [reason, setReason] = useState("")
   const [details, setDetails] = useState("")
+  const [submitted, setSubmitted] = useState(false)
   const reasons = ["허위 정보", "불법 영업", "불쾌한 경험", "가격 사기", "기타"]
+
+  const handleSubmit = async () => {
+    if (!reason) return
+    try {
+      const { reportVendor } = await import("@/lib/api")
+      await reportVendor(Number(vendorId), reason + (details ? `: ${details}` : ""))
+      setSubmitted(true)
+      setTimeout(onClose, 1500)
+    } catch {
+      alert("신고에 실패했습니다.")
+    }
+  }
 
   return (
     <ModalShell onClose={onClose}>
@@ -1928,45 +2316,54 @@ function ReportModal({ vendorName, onClose }: { vendorName: string; onClose: () 
         <button onClick={onClose}><X className="size-5 text-muted-foreground" /></button>
       </div>
       <p className="mb-5 text-sm text-muted-foreground">{vendorName}</p>
-      <div className="space-y-4">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-foreground">신고 사유</label>
-          <div className="flex flex-wrap gap-2">
-            {reasons.map((r) => (
-              <button
-                key={r}
-                onClick={() => setReason(r)}
-                className={`rounded-full border px-3 py-1.5 text-sm ${
-                  reason === r
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-foreground hover:bg-muted"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+      {submitted ? (
+        <div className="py-8 text-center">
+          <p className="text-lg font-semibold text-foreground">신고가 접수되었습니다</p>
+          <p className="mt-2 text-sm text-muted-foreground">검토 후 조치하겠습니다</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-foreground">신고 사유</label>
+              <div className="flex flex-wrap gap-2">
+                {reasons.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setReason(r)}
+                    className={`rounded-full border px-3 py-1.5 text-sm ${
+                      reason === r
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">상세 내용</label>
+              <Textarea
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                placeholder="신고 내용을 자세히 작성해주세요"
+                rows={3}
+              />
+            </div>
           </div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">상세 내용</label>
-          <Textarea
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            placeholder="신고 내용을 자세히 작성해주세요"
-            rows={3}
-          />
-        </div>
-      </div>
-      <div className="mt-5 flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={onClose}>취소</Button>
-        <Button
-          className="flex-1 bg-red-500 text-white hover:bg-red-600"
-          onClick={onClose}
-          disabled={!reason}
-        >
-          신고 제출
-        </Button>
-      </div>
+          <div className="mt-5 flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>취소</Button>
+            <Button
+              className="flex-1 bg-red-500 text-white hover:bg-red-600"
+              onClick={handleSubmit}
+              disabled={!reason}
+            >
+              신고 제출
+            </Button>
+          </div>
+        </>
+      )}
     </ModalShell>
   )
 }

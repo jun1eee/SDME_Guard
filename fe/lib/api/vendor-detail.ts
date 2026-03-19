@@ -52,6 +52,7 @@ interface HallItem {
   style: string | null
   mealType: string | null
   mealPrice: number | null
+  rentalPrice: number | null
   ceremonyType: string | null
   ceremonyIntervalMin: number | null
   ceremonyIntervalMax: number | null
@@ -144,6 +145,35 @@ function buildMemo(detail: VendorDetailResponse) {
   return sections.filter(Boolean).join("\n\n") || undefined
 }
 
+/** "10시, 12시, 14시30분" 같은 텍스트를 ["10:00","12:00","14:30"] 배열로 변환 */
+function parseScheduleSlots(raw: string): string[] {
+  // "10시", "10시30분", "9시30분(6월 이후)" 등 다양한 형태 처리
+  const parts = raw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+  const slots: string[] = []
+  for (const part of parts) {
+    // 괄호 안 내용 제거: "10시(9시30분(6월 이후))" → "10시"
+    const clean = part.replace(/\(.*\)/g, "").trim()
+    const match = clean.match(/(\d{1,2})시\s*(\d{1,2})?분?/)
+    if (match) {
+      const h = match[1].padStart(2, "0")
+      const m = (match[2] ?? "0").padStart(2, "0")
+      slots.push(`${h}:${m}`)
+    }
+  }
+  return slots.sort()
+}
+
+function extractScheduleSlots(detail: VendorDetailResponse): string[] | undefined {
+  const extra = detail.studioExtra ?? detail.dressExtra ?? detail.makeupExtra
+  if (!extra?.details) return undefined
+  const scheduleItem = extra.details.find(
+    (d) => d.label.includes("스케줄") || d.label.includes("예약 시간") || d.label.includes("촬영시간")
+  )
+  if (!scheduleItem) return undefined
+  const parsed = parseScheduleSlots(scheduleItem.value)
+  return parsed.length > 0 ? parsed : undefined
+}
+
 export function mapDetailToVendor(detail: VendorDetailResponse): Vendor {
   return {
     id: String(detail.id),
@@ -177,6 +207,8 @@ export function mapDetailToVendor(detail: VendorDetailResponse): Vendor {
     hallFacilities: detail.hallFacilities?.map((f) => f.name) ?? undefined,
     coverUrl: detail.image ?? detail.images?.[0] ?? undefined,
     logoUrl: detail.image ?? undefined,
+    scheduleSlots: extractScheduleSlots(detail),
+    closedDays: detail.visitInfo?.closedDays ?? undefined,
   }
 }
 

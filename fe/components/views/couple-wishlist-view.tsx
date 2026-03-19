@@ -245,6 +245,7 @@ function makeDragData(vendor: VendorShare) {
     categoryLabel: vendor.categoryLabel,
     price: vendor.price,
     rating: vendor.rating,
+    coverUrl: vendor.coverUrl,
   })
 }
 

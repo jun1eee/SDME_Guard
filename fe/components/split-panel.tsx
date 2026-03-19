@@ -394,7 +394,7 @@ export function SplitPanel({
             onTabDragStart={handleTabDragStart}
             onTabDropOnBar={handleTabDrop}
           />
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
             {activeLeftTab && renderContent(activeLeftTab)}
           </div>
         </div>
@@ -420,7 +420,7 @@ export function SplitPanel({
             onTabDragStart={handleTabDragStart}
             onTabDropOnBar={handleTabDrop}
           />
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
             {activeRightTab && renderContent(activeRightTab)}
           </div>
         </div>

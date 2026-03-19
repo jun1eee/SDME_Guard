@@ -329,6 +329,47 @@ export async function getSharedVendors() {
   }[]>("/vendors/shared")
 }
 
+// 예약
+export async function createReservation(vendorId: number, data: {
+  reservationDate?: string; serviceDate?: string; reservationTime?: string; memo?: string; hallDetailId?: number
+}) {
+  return fetchApi(`/vendors/${vendorId}/book`, {
+    method: "POST",
+    body: JSON.stringify({ vendorId, hallDetailId: data.hallDetailId || 0, ...data }),
+  })
+}
+
+export async function getReservations() {
+  return fetchApi<{
+    id: number; coupleId: number; vendorId: number; vendorName: string
+    category: string; imageUrl: string; reservationDate: string
+    serviceDate: string; reservationTime: string; status: string; progress: string
+    memo: string; createdAt: string
+  }[]>("/reservations")
+}
+
+export async function updateReservation(id: number, data: {
+  reservationDate?: string; serviceDate?: string; reservationTime?: string; memo?: string
+}) {
+  return fetchApi(`/reservations/${id}`, { method: "PUT", body: JSON.stringify(data) })
+}
+
+export async function cancelReservation(id: number) {
+  return fetchApi(`/reservations/${id}`, { method: "DELETE" })
+}
+
+export async function getBookedTimes(vendorId: number, date: string) {
+  return fetchApi<string[]>(`/vendors/${vendorId}/reservations?date=${date}`)
+}
+
+// 업체 신고
+export async function reportVendor(vendorId: number, reason: string) {
+  return fetchApi(`/vendors/${vendorId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  })
+}
+
 // 투표
 export async function getVoteItems() {
   return fetchApi<{
