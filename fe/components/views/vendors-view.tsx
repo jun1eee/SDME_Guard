@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import { createReservation, reportVendor, getBookedTimes } from "@/lib/api"
+import { getAccessToken } from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -921,6 +921,7 @@ export function VendorDetailView({
   const [showReport, setShowReport] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
   const [addrCopied, setAddrCopied] = useState(false)
+  const [reviewPage, setReviewPage] = useState(5)
   const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
   const vendorId = vendor.id
 
@@ -928,6 +929,7 @@ export function VendorDetailView({
   useEffect(() => {
     if (vendor.reviews && vendor.reviews.length > 0) {
       setReviews(vendor.reviews)
+      setReviewPage(5)
     }
   }, [vendor.id, vendor.reviews])
 
@@ -1484,23 +1486,31 @@ export function VendorDetailView({
             {/* Review list */}
             {reviews.length > 0 ? (
               <div className="space-y-4">
-                {reviews.map((review, i) => (
+                {reviews.slice(0, reviewPage).map((review, i) => (
                   <div key={review.id ?? `review-${i}`} className="border-t border-border pt-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">{review.authorName}</span>
                       <span className="text-xs text-muted-foreground">{review.date}</span>
                     </div>
                     <div className="mt-1 flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map((i) => (
+                      {[1, 2, 3, 4, 5].map((s) => (
                         <Star
-                          key={i}
-                          className={`size-4 ${i <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
+                          key={s}
+                          className={`size-4 ${s <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
                         />
                       ))}
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-foreground">{review.content}</p>
                   </div>
                 ))}
+                {reviewPage < reviews.length && (
+                  <button
+                    onClick={() => setReviewPage((p) => p + 5)}
+                    className="mt-2 w-full rounded-xl border border-border py-2.5 text-sm text-muted-foreground hover:bg-muted"
+                  >
+                    더보기 ({reviews.length - reviewPage}개 남음)
+                  </button>
+                )}
               </div>
             ) : (
               <p className="py-4 text-center text-sm text-muted-foreground">
@@ -2213,9 +2223,13 @@ function ReviewModal({
     setIsSubmitting(true)
     setError(null)
     try {
+      const token = getAccessToken()
       const res = await fetch(`/api/vendors/${vendorId}/reviews`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         credentials: "include",
         body: JSON.stringify({ rating, content: content.trim() }),
       })
