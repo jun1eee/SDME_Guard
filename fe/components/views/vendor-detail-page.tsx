@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -22,7 +22,7 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
         const result = await fetchVendorDetail(vendorId)
         if (!cancelled) setVendor(result)
       } catch {
-        if (!cancelled) setError("?낆껜 ?곸꽭 ?뺣낫瑜?遺덈윭?ㅼ? 紐삵뻽?듬땲??")
+        if (!cancelled) setError("업체 상세 정보를 불러오지 못했습니다.")
       } finally {
         if (!cancelled) setIsLoading(false)
       }
@@ -35,16 +35,16 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
   }, [vendorId])
 
   if (isLoading) {
-    return <div className="min-h-screen bg-background px-4 py-10 text-sm text-muted-foreground">?낆껜 ?뺣낫瑜?遺덈윭?ㅻ뒗 以묒엯?덈떎.</div>
+    return <div className="min-h-screen bg-background px-4 py-10 text-sm text-muted-foreground">업체 정보를 불러오는 중입니다.</div>
   }
 
   if (error || !vendor) {
     return (
       <div className="min-h-screen bg-background px-4 py-10">
         <Button asChild variant="outline" className="rounded-full">
-          <Link href="/vendor"><ArrowLeft className="mr-2 size-4" />紐⑸줉?쇰줈</Link>
+          <Link href="/vendor"><ArrowLeft className="mr-2 size-4" />목록으로</Link>
         </Button>
-        <p className="mt-4 text-sm text-muted-foreground">{error ?? "?낆껜 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎."}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{error ?? "업체 정보를 찾을 수 없습니다."}</p>
       </div>
     )
   }
@@ -54,8 +54,6 @@ export function VendorDetailPage({ vendorId }: { vendorId: string }) {
       vendor={vendor}
       onBack={() => window.history.back()}
       onToggleFavorite={() => setVendor((prev) => (prev ? { ...prev, isFavorite: !prev.isFavorite } : prev))}
-      onAddReview={() => undefined}
     />
   )
 }
-
