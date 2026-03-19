@@ -1,2 +1,6 @@
 # AI 작업 문서 (로컬 전용)
 mydocs/
+
+# Python
+__pycache__/
+*.pyc

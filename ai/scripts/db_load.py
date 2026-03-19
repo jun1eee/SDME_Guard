@@ -1,12 +1,14 @@
 import json
 import os
 import re
+import asyncio
+import aiohttp
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from openai import OpenAI
 
 # === 설정 (.env에서 로드) ===
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 NEO4J_URI = os.environ["NEO4J_URI"]
 NEO4J_USER = os.environ["NEO4J_USER"]
@@ -15,9 +17,11 @@ NEO4J_PW = os.environ["NEO4J_PW"]
 openai_client = OpenAI()
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
+KAKAO_API_KEY = os.environ.get("KAKAO_API_KEY", "")
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
-_BASE = os.path.dirname(os.path.abspath(__file__))
+# ai/ 루트 기준 경로 (scripts/ 에서 한 단계 위)
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def pick_existing_path(*candidates):
@@ -27,17 +31,17 @@ def pick_existing_path(*candidates):
     return candidates[0]
 
 VENDOR_FILES = {
-    "dress":  os.path.join(_BASE, "json", "iwedding_dress_detail.json"),
-    "makeup": os.path.join(_BASE, "json", "iwedding_makeup_detail.json"),
-    "studio": os.path.join(_BASE, "json", "iwedding_studio_detail.json"),
+    "dress":  os.path.join(_BASE, "data", "json", "iwedding_dress_detail.json"),
+    "makeup": os.path.join(_BASE, "data", "json", "iwedding_makeup_detail.json"),
+    "studio": os.path.join(_BASE, "data", "json", "iwedding_studio_detail.json"),
 }
 HALL_LIST_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_list.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_reco_list.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_list.json"),
 )
 HALL_DETAIL_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_detail.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_reco_detail.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_detail.json"),
 )
 
 
@@ -88,6 +92,145 @@ def setup(session):
 
 
 # ──────────────────────────────────────────
+# 카카오맵 지오코딩 (주소 → 좌표, 병렬 처리)
+# ──────────────────────────────────────────
+KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
+
+
+def _clean_address(addr):
+    """주소에서 층수, 빌딩명 등 제거하여 지오코딩 성공률 향상."""
+    if not addr:
+        return ""
+    addr = re.split(r"\d+층", addr)[0]
+    addr = re.split(r":\s", addr)[0]
+    addr = re.sub(r"\([^)]*\)", "", addr)
+    addr = re.sub(r"\s+\d+F\b", "", addr, flags=re.IGNORECASE)
+    addr = re.sub(r"\s*B\d+\b", "", addr)
+    addr = re.sub(r"\s+", " ", addr).strip().rstrip(",").strip()
+    return addr
+
+
+async def _geocode_one(sem, http_session, address, retries=2):
+    """주소 1건 지오코딩 (키워드 검색). 429 시 대기 후 재시도."""
+    if not address or not KAKAO_API_KEY:
+        return address, None, None
+    clean = _clean_address(address)
+    if not clean:
+        return address, None, None
+    async with sem:
+        for attempt in range(retries + 1):
+            try:
+                async with http_session.get(
+                    KAKAO_KEYWORD_URL,
+                    params={"query": clean, "size": 1},
+                    headers={"Authorization": f"KakaoAK {KAKAO_API_KEY}"},
+                ) as resp:
+                    if resp.status == 429:
+                        await asyncio.sleep(1 + attempt)
+                        continue
+                    if resp.status != 200:
+                        return address, None, None
+                    data = await resp.json()
+                    docs = data.get("documents", [])
+                    if docs:
+                        return address, float(docs[0]["y"]), float(docs[0]["x"])
+                    return address, None, None
+            except Exception:
+                return address, None, None
+    return address, None, None
+
+
+async def geocode_addresses(addresses, concurrency=10):
+    """주소 리스트를 병렬로 지오코딩 (동시 10건, 429 방지)."""
+    sem = asyncio.Semaphore(concurrency)
+    async with aiohttp.ClientSession() as http_session:
+        tasks = [_geocode_one(sem, http_session, addr) for addr in addresses]
+        return await asyncio.gather(*tasks)
+
+
+def geocode_vendors(session, items, category):
+    """Vendor 노드에 lat, lng 속성 추가 (카카오맵 지오코딩)."""
+    if not KAKAO_API_KEY:
+        print(f"  [{category}] KAKAO_API_KEY 미설정 — 지오코딩 건너뜀")
+        return
+
+    # 중복 주소 제거하여 API 호출 최소화
+    addr_to_pids = {}
+    for item in items:
+        addr = item.get("address", "")
+        pid = item.get("partnerId", 0)
+        addr_to_pids.setdefault(addr, []).append(pid)
+
+    unique_addrs = [a for a in addr_to_pids if a]
+    print(f"  [{category}] 지오코딩 중... (업체 {len(items)}개, 고유 주소 {len(unique_addrs)}개)")
+    results = asyncio.run(geocode_addresses(unique_addrs, concurrency=10))
+
+    coord_map = {}
+    for addr, lat, lng in results:
+        if lat is not None:
+            coord_map[addr] = (lat, lng)
+
+    batch = []
+    for addr, pids in addr_to_pids.items():
+        if addr in coord_map:
+            lat, lng = coord_map[addr]
+            for pid in pids:
+                batch.append({"partnerId": pid, "lat": lat, "lng": lng})
+
+    for i in range(0, len(batch), 100):
+        chunk = batch[i:i+100]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: $cat})
+            SET v.lat = row.lat, v.lng = row.lng
+        """, batch=chunk, cat=category)
+
+    print(f"  → [{category}] 지오코딩 완료: {len(coord_map)}/{len(unique_addrs)}건 성공 → {len(batch)}개 Vendor 업데이트")
+
+
+def create_point_index(session):
+    """Vendor 좌표 기반 포인트 인덱스 생성"""
+    try:
+        session.run("""
+            CREATE POINT INDEX vendor_location_index IF NOT EXISTS
+            FOR (v:Vendor) ON (v.location)
+        """)
+    except Exception:
+        pass
+    # lat, lng → Neo4j point 속성 변환
+    session.run("""
+        MATCH (v:Vendor) WHERE v.lat IS NOT NULL AND v.lng IS NOT NULL
+        SET v.location = point({latitude: v.lat, longitude: v.lng})
+    """)
+    cnt = session.run("""
+        MATCH (v:Vendor) WHERE v.location IS NOT NULL RETURN count(v) AS cnt
+    """).single()["cnt"]
+    print(f"  → 좌표 인덱스 생성 완료: {cnt}개 Vendor에 location 설정")
+
+
+# ──────────────────────────────────────────
+# 주소에서 동(洞) 이름 추출
+# ──────────────────────────────────────────
+def extract_dong(address):
+    """주소 문자열에서 동(洞) 이름 추출. 없으면 None 반환."""
+    if not address:
+        return None
+    # 1순위: 괄호 안의 동 — (청담동), (논현동 101-3), (성수동2가)
+    m = re.search(r"\((\S+동\d*가?)\b", address)
+    if m:
+        return m.group(1)
+    # 2순위: 구 뒤의 지번 동 — 강남구 신사동 (도로명 "동로/동길" 제외)
+    m = re.search(r"[시군구]\s+(\S+동\d*가?)(?!\s*로|길)\b", address)
+    if m:
+        return m.group(1)
+    # 3순위: 주소가 동으로 시작 — 청담동2-10
+    m = re.match(r"(\S+동\d*가?)(?!\s*로|길)\b", address)
+    if m:
+        return m.group(1)
+    return None
+
+
+# ──────────────────────────────────────────
 # 스드메 (Vendor 노드)
 # ──────────────────────────────────────────
 def insert_vendors(session, items, category, batch_size=100):
@@ -131,6 +274,7 @@ def insert_vendors(session, items, category, batch_size=100):
                 "subCategory":     item.get("iwedding_sub_category", ""),
                 "tags":   [t["name"] for t in item.get("tags", []) if t.get("name")],
                 "styles": [sf["name"] for sf in item.get("styleFilter", []) if sf.get("name")],
+                "dong":    extract_dong(item.get("address", "")),
             }
             for item in items[i:i+batch_size]
         ]
@@ -157,6 +301,18 @@ def insert_vendors(session, items, category, batch_size=100):
             MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
             MERGE (r:Region {name: row.region})
             MERGE (v)-[:IN_REGION]->(r)
+        """, batch=batch)
+
+        # District 노드 (동 단위)
+        session.run("""
+            UNWIND $batch AS row
+            WITH row WHERE row.dong IS NOT NULL
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            MERGE (d:District {name: row.dong})
+            MERGE (v)-[:IN_DISTRICT]->(d)
+            WITH d, row
+            MATCH (r:Region {name: row.region})
+            MERGE (d)-[:PART_OF]->(r)
         """, batch=batch)
 
         session.run("""
@@ -475,6 +631,13 @@ def main():
         # Tag 동시출현 관계
         for category in VENDOR_FILES:
             create_tag_co_occurs(session, category)
+
+        # 스드메 지오코딩 (주소 → 좌표)
+        print("\n[geocoding] 지오코딩 시작...")
+        for category, path in VENDOR_FILES.items():
+            items = load_json(path)
+            geocode_vendors(session, items, category)
+        create_point_index(session)
 
         # 스드메 임베딩 생성 + 벡터 인덱스
         print("\n[embedding] 임베딩 생성 시작...")
