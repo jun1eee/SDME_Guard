@@ -31,9 +31,12 @@ def response_fn(message, chat_history, debug_log):
 
     try:
         resp = requests.post(API_URL, json={
-            "message": msg, "session_id": session_id, "couple_id": 1,
+            "message": msg, "session_id": session_id,
+            "context": {"couple_id": 1}, "debug": True,
         }, timeout=60)
-        data = resp.json()
+        raw = resp.json()
+        # ApiResponse 형식: {"success": true, "data": {...}}
+        data = raw.get("data", raw) if raw.get("success") else raw
     except requests.ConnectionError:
         log_lines.append("[오류] FastAPI 서버 연결 실패")
         chat_history.append({"role": "user", "content": msg})
@@ -49,28 +52,17 @@ def response_fn(message, chat_history, debug_log):
         full_log = f"{debug_log}\n{'─'*40}\n{new_log}" if debug_log else new_log
         return "", chat_history, full_log, graph_html
 
-    if resp.status_code == 200 and data.get("success"):
+    if resp.status_code == 200 and data.get("answer"):
         answer = data["answer"]
-        tool_used = data.get("tool_used", "없음")
-        category = data.get("category", "없음")
+        tool_used = data.get("route_used", "없음")
         vendors = data.get("vendors", [])
-        elapsed = data.get("elapsed_seconds", 0)
-        debug_info = data.get("debug", {})
+        debug_log_server = data.get("debug_log", "")
 
-        log_lines.append(f"[tool] {tool_used}")
-        log_lines.append(f"[category] {category}")
+        log_lines.append(f"[route] {tool_used}")
         if vendors:
             log_lines.append(f"[vendors] {', '.join(vendors[:10])}")
-        log_lines.append(f"[소요시간] {elapsed}초")
-
-        if debug_info:
-            log_lines.append("[debug 상세]")
-            for k, v in debug_info.items():
-                if isinstance(v, (dict, list)):
-                    log_lines.append(f"  {k}: {json.dumps(v, ensure_ascii=False)}")
-                else:
-                    log_lines.append(f"  {k}: {v}")
-
+        if debug_log_server:
+            log_lines.append(debug_log_server)
         log_lines.append(f"[답변 길이] {len(answer)}자")
 
         # 그래프 데이터 전송 → vis.js iframe 로드

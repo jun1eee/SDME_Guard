@@ -104,7 +104,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Health
 @app.get("/healthz")
 def healthz():
-    return {"success": True, "data": {"status": "ok", "message": "service is running"}}
+    from schemas.chat import ApiResponse, HealthPayload
+    return ApiResponse(data=HealthPayload(status="ok", message="service is running"))
 
 
 # Static 파일 서빙
