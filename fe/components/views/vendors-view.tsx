@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import { getAccessToken } from "@/lib/api"
+import {createReservation, getAccessToken, getBookedTimes} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
