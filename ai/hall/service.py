@@ -111,7 +111,8 @@ class HallChatService:
                 latest_tool_payload = tool_payload
                 halls = tool_payload.get("hall_records", [])
                 tool_halls.extend(halls)
-                self._remember_halls(session, halls)
+                tool_query = tool_payload.get("search_query", tool_args.get("query", message))
+                self._remember_halls(session, halls, query=tool_query)
                 messages_for_followup.append(
                     {
                         "role": "tool",
@@ -170,10 +171,11 @@ class HallChatService:
         if profile:
             lines.append("\n[사용자 프로필]")
             lines.append(json.dumps(profile, ensure_ascii=False))
-        last_results = session.metadata.get("hall_last_results") or []
-        if last_results:
-            lines.append("\n[최근 추천 홀]")
-            lines.append(", ".join(last_results[:10]))
+        search_history = session.metadata.get("hall_search_history") or []
+        if search_history:
+            lines.append("\n[최근 검색 이력 - 비교/후속 질문 시 이 목록을 참고하세요]")
+            for entry in search_history[-5:]:
+                lines.append(f"• '{entry['query']}' 추천: {', '.join(entry['halls'][:10])}")
         return "\n".join(lines)
 
     def _execute_tool(
@@ -215,6 +217,7 @@ class HallChatService:
                 "halls": [self.engine.serialize_hall(hall) for hall in halls],
             },
             "hall_records": halls,
+            "search_query": query,
         }
 
     def _tool_recommend_from_profile(
@@ -323,10 +326,14 @@ class HallChatService:
 
         session.metadata["hall_profile"] = hall_profile
 
-    def _remember_halls(self, session: SessionState, halls: list[HallRecord]) -> None:
+    def _remember_halls(self, session: SessionState, halls: list[HallRecord], query: str = "") -> None:
         if not halls:
             return
-        session.metadata["hall_last_results"] = [hall.name for hall in halls]
+        hall_names = [hall.name for hall in halls]
+        session.metadata["hall_last_results"] = hall_names
+        history: list[dict] = session.metadata.get("hall_search_history") or []
+        history.append({"query": query, "halls": hall_names})
+        session.metadata["hall_search_history"] = history[-5:]  # 최근 5개 검색만 유지
 
     def _append_turns(self, session: SessionState, user_message: str, answer: str) -> None:
         self.session_store.append_history(session.session_id, "user", user_message)

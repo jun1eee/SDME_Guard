@@ -145,6 +145,7 @@ class HallGraphRagEngine:
         self.driver = None
         self.startup_error: str | None = None
         self._geo_cache: dict[str, tuple[float, float] | None] = {}
+        self._district_cache: dict[str, str | None] = {}
         self._route_cache: dict[tuple[str, str, str], tuple[float, float] | None] = {}
 
     def startup(self) -> None:
@@ -235,30 +236,37 @@ class HallGraphRagEngine:
         limit: int = 10,
         strict_region: bool = False,
     ) -> list[tuple[float, HallRecord]]:
-        halls = self._fetch_candidates(query=query, criteria=criteria, limit=max(limit * 6, 30))
-        normalized = query.lower()
+        halls = self._fetch_candidates(query=query, criteria=criteria, limit=max(limit * 4, 20))
         anchor_coord = self._resolve_search_anchor(criteria, query)
-        matches: list[tuple[float, HallRecord]] = []
 
-        for hall in halls:
-            score = self._score_hall(hall, normalized, criteria, strict_region=strict_region)
-            if score is None:
-                continue
-            if anchor_coord:
+        if anchor_coord and (criteria.stations or criteria.subway_lines):
+            # 역/호선 쿼리: 거리 오름차순 (같은 거리대: 평점 있는 홀 우선)
+            ranked: list[tuple[float, HallRecord]] = []
+            for hall in halls:
+                if not self._passes_hard_filters(hall, criteria, strict_region):
+                    continue
                 hall_coord = self._resolve_hall_coordinate(hall)
-                if hall_coord:
-                    distance_km = self._haversine_distance(
-                        anchor_coord[0],
-                        anchor_coord[1],
-                        hall_coord[0],
-                        hall_coord[1],
-                    )
-                    # 거리 보너스: 1km 이내 +5, 3km +3, 5km +1, 7km 0
-                    score += max(0.0, 7.0 - distance_km)
-            matches.append((score, hall))
+                distance_km = (
+                    self._haversine_distance(anchor_coord[0], anchor_coord[1], hall_coord[0], hall_coord[1])
+                    if hall_coord else 999.0
+                )
+                ranked.append((distance_km, hall))
 
-        matches.sort(key=lambda item: item[0], reverse=True)
-        return matches[:limit]
+            ranked.sort(key=lambda x: (
+                x[0],
+                x[1].rating == 0,       # 평점 없는 홀은 뒤로
+                -(x[1].rating or 0),
+                -(x[1].review_count or 0),
+            ))
+            return [(1.0, hall) for _, hall in ranked[:limit]]
+
+        # 일반 쿼리: Neo4j가 이미 rating DESC 정렬 → hard filter만 적용
+        results: list[tuple[float, HallRecord]] = []
+        for hall in halls:
+            if not self._passes_hard_filters(hall, criteria, strict_region):
+                continue
+            results.append((hall.rating or 0.0, hall))
+        return results[:limit]
 
     def resolve_hall_names(self, keywords: list[str], limit_per_keyword: int = 1) -> list[HallRecord]:
         self._ensure_driver()
@@ -423,11 +431,16 @@ class HallGraphRagEngine:
         self._ensure_driver()
 
         if criteria.stations or criteria.subway_lines:
-            # 역/호선 지정 → Neo4j 그래프/텍스트 매칭 대신 Kakao 거리 스코어링에 완전 위임
-            # 서울(또는 지정 region) 전체 후보풀 확보 후 search_scored에서 실제 거리로 정렬
-            geo_region = criteria.regions if criteria.regions else ["서울"]
+            # 1단계: Kakao로 역 위치의 구(district) 파악 → Neo4j 지역 필터로 활용
+            district = None
+            for station in criteria.stations:
+                district = self._resolve_station_district(station)
+                if district:
+                    break
+
+            narrow_region = [district] if district else (criteria.regions if criteria.regions else ["서울"])
             params = {
-                "regions": geo_region,
+                "regions": narrow_region,
                 "subwayLines": [],
                 "stations": [],
                 "styles": criteria.styles,
@@ -435,8 +448,21 @@ class HallGraphRagEngine:
                 "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
                 "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
                 "tokens": [],
-                "limit": 120,
+                "limit": 60,
             }
+            rows = self._run_query(self._search_query(), **params)
+            results = [self._row_to_hall(row) for row in rows]
+
+            # 2단계: 구 단위 결과가 부족하면 서울 전체로 보충
+            if len(results) < 10:
+                broader_region = criteria.regions if criteria.regions else ["서울"]
+                broader_params = {**params, "regions": broader_region, "limit": 200}
+                existing_ids = {h.partner_id for h in results}
+                supplement_rows = self._run_query(self._search_query(), **broader_params)
+                for row in supplement_rows:
+                    if row.get("partnerId") not in existing_ids:
+                        results.append(self._row_to_hall(row))
+            return results
         else:
             params = {
                 "regions": criteria.regions,
@@ -449,9 +475,8 @@ class HallGraphRagEngine:
                 "tokens": self._tokenize_query(query),
                 "limit": limit,
             }
-
-        rows = self._run_query(self._search_query(), **params)
-        return [self._row_to_hall(row) for row in rows]
+            rows = self._run_query(self._search_query(), **params)
+            return [self._row_to_hall(row) for row in rows]
 
     def _fetch_halls_by_partner_ids(self, partner_ids: list[int]) -> list[HallRecord]:
         if not partner_ids:
@@ -460,6 +485,8 @@ class HallGraphRagEngine:
             self._search_query(where_extra="h.partnerId IN $partnerIds"),
             partnerIds=partner_ids,
             regions=[],
+            subwayLines=[],
+            stations=[],
             styles=[],
             features=[],
             budgetLimit=None,
@@ -709,78 +736,24 @@ class HallGraphRagEngine:
         except (TypeError, ValueError):
             return None
 
-    def _score_hall(
+    def _passes_hard_filters(
         self,
         hall: HallRecord,
-        normalized_query: str,
         criteria: HallCriteria,
         strict_region: bool = False,
-    ) -> float | None:
-        searchable = hall.searchable_text
-        # rating을 주 기준으로, review는 보조 (리뷰 많은 먼 홀이 거리 보너스를 압도하지 않도록 조정)
-        score = hall.rating * 1.2 + min(hall.review_count, 300) * 0.008
-
-        if criteria.regions:
-            region_score = max(
-                (
-                    2.4
-                    if region.lower() in searchable
-                    else 0.0
-                )
-                for region in criteria.regions
-            )
-            if strict_region and region_score == 0:
-                return None
-            score += region_score
-
-        if criteria.subway_lines:
-            line_hits = sum(1 for line in criteria.subway_lines if line.lower() in searchable)
-            if line_hits == 0 and any("호선" in token for token in criteria.subway_lines):
-                score -= 0.4
-            score += line_hits * 1.4
-
-        if criteria.stations:
-            # 단어 경계 매칭: "사당역"이 "국회의사당역" 부분문자열로 오매칭되는 것 방지
-            station_hits = sum(
-                1 for station in criteria.stations
-                if f" {station.lower()}" in searchable or searchable.startswith(station.lower())
-            )
-            if station_hits == 0:
-                score -= 0.4
-            score += station_hits * 1.8
-            if hall.walk_minutes is not None:
-                score += max(0.0, 1.4 - (hall.walk_minutes / 8))
-
+    ) -> bool:
+        """예산 초과 등 hard filter만 적용. 가중치 스코어링 없음."""
         if criteria.meal_budget and hall.min_meal_price:
             if hall.min_meal_price > int(criteria.meal_budget * 1.35):
-                return None
-            score += max(0.0, 2 - (hall.min_meal_price / max(criteria.meal_budget, 1)))
-
+                return False
         if criteria.budget and hall.min_total_price:
             if hall.min_total_price > int(criteria.budget * 1.35):
-                return None
-            score += max(0.0, 2 - (hall.min_total_price / max(criteria.budget, 1)))
-
-        for style in criteria.styles:
-            if style.lower() in searchable:
-                score += 1.3
-
-        for feature in criteria.features:
-            if feature.lower() in searchable:
-                score += 1.0
-
-        tokens = self._tokenize_query(normalized_query)
-        exact_name_hits = sum(1 for token in tokens if token in hall.name.lower())
-        context_hits = sum(1 for token in tokens if token in searchable)
-        score += exact_name_hits * 0.8 + context_hits * 0.25
-
-        if criteria.guest_count and hall.memo:
-            guest_numbers = [int(match) for match in re.findall(r"(\d{2,4})명", hall.memo)]
-            if guest_numbers:
-                nearest_gap = min(abs(number - criteria.guest_count) for number in guest_numbers)
-                score += max(0.0, 1.5 - nearest_gap / 150)
-
-        return score
+                return False
+        if strict_region and criteria.regions:
+            searchable = hall.searchable_text
+            if not any(region.lower() in searchable for region in criteria.regions):
+                return False
+        return True
 
     @staticmethod
     def _tokenize_query(query: str) -> list[str]:
@@ -875,17 +848,43 @@ class HallGraphRagEngine:
         return score
 
     def _resolve_hall_coordinate(self, hall: HallRecord) -> tuple[float, float] | None:
-        candidates = [
-            f"{hall.name} 웨딩홀",
-            hall.name,
-            hall.address,
-            f"{hall.region} {hall.sub_region}".strip(),
-        ]
-        for candidate in candidates:
+        # 주소 먼저 시도 (정확하고 API 호출 1회로 끝남), 실패 시 이름으로 fallback
+        for candidate in [hall.address, hall.name, f"{hall.name} 웨딩홀"]:
+            if not candidate:
+                continue
             coord = self._geocode_place(candidate)
             if coord:
                 return coord
         return None
+
+    def _resolve_station_district(self, station_name: str) -> str | None:
+        """역 이름을 Kakao 키워드 검색 → 행정구역(구/군) 반환. 캐싱됨."""
+        if station_name in self._district_cache:
+            return self._district_cache[station_name]
+
+        result = self._kakao_get(
+            "https://dapi.kakao.com/v2/local/search/keyword.json",
+            {"query": station_name},
+        )
+        district = None
+        if result:
+            for doc in (result.get("documents") or [])[:5]:
+                address = doc.get("address_name") or doc.get("road_address_name") or ""
+                for part in address.split():
+                    if part.endswith("구") or part.endswith("군"):
+                        district = part
+                        break
+                    # 좌표도 같이 캐싱
+                try:
+                    coord = (float(doc["y"]), float(doc["x"]))
+                    self._geo_cache[station_name] = coord
+                except (KeyError, TypeError, ValueError):
+                    pass
+                if district:
+                    break
+
+        self._district_cache[station_name] = district
+        return district
 
     def _geocode_place(self, query: str | None) -> tuple[float, float] | None:
         if not query:
