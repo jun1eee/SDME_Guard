@@ -21,9 +21,9 @@ public class HallDetailStore {
 
     @PostConstruct
     public void load() {
-        ClassPathResource resource = new ClassPathResource("data/weddingbook_halls_detail.json");
+        ClassPathResource resource = new ClassPathResource("data/weddingbook_halls_reco_detail.json");
         if (!resource.exists()) {
-            log.warn("weddingbook_halls_detail.json not found");
+            log.warn("weddingbook_halls_reco_detail.json not found");
             return;
         }
         try (InputStream is = resource.getInputStream()) {
@@ -34,7 +34,7 @@ public class HallDetailStore {
                     detailByPartnerId.put(partnerId, node);
                 }
             }
-            log.info("Loaded {} hall details from weddingbook", detailByPartnerId.size());
+            log.info("Loaded {} hall details from weddingbook reco", detailByPartnerId.size());
         } catch (IOException e) {
             log.warn("Failed to load hall detail JSON", e);
         }
