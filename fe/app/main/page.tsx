@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, chatWithPlanner, getPreference, type PlannerRecommendation, type PlannerRoute } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -50,6 +50,39 @@ interface Message {
   id: string
   role: "assistant" | "user"
   content: string
+}
+
+const HALL_KEYWORDS = [
+  "웨딩홀",
+  "예식장",
+  "웨딩 베뉴",
+  "베뉴",
+  "호텔 예식",
+  "하우스웨딩",
+  "하객",
+  "식대",
+  "대관",
+  "보증인원",
+  "채플",
+]
+
+const SDM_KEYWORDS = [
+  "스드메",
+  "스튜디오",
+  "드레스",
+  "메이크업",
+  "메이크업샵",
+  "드메",
+]
+
+function resolvePlannerRoute(message: string, currentRoute: PlannerRoute | null): PlannerRoute {
+  const normalized = message.toLowerCase()
+  const hasHallKeyword = HALL_KEYWORDS.some((keyword) => normalized.includes(keyword.toLowerCase()))
+  const hasSdmKeyword = SDM_KEYWORDS.some((keyword) => normalized.includes(keyword.toLowerCase()))
+
+  if (hasHallKeyword && !hasSdmKeyword) return "hall"
+  if (hasSdmKeyword && !hasHallKeyword) return "sdm"
+  return currentRoute ?? "sdm"
 }
 
 export default function ChatPage() {
@@ -198,10 +231,24 @@ export default function ChatPage() {
                 }
               })
               setFavoriteVendors(favs)
+              setPlannerMetadata((prev) => ({
+                ...prev,
+                liked_halls: favs
+                  .filter((vendor) => vendor.category === "venue")
+                  .map((vendor) => vendor.name),
+              }))
             })
             .catch(() => {})
         }
         loadFavorites()
+        getPreference()
+          .then((preferenceRes) => {
+            setPlannerMetadata((prev) => ({
+              ...prev,
+              preferences: preferenceRes.data,
+            }))
+          })
+          .catch(() => {})
         // 3초마다 찜 데이터 폴링
         const favInterval = setInterval(loadFavorites, 3000)
         ;(window as any).__favInterval = favInterval
@@ -235,6 +282,13 @@ export default function ChatPage() {
   const [coupleChatBadge, setCoupleChatBadge] = useState(0)
   const [openVendorId, setOpenVendorId] = useState<string | null>(null)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [plannerRoute, setPlannerRoute] = useState<PlannerRoute | null>(null)
+  const [plannerSessionIds, setPlannerSessionIds] = useState<Record<PlannerRoute, string | null>>({
+    sdm: null,
+    hall: null,
+  })
+  const [plannerRecommendations, setPlannerRecommendations] = useState<PlannerRecommendation[]>([])
+  const [plannerMetadata, setPlannerMetadata] = useState<Record<string, unknown>>({})
   const [shareModalVendor, setShareModalVendor] = useState<{ id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string } | null>(null)
   const [shareModalComment, setShareModalComment] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -375,30 +429,78 @@ export default function ChatPage() {
   }, [authChecked])
 
   // ── 기존 핸들러 ──────────────────────────────
-  const handleStartChat = (content: string) => {
-    setShowWelcome(false)
-    setActiveSessionId(null)
-
+  const sendPlannerMessage = useCallback(async (content: string, replaceMessages = false) => {
+    const route = resolvePlannerRoute(content, replaceMessages ? null : plannerRoute)
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content,
     }
-    setMessages([userMessage])
+
+    if (replaceMessages) {
+      setMessages([userMessage])
+    } else {
+      setMessages((prev) => [...prev, userMessage])
+    }
+
     setAttachedVendors([])
     setIsTyping(true)
     autoOpenRelatedTab(content)
+    setPlannerRoute(route)
 
-    setTimeout(() => {
-      setIsTyping(false)
-      const responseText = getInitialAIResponse(content)
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: responseText,
+    try {
+      const response = await chatWithPlanner({
+        route,
+        sessionId: replaceMessages ? null : plannerSessionIds[route],
+        message: content,
+        context: {
+          page: "main",
+          user_id: userId,
+          couple_id: coupleId,
+          metadata: plannerMetadata,
+        },
+      })
+
+      setPlannerSessionIds((prev) => ({
+        ...prev,
+        [route]: response.data.session_id,
+      }))
+      const nextRecommendations = response.data.recommendations ?? []
+      if (nextRecommendations.length > 0) {
+        setPlannerRecommendations(nextRecommendations)
+        addPanelTab("vendors", "right")
       }
-      setMessages((prev) => [...prev, aiResponse])
-    }, 1500)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-assistant`,
+          role: "assistant",
+          content: response.data.answer,
+        },
+      ])
+    } catch (error) {
+      const description = error instanceof Error ? error.message : "AI 서버와 통신하지 못했습니다."
+      toast.error("AI 응답 실패", { description })
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-assistant-error`,
+          role: "assistant",
+          content: "지금은 AI 응답을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.",
+        },
+      ])
+    } finally {
+      setIsTyping(false)
+    }
+  }, [plannerRoute, plannerSessionIds, userId, coupleId, plannerMetadata])
+
+  const handleStartChat = (content: string) => {
+    setShowWelcome(false)
+    setActiveSessionId(null)
+    setPlannerRoute(null)
+    setPlannerSessionIds({ sdm: null, hall: null })
+    setPlannerRecommendations([])
+    void sendPlannerMessage(content, true)
   }
 
   // 사용자 메시지 키워드 기반 관련 탭 자동 오픈
@@ -426,26 +528,7 @@ export default function ChatPage() {
   }
 
   const handleSend = (content: string) => {
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content,
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setAttachedVendors([])
-    setIsTyping(true)
-    autoOpenRelatedTab(content)
-
-    setTimeout(() => {
-      setIsTyping(false)
-      const responseText = getAIResponse(content)
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: responseText,
-      }
-      setMessages((prev) => [...prev, aiResponse])
-    }, 1500)
+    void sendPlannerMessage(content)
   }
 
   const handleNewChat = () => {
@@ -469,6 +552,9 @@ export default function ChatPage() {
     setMessages([])
     setShowWelcome(true)
     setActiveSessionId(null)
+    setPlannerRoute(null)
+    setPlannerSessionIds({ sdm: null, hall: null })
+    setPlannerRecommendations([])
     addPanelTab("chat", "left")
   }
 
@@ -477,6 +563,8 @@ export default function ChatPage() {
     if (!session) return
     setMessages(session.messages as Message[])
     setActiveSessionId(id)
+    setPlannerRoute(null)
+    setPlannerSessionIds({ sdm: null, hall: null })
     setShowWelcome(false)
 
     // AI 채팅 탭이 패널에 있으면 활성화, 없으면 추가
@@ -803,6 +891,7 @@ export default function ChatPage() {
             onFavoriteChange={handleFavoriteChange}
             initialVendorId={openVendorId}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            plannerRecommendations={plannerRecommendations}
           />
         )
 

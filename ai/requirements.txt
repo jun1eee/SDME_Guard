@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+neo4j
+neo4j-graphrag
+openai
+mysql-connector-python

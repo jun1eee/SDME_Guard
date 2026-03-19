@@ -20,24 +20,21 @@ EMBEDDING_DIM = 1536
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
 
-def pick_existing_path(*candidates):
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return candidates[0]
+def require_existing_path(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Required file not found: {path}")
+    return path
 
 VENDOR_FILES = {
     "dress":  os.path.join(_BASE, "json", "iwedding_dress_detail.json"),
     "makeup": os.path.join(_BASE, "json", "iwedding_makeup_detail.json"),
     "studio": os.path.join(_BASE, "json", "iwedding_studio_detail.json"),
 }
-HALL_LIST_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_list.json"),
+HALL_LIST_PATH = require_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json")
 )
-HALL_DETAIL_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_detail.json"),
+HALL_DETAIL_PATH = require_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json")
 )
 
 
@@ -55,8 +52,13 @@ def load_json(path):
     raise ValueError(f"JSON 구조를 알 수 없음: {path}")
 
 
+def _run_and_consume(runner, query, **params):
+    """Force write/schema queries to finish before issuing the next one."""
+    runner.run(query, **params).consume()
+
+
 def setup(session):
-    session.run("MATCH (n) DETACH DELETE n")
+    _run_and_consume(session, "MATCH (n) DETACH DELETE n")
     print("기존 데이터 전체 삭제 완료")
 
     # 챗봇 노트북에서 생성된 충돌 제약조건을 이름으로 조회 후 삭제
@@ -70,7 +72,7 @@ def setup(session):
             if (labelsOrTypes == ["Tag"] and props == ["name"]) or \
                (labelsOrTypes == ["Vendor"] and props == ["partnerId"]):
                 try:
-                    session.run(f"DROP CONSTRAINT {name}")
+                    _run_and_consume(session, f"DROP CONSTRAINT {name}")
                     print(f"  제약조건 제거: {name}")
                 except Exception:
                     pass
@@ -82,14 +84,39 @@ def setup(session):
         "CREATE CONSTRAINT IF NOT EXISTS FOR (r:Region) REQUIRE r.name IS UNIQUE",
         "CREATE CONSTRAINT IF NOT EXISTS FOR (d:District) REQUIRE d.name IS UNIQUE",
         "CREATE CONSTRAINT IF NOT EXISTS FOR (s:StyleFilter) REQUIRE s.name IS UNIQUE",
+        "CREATE CONSTRAINT IF NOT EXISTS FOR (st:Station) REQUIRE st.name IS UNIQUE",
+        "CREATE CONSTRAINT IF NOT EXISTS FOR (sl:SubwayLine) REQUIRE sl.name IS UNIQUE",
     ]:
-        session.run(c)
+        _run_and_consume(session, c)
     print("제약조건 생성 완료")
 
 
 # ──────────────────────────────────────────
 # 스드메 (Vendor 노드)
 # ──────────────────────────────────────────
+def create_hall_indexes(session):
+    for query in [
+        "CREATE INDEX hall_region_index IF NOT EXISTS FOR (h:Hall) ON (h.region)",
+        "CREATE INDEX hall_sub_region_index IF NOT EXISTS FOR (h:Hall) ON (h.subRegion)",
+        "CREATE INDEX hall_rating_index IF NOT EXISTS FOR (h:Hall) ON (h.rating)",
+        "CREATE INDEX hall_review_cnt_index IF NOT EXISTS FOR (h:Hall) ON (h.reviewCnt)",
+        "CREATE INDEX hall_meal_price_index IF NOT EXISTS FOR (h:Hall) ON (h.minMealPrice)",
+        "CREATE INDEX hall_total_price_index IF NOT EXISTS FOR (h:Hall) ON (h.minIndividualHallPrice)",
+        "CREATE INDEX station_name_index IF NOT EXISTS FOR (st:Station) ON (st.name)",
+        "CREATE INDEX subway_line_name_index IF NOT EXISTS FOR (sl:SubwayLine) ON (sl.name)",
+    ]:
+        _run_and_consume(session, query)
+
+    _run_and_consume(
+        session,
+        """
+        CREATE FULLTEXT INDEX hall_search_text_index IF NOT EXISTS
+        FOR (h:Hall) ON EACH [h.name, h.address, h.subRegion, h.region, h.memoContent, h.searchText]
+        """
+    )
+    print("  Hall 인덱스 생성 완료")
+
+
 def insert_vendors(session, items, category, batch_size=100):
     for i in range(0, len(items), batch_size):
         batch = [
@@ -207,7 +234,7 @@ def create_tag_co_occurs(session, category):
     session.run("""
         MATCH (v:Vendor {category: $cat})-[:HAS_TAG]->(t1:Tag {category: $cat}),
               (v)-[:HAS_TAG]->(t2:Tag {category: $cat})
-        WHERE id(t1) < id(t2)
+        WHERE elementId(t1) < elementId(t2)
         WITH t1, t2, count(v) AS cnt
         WHERE cnt >= 2
         MERGE (t1)-[r:CO_OCCURS]->(t2)
@@ -297,10 +324,10 @@ def create_vector_index(session):
     existing = session.run("SHOW INDEXES YIELD name, type WHERE type = 'VECTOR' RETURN name").data()
     for idx in existing:
         name = idx["name"]
-        session.run(f"DROP INDEX {name}")
+        _run_and_consume(session, f"DROP INDEX {name}")
         print(f"  기존 벡터 인덱스 삭제: {name}")
 
-    session.run("""
+    _run_and_consume(session, """
         CREATE VECTOR INDEX vendor_embedding_index IF NOT EXISTS
         FOR (v:Vendor) ON (v.embedding)
         OPTIONS {indexConfig: {
@@ -314,6 +341,48 @@ def create_vector_index(session):
 # ──────────────────────────────────────────
 # 웨딩홀 (Hall 노드) — DB.py 로직 그대로
 # ──────────────────────────────────────────
+def _build_hall_search_text(list_item, detail_item):
+    parts = [
+        list_item.get("partnerProfileName", ""),
+        list_item.get("region", ""),
+        list_item.get("subRegion", ""),
+        detail_item.get("name", "") if detail_item else "",
+        detail_item.get("address", "") if detail_item else "",
+        detail_item.get("address2", "") if detail_item else "",
+        detail_item.get("memoContent", "") if detail_item else "",
+        detail_item.get("typeName", "") if detail_item else "",
+    ]
+
+    for benefit in (list_item.get("benefits") or []):
+        parts.extend([benefit.get("title", ""), benefit.get("content", ""), benefit.get("tag", "")])
+    if detail_item:
+        for benefit in (detail_item.get("benefits") or []):
+            parts.extend([benefit.get("title", ""), benefit.get("content", ""), benefit.get("badge", "")])
+        for tag in (detail_item.get("tags") or []):
+            parts.extend([tag.get("name", ""), tag.get("typeName", "")])
+        for style in (detail_item.get("styleFilter") or []):
+            parts.append(style.get("name", ""))
+
+    search_text = " ".join(str(part).strip() for part in parts if str(part).strip())
+    return re.sub(r"\s+", " ", search_text).strip()
+
+
+def _extract_access_info(address2):
+    text = str(address2 or "").strip()
+    if not text:
+        return {"station_names": [], "line_names": [], "minutes": None}
+
+    station_names = list({match.strip() for match in re.findall(r"([가-힣A-Za-z0-9]+역)", text)})
+    line_names = list({f"{match}호선" for match in re.findall(r"(\d+)호선", text)})
+    minute_match = re.search(r"(\d+)\s*분", text)
+    minutes = int(minute_match.group(1)) if minute_match else None
+    return {
+        "station_names": station_names,
+        "line_names": line_names,
+        "minutes": minutes,
+    }
+
+
 def _upsert_hall(tx, list_item, detail_item):
     partnerId    = list_item.get("partnerId")
     partnerUuid  = list_item.get("partnerUuid")
@@ -341,12 +410,15 @@ def _upsert_hall(tx, list_item, detail_item):
         logoUrl = coverUrl = None
         uuid = partnerUuid
 
+    search_text = _build_hall_search_text(list_item, detail_item)
+
     props = {
         "partnerId": partnerId, "uuid": uuid, "name": name, "typeName": typeName,
         "region": region, "subRegion": subRegion, "tel": tel, "address": address,
         "address2": address2, "logoUrl": logoUrl, "coverUrl": coverUrl,
         "profileUrl": profileUrl, "reviewCnt": reviewCnt, "rating": rating,
         "memoContent": memoContent, "modTsp": modTsp,
+        "searchText": search_text,
         "minIndividualHallPrice": list_item.get("minIndividualHallPrice"),
         "maxIndividualHallPrice": list_item.get("maxIndividualHallPrice"),
         "minRentalPrice":  list_item.get("minRentalPrice"),
@@ -378,6 +450,43 @@ def _upsert_hall(tx, list_item, detail_item):
             MERGE (d:District {name:$d})
             MERGE (h)-[:IN_DISTRICT]->(d)
         """, pid=partnerId, d=subRegion)
+
+    access_info = _extract_access_info(address2)
+    for station_name in access_info["station_names"]:
+        tx.run(
+            """
+            MATCH (h:Hall {partnerId:$pid})
+            MERGE (st:Station {name:$name})
+            MERGE (h)-[r:NEAR_STATION]->(st)
+            SET r.walkMinutes = $minutes
+            """,
+            pid=partnerId,
+            name=station_name,
+            minutes=access_info["minutes"],
+        )
+
+    for line_name in access_info["line_names"]:
+        tx.run(
+            """
+            MATCH (h:Hall {partnerId:$pid})
+            MERGE (sl:SubwayLine {name:$name})
+            MERGE (h)-[:ON_SUBWAY_LINE]->(sl)
+            """,
+            pid=partnerId,
+            name=line_name,
+        )
+
+    for station_name in access_info["station_names"]:
+        for line_name in access_info["line_names"]:
+            tx.run(
+                """
+                MERGE (st:Station {name:$station})
+                MERGE (sl:SubwayLine {name:$line})
+                MERGE (st)-[:ON_SUBWAY_LINE]->(sl)
+                """,
+                station=station_name,
+                line=line_name,
+            )
 
     for img in (list_item.get("partnerProfileImages") or []):
         url = img.get("url")
@@ -491,6 +600,7 @@ def main():
         print(f"  hall detail source: {HALL_DETAIL_PATH}")
         print(f"  list {len(list_items)}개 / detail {len(detail_items)}개 로드됨")
         insert_halls(session, list_items, detail_items)
+        create_hall_indexes(session)
 
         # 최종 통계
         total_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]

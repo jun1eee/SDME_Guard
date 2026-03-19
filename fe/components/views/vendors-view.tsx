@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import type { PlannerRecommendation } from "@/lib/api"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
 
@@ -518,13 +519,14 @@ function stepBadgeStyle(step: number): string {
 
 // ─── Main Export ──────────────────────────────────────────────────────────
 
-export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds }: {
+export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds, plannerRecommendations = [] }: {
   onShareVendor?: (vendor: Vendor) => void
   onAddToVote?: (vendor: Vendor) => void
   currentUser?: "groom" | "bride"
   onFavoriteChange?: (vendor: Vendor, isFavorite: boolean) => void
   initialVendorId?: string | null
   favoriteVendorIds?: string[]
+  plannerRecommendations?: PlannerRecommendation[]
 }) {
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -689,6 +691,42 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
     )
   }
 
+  const openPlannerRecommendation = async (recommendation: PlannerRecommendation) => {
+    setIsDetailLoading(true)
+    try {
+      const resolvedVendorId = await resolvePlannerRecommendationVendorId(recommendation)
+      if (resolvedVendorId) {
+        const detail = await fetchVendorDetail(resolvedVendorId)
+        setSelectedVendor({
+          ...detail,
+          isFavorite: favoriteVendorIds?.includes(String(resolvedVendorId)) ?? false,
+        })
+      }
+    } catch {
+      return
+    } finally {
+      setIsDetailLoading(false)
+    }
+  }
+
+  const resolvePlannerRecommendationVendorId = async (
+    recommendation: PlannerRecommendation,
+  ): Promise<string | null> => {
+    const apiCategory = plannerCategoryToApiCategory(recommendation.category)
+    const url = buildVendorListEndpoint({
+      size: 20,
+      keyword: recommendation.title,
+      ...(apiCategory ? { category: apiCategory } : {}),
+    })
+    const response = await fetch(url, { credentials: "include" })
+    if (!response.ok) return null
+
+    const { items } = parseListResponse((await response.json()) as VendorListEnvelope)
+    const exact = items.find((item) => item.name === recommendation.title)
+    const fallback = items[0]
+    return exact ? String(exact.id) : fallback ? String(fallback.id) : null
+  }
+
   if (selectedVendor) {
     return (
       <VendorDetailView
@@ -759,6 +797,13 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
           />
         </div>
 
+        {plannerRecommendations.length > 0 && (
+          <PlannerRecommendationSection
+            recommendations={plannerRecommendations}
+            onOpenRecommendation={openPlannerRecommendation}
+          />
+        )}
+
         {/* Card Grid */}
         {isLoading ? (
           <div className="py-12 text-center">
@@ -794,6 +839,123 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
 }
 
 // ─── Vendor Card ──────────────────────────────────────────────────────────
+
+function plannerCategoryToApiCategory(category: PlannerRecommendation["category"]): string {
+  switch (category) {
+    case "studio":
+      return "STUDIO"
+    case "dress":
+      return "DRESS"
+    case "makeup":
+      return "MAKEUP"
+    case "venue":
+      return "HALL"
+  }
+}
+
+function PlannerRecommendationSection({
+  recommendations,
+  onOpenRecommendation,
+}: {
+  recommendations: PlannerRecommendation[]
+  onOpenRecommendation: (recommendation: PlannerRecommendation) => void
+}) {
+  return (
+    <section className="mb-8">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">AI 추천 카드</h2>
+          <p className="mt-1 text-sm text-muted-foreground">방금 받은 추천을 오른쪽 패널에서 바로 열 수 있습니다.</p>
+        </div>
+        <Sparkles className="size-5 text-primary" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {recommendations.map((recommendation) => (
+          <PlannerRecommendationCard
+            key={`${recommendation.source}-${recommendation.id}-${recommendation.title}`}
+            recommendation={recommendation}
+            onOpen={() => onOpenRecommendation(recommendation)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PlannerRecommendationCard({
+  recommendation,
+  onOpen,
+}: {
+  recommendation: PlannerRecommendation
+  onOpen: () => void
+}) {
+  const categoryLabel =
+    CATEGORIES.find((category) => category.id === recommendation.category)?.label ?? recommendation.category
+  const reviewText = recommendation.review_count
+    ? `리뷰 ${recommendation.review_count.toLocaleString("ko-KR")}개`
+    : null
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <button type="button" className="block w-full text-left" onClick={onOpen}>
+        <div className="relative h-48 bg-[#f0eaf2]">
+          {recommendation.image_url ? (
+            <img src={recommendation.image_url} alt={recommendation.title} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {categoryLabel}
+            </div>
+          )}
+        </div>
+        <div className="p-4">
+          <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+            {categoryLabel}
+          </span>
+          <h3 className="mt-3 text-xl font-bold text-foreground">{recommendation.title}</h3>
+          {recommendation.rating != null && (
+            <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Star className="size-4 fill-yellow-400 text-yellow-400" />
+              <span>{recommendation.rating.toFixed(1)}</span>
+              {reviewText && <span>{reviewText}</span>}
+            </div>
+          )}
+          {recommendation.price_label && (
+            <p className="mt-3 text-lg font-bold text-primary">{recommendation.price_label}</p>
+          )}
+          {recommendation.address && (
+            <p className="mt-2 text-sm text-muted-foreground">{recommendation.address}</p>
+          )}
+          {recommendation.description && (
+            <p className="mt-3 line-clamp-2 text-sm leading-6 text-foreground/80">{recommendation.description}</p>
+          )}
+          {recommendation.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {recommendation.tags.slice(0, 4).map((tag) => (
+                <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </button>
+      <div className="flex gap-2 border-t border-border p-4">
+        <Button type="button" variant="outline" className="flex-1" onClick={onOpen}>
+          상세 보기
+        </Button>
+        {recommendation.link_url && (
+          <Button
+            type="button"
+            className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+            onClick={() => window.open(recommendation.link_url!, "_blank", "noopener,noreferrer")}
+          >
+            원문 링크
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function VendorCard({
   vendor,

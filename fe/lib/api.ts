@@ -2,7 +2,46 @@ const API_BASE = typeof window !== "undefined" && window.location.hostname !== "
   ? `${window.location.origin}/api`
   : "http://localhost:8080/api"
 
+const AI_API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
+  ? `${window.location.origin}/ai-api`
+  : `${process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000"}/api`
+
 let accessToken: string | null = null
+
+interface PlannerChatContext {
+  page?: string
+  user_id?: number | null
+  couple_id?: number | null
+  metadata?: Record<string, unknown>
+}
+
+export type PlannerRoute = "sdm" | "hall"
+
+export interface PlannerRecommendation {
+  id: string
+  source: "sdm" | "hall"
+  category: "studio" | "dress" | "makeup" | "venue"
+  title: string
+  subtitle?: string | null
+  description?: string | null
+  price_label?: string | null
+  rating?: number | null
+  review_count?: number | null
+  address?: string | null
+  image_url?: string | null
+  link_url?: string | null
+  tags: string[]
+}
+
+export interface PlannerChatPayload {
+  session_id: string
+  answer: string
+  route_used: string
+  trace_id: string
+  vendors: string[]
+  recommendations: PlannerRecommendation[]
+  debug_log?: string | null
+}
 
 export function getAccessToken(): string | null {
   return accessToken
@@ -378,4 +417,32 @@ export async function getChatMessages() {
     vendorId: number | null
     createdAt: string
   }[]>("/chat/couple/messages")
+}
+
+export async function chatWithPlanner(data: {
+  route: PlannerRoute
+  sessionId?: string | null
+  message: string
+  context?: PlannerChatContext
+  debug?: boolean
+}) {
+  const res = await fetch(`${AI_API_BASE}/chat/${data.route}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: data.sessionId ?? null,
+      message: data.message,
+      context: data.context,
+      debug: data.debug ?? false,
+    }),
+  })
+
+  const json = await res.json()
+  if (!res.ok) {
+    throw new Error(json.message || `AI API Error: ${res.status}`)
+  }
+
+  return json as { success: boolean; data: PlannerChatPayload }
 }
