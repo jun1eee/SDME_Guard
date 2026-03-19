@@ -41,9 +41,10 @@ const categoryEmoji: Record<string, string> = {
 
 interface WishlistViewProps {
   onOpenVendor?: (vendorId: string) => void
+  onShareVendor?: (vendor: { id: string; name: string; category: string; price: string; rating: number; coverUrl?: string }) => void
 }
 
-export function WishlistView({ onOpenVendor }: WishlistViewProps = {}) {
+export function WishlistView({ onOpenVendor, onShareVendor }: WishlistViewProps = {}) {
   const [items, setItems] = useState<WishlistItem[]>([])
   const [filter, setFilter] = useState("전체")
   const [loading, setLoading] = useState(true)
@@ -201,6 +202,7 @@ export function WishlistView({ onOpenVendor }: WishlistViewProps = {}) {
                     removeItem({ id: "", vendorId: modalVendor.id, category: "", name: "", rating: 0, price: "", savedAt: "" })
                   }
                 }}
+                onShareVendor={onShareVendor ? () => { onShareVendor(modalVendor); setModalVendor(null) } : undefined}
                 onAddReview={() => {}}
               />
             </div>

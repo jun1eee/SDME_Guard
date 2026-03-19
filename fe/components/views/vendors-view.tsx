@@ -611,7 +611,11 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
             const res = await fetch(url, { credentials: "include" })
             if (!res.ok) return
             const { items, nextCursor: cursor } = parseListResponse((await res.json()) as VendorListEnvelope)
-            setVendors((prev) => [...prev, ...items.map(mapListItemToVendor)])
+            setVendors((prev) => {
+              const existingIds = new Set(prev.map((v) => v.id))
+              const newItems = items.map(mapListItemToVendor).filter((v) => !existingIds.has(v.id))
+              return [...prev, ...newItems]
+            })
             setNextCursor(cursor)
           } finally {
             setIsFetchingMore(false)
@@ -824,6 +828,7 @@ function VendorCard({
       address: vendor.address ?? "",
       tags: vendor.tags,
       description: vendor.description,
+      coverUrl: vendor.coverUrl,
     }
     e.dataTransfer.setData("application/vendor-card", JSON.stringify(vendorData))
     e.dataTransfer.effectAllowed = "copy"

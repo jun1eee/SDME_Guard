@@ -8,4 +8,5 @@ import java.util.List;
 public interface CoupleChatMessageRepository extends JpaRepository<CoupleChatMessage, Long> {
 
     List<CoupleChatMessage> findByCoupleChatRoomIdOrderByCreatedAtAsc(Long coupleChatRoomId);
+    void deleteByVendorId(Long vendorId);
 }

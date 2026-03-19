@@ -72,15 +72,23 @@ async function fetchApi<T>(
           headers,
           credentials: "include",
         })
-        return retryRes.json()
+        const retryData = await retryRes.json()
+        if (!retryRes.ok) {
+          throw new Error(retryData.message || `API Error: ${retryRes.status}`)
+        }
+        return retryData
       }
     }
 
-    clearAccessToken()
+    // 재발급 실패해도 토큰 유지 (폴링 등에서 반복 호출될 수 있음)
     throw new Error("인증이 만료되었습니다.")
   }
 
-  return res.json()
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.message || `API Error: ${res.status}`)
+  }
+  return data
 }
 
 // Auth API
@@ -321,6 +329,42 @@ export async function getSharedVendors() {
     price: number; rating: number; imageUrl: string
     sharedUserId: number; message: string; sharedAt: string
   }[]>("/vendors/shared")
+}
+
+// 투표
+export async function getVoteItems() {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sourceType: string; createdByUserId: number; partnerVoted: boolean
+    myScore: string | null; myReason: string | null; createdAt: string
+  }[]>("/votes/items")
+}
+
+export async function createVoteItem(data: { vendorId: number; sharedVendorId?: number; sourceType: string }) {
+  return fetchApi<{ id: number; vendorId: number; coupleId: number; sourceType: string; createdByUserId: number }>("/votes/items", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function submitVote(voteItemId: number, data: { score: string; reason?: string }) {
+  return fetchApi<{ id: number; userId: number; voteItemId: number; score: string; reason: string }>(`/votes/${voteItemId}/votes`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteVote(voteItemId: number) {
+  return fetchApi(`/votes/${voteItemId}/votes`, { method: "DELETE" })
+}
+
+export async function deleteVoteItem(voteItemId: number) {
+  return fetchApi(`/votes/items/${voteItemId}`, { method: "DELETE" })
+}
+
+export async function unshareVendor(vendorId: number) {
+  return fetchApi(`/vendors/${vendorId}/share`, { method: "DELETE" })
 }
 
 export async function getChatMessages() {

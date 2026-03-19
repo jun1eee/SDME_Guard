@@ -87,15 +87,53 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     if (!coupleId) return
     getChatMessages()
       .then((res) => {
-        if (res.data.length > 0) {
-          const loaded: Message[] = res.data.map((m) => ({
+        const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
+          STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+          studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+        }
+        const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+
+        const loaded: Message[] = res.data.map((m) => {
+          if (m.messageType === "vendor_share") {
+            try {
+              const vendorInfo = JSON.parse(m.content)
+              const cat = CATEGORY_MAP[vendorInfo.category] ?? "studio"
+              const vs: VendorShare = {
+                id: `vs-${m.id}`,
+                vendorId: vendorInfo.vendorId?.toString() || "",
+                name: vendorInfo.name || "",
+                category: cat,
+                categoryLabel: CAT_LABEL[cat] || "",
+                price: vendorInfo.price || "",
+                rating: vendorInfo.rating || 0,
+                address: "",
+                tags: [],
+                description: "",
+                coverUrl: vendorInfo.coverUrl || undefined,
+                sharedBy: m.senderRole as "groom" | "bride",
+                comment: vendorInfo.comment || undefined,
+              }
+              return {
+                id: m.id.toString(),
+                role: m.senderRole as "groom" | "bride",
+                content: "",
+                sender: m.senderName,
+                vendorShare: vs,
+                comment: vendorInfo.comment || undefined,
+                createdAt: m.createdAt,
+              }
+            } catch { /* fall through */ }
+          }
+          return {
             id: m.id.toString(),
             role: m.senderRole as "groom" | "bride",
             content: m.content,
             sender: m.senderName,
             createdAt: m.createdAt,
-          }))
-          setMessages((prev) => [prev[0], ...loaded]) // 안내 메시지 + 히스토리
+          }
+        })
+        if (loaded.length > 0) {
+          setMessages((prev) => [prev[0], ...loaded])
         }
       })
       .catch(() => {})
@@ -111,24 +149,73 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
       onConnect: () => {
         client.subscribe(`/topic/couple/${coupleId}`, (message) => {
           const data = JSON.parse(message.body)
-          // 내가 보낸 메시지는 이미 로컬에 추가했으므로 무시
-          if (data.senderId === userId) return
-          const newMsg: Message = {
-            id: data.id.toString(),
-            role: data.senderRole as "groom" | "bride",
-            content: data.content,
-            sender: data.senderName,
-            createdAt: data.createdAt,
+          console.log("[WS 수신]", data.type || data.messageType, data)
+
+          // 공유 취소 신호
+          if (data.type === "vendor_unshare") {
+            setMessages((prev) => prev.filter((m) => !(m.vendorShare?.vendorId === String(data.vendorId))))
+            return
           }
-          setMessages((prev) => [...prev, newMsg])
+
+          // 내가 보낸 메시지는 이미 로컬에 추가했으므로 무시 (일반 메시지만)
+          if (data.senderId === userId && data.messageType !== "vendor_share") return
+
+          if (data.messageType === "vendor_share") {
+            try {
+              const vendorInfo = JSON.parse(data.content)
+              // 업체 공유 메시지
+              const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
+                STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+                studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+              }
+              const cat = CATEGORY_MAP[vendorInfo.category] ?? "studio"
+              const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+              const vs: VendorShare = {
+                id: `vs-${data.id}`,
+                vendorId: vendorInfo.vendorId?.toString() || "",
+                name: vendorInfo.name || "",
+                category: cat,
+                categoryLabel: CAT_LABEL[cat] || "",
+                price: vendorInfo.price || "",
+                rating: vendorInfo.rating || 0,
+                address: "",
+                tags: [],
+                description: "",
+                coverUrl: vendorInfo.coverUrl || undefined,
+                sharedBy: data.senderRole as "groom" | "bride",
+                comment: vendorInfo.comment || undefined,
+              }
+              const newMsg: Message = {
+                id: data.id.toString(),
+                role: data.senderRole as "groom" | "bride",
+                content: "",
+                sender: data.senderName,
+                vendorShare: vs,
+                comment: vendorInfo.comment || undefined,
+                createdAt: data.createdAt,
+              }
+              setMessages((prev) => [...prev, newMsg])
+            } catch { /* ignore */ }
+          } else {
+            const newMsg: Message = {
+              id: data.id.toString(),
+              role: data.senderRole as "groom" | "bride",
+              content: data.content,
+              sender: data.senderName,
+              createdAt: data.createdAt,
+            }
+            setMessages((prev) => [...prev, newMsg])
+          }
         })
       },
     })
     client.activate()
     stompClientRef.current = client
+    ;(window as any).__stompClient = client
 
     return () => {
       client.deactivate()
+      ;(window as any).__stompClient = null
     }
   }, [coupleId, userId])
 
@@ -139,25 +226,6 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   useEffect(() => {
     scrollToBottom()
   }, [messages, isTyping])
-
-  // 새 업체 공유가 들어오면 메시지로 추가
-  useEffect(() => {
-    const existingIds = new Set(messages.filter(m => m.vendorShare).map(m => m.vendorShare!.id))
-    const newShares = sharedVendors.filter(vs => !existingIds.has(vs.id))
-    if (newShares.length > 0) {
-      setMessages((prev) => [
-        ...prev,
-        ...newShares.map((vs) => ({
-          id: vs.id,
-          role: vs.sharedBy as "groom" | "bride",
-          content: "",
-          sender: vs.sharedBy === "groom" ? groomName : brideName,
-          vendorShare: vs,
-          comment: vs.comment,
-        })),
-      ])
-    }
-  }, [sharedVendors, groomName, brideName])
 
   const triggerAiResponse = (content: string) => {
     setIsTyping(true)
@@ -172,8 +240,9 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     }, 1500)
   }
 
-  const handleVendorDrop = (vendor: PendingVendor) => {
-    onShareVendorFromDrop?.(vendor)
+  const handleVendorDrop = (vendor: PendingVendor | { id: string; name: string; category: string; categoryLabel: string; price: string; rating: number }) => {
+    const full = { address: "", tags: [] as string[], description: "", ...vendor }
+    onShareVendorFromDrop?.(full)
   }
 
   const handleSend = (content: string) => {

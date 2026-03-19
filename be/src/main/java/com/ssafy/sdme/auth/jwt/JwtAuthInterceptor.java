@@ -26,6 +26,17 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // 업체 목록/상세 조회 (GET /api/vendors)는 인증 없이 허용
+        String uri = request.getRequestURI();
+        if ("GET".equalsIgnoreCase(request.getMethod()) && uri.startsWith("/api/vendors")
+                && !uri.contains("/shared")) {
+            // Authorization 헤더 있으면 토큰 파싱 시도 (userId 세팅), 없으면 통과
+            String auth = request.getHeader("Authorization");
+            if (auth == null || !auth.startsWith("Bearer ")) {
+                return true;
+            }
+        }
+
         String authorization = request.getHeader("Authorization");
 
         if (authorization == null || !authorization.startsWith("Bearer ")) {
