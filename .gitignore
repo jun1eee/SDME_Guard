@@ -12,6 +12,7 @@ node_modules/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Logs
 *.log
@@ -21,11 +22,13 @@ node_modules/
 .vercel/
 coverage/
 
+# Gradio
+.gradio/
+
+# Jupyter
+.ipynb_checkpoints/
+
 # OS
 .DS_Store
 .idea/
 .venv/
-
-# Claude Code
-.claude/
-CLAUDE.md
