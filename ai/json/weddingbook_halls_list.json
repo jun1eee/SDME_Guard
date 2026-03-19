@@ -154,33 +154,37 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 16240,
-    "partnerProfileUuid": "1d32bd4a-d22b-11ef-9d4f-023379a10fd2",
-    "partnerProfileName": "규수당 문래점_영등포",
-    "partnerId": 1004,
-    "partnerUuid": "2fa1ef16-fd59-11e5-b038-0afd0b3d84dd",
+    "partnerProfileId": 22455,
+    "partnerProfileUuid": "5212e655-fbee-11f0-8d82-023379a10fd2",
+    "partnerProfileName": "더리버사이드호텔 웨딩_서초",
+    "partnerId": 760,
+    "partnerUuid": "37b230c1-f64d-11e5-b038-0afd0b3d84dd",
     "partnerProfileImages": [
       {
-        "title": "규수당 문래점_영등포",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/d9a94f4b-cdb3-42c0-8803-b64b5fc2727e.jpg"
+        "title": "더리버사이드호텔 웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202409/20240928/2d39bbf4-c0fa-47be-b6f2-5054bc92f810.jpg"
       },
       {
-        "title": "규수당 문래점_영등포",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/4ab7039d-aed5-40a3-9218-ebc6927c599c.jpg"
+        "title": "더리버사이드호텔 웨딩",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/3533/202409/20240928/a60bb1e2-317f-4dc0-bf0f-534d8fb6cdc5.png"
       },
       {
-        "title": "규수당 문래점_영등포",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4989/202410/20241029/7b704d0c-3f30-41bf-a5f0-a8a445aa9a73.jpg"
+        "title": "더리버사이드호텔 웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/28224693-cd0d-48de-bdb8-ade5df13f0da.jpg"
       },
       {
-        "title": "규수당 문래점_영등포",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/859e36c3-a7a2-42fb-8d9b-3f20e96b7ebf.jpg"
+        "title": "더리버사이드호텔 웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/6b1eaa26-e420-4f8b-b441-d7160d7a72f9.jpg"
+      },
+      {
+        "title": "더리버사이드호텔 웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/40e4d853-349b-433c-b545-ffd3dd78dea6.jpg"
       }
     ],
-    "maxIndividualHallPrice": 20800000,
-    "minIndividualHallPrice": 20800000,
-    "maxRentalPrice": 6800000,
-    "minRentalPrice": 6800000,
+    "maxIndividualHallPrice": 37750000,
+    "minIndividualHallPrice": 21900000,
+    "maxRentalPrice": 14000000,
+    "minRentalPrice": 13000000,
     "availableContract": true,
     "consultingUsed": true,
     "consultingUseAutoApproval": true,
@@ -189,90 +193,9 @@
     "weddingDayIds": [],
     "isLike": false,
     "region": "서울",
-    "subRegion": "영등포구",
-    "maxMealPrice": 70000,
-    "minMealPrice": 70000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": 21640,
-    "partnerProfileUuid": "d2d2a5c3-bbaa-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "노블발렌티 삼성점_강남",
-    "partnerId": 9945,
-    "partnerUuid": "4cd0c569-5e1f-11e7-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/305a4aac-0be3-4c9a-970e-e8b46a9891bf.jpg"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/14a6f25a-8d90-4da6-a16a-4a456256a1b3.jpg"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/178788f5-ba9c-4087-8c47-7aedddc2b906.jpg"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/5868ccaf-13d1-4b6c-9069-82a06a0b6eed.jpg"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/6acf5152-b746-4dc5-b97b-602b337c8f46.png"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/fdafcd2e-ca8c-46b0-a916-8128e2547d12.png"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/59dd102e-3f1c-485a-bf46-8acd7e6c4293.png"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202511/20251107/6109c345-e219-4c05-bacf-d350d829aba5.jpg"
-      },
-      {
-        "title": "노블발렌티 삼성점",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202511/20251107/c5422a9d-39cd-4cca-acee-710d0c5680ce.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 40800000,
-    "minIndividualHallPrice": 40800000,
-    "maxRentalPrice": 13000000,
-    "minRentalPrice": 13000000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": false,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "강남구",
-    "maxMealPrice": 100000,
-    "minMealPrice": 100000,
+    "subRegion": "서초구",
+    "maxMealPrice": 95000,
+    "minMealPrice": 89000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -352,59 +275,6 @@
         "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
         "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
         "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": 21769,
-    "partnerProfileUuid": "4108d46b-c8fb-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "보타닉파크웨딩_강서",
-    "partnerId": 4463,
-    "partnerUuid": "34a2f60f-bd2d-11e6-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "보타닉파크웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2372/202410/20241011/89c750c5-2c8b-4faa-83d6-2b76dc11be25.jpg"
-      },
-      {
-        "title": "보타닉파크웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2372/202511/20251121/0712d852-dc2a-464a-962a-2afd8cd224ff.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 29410000,
-    "minIndividualHallPrice": 29400000,
-    "maxRentalPrice": 7900000,
-    "minRentalPrice": 7900000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": false,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "강서구",
-    "maxMealPrice": 86000,
-    "minMealPrice": 86000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
         "contextScope": "HALL_TAB",
         "bannerUrl": "",
         "bannerLink": ""
@@ -658,71 +528,6 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 22455,
-    "partnerProfileUuid": "5212e655-fbee-11f0-8d82-023379a10fd2",
-    "partnerProfileName": "더리버사이드호텔 웨딩_서초",
-    "partnerId": 760,
-    "partnerUuid": "37b230c1-f64d-11e5-b038-0afd0b3d84dd",
-    "partnerProfileImages": [
-      {
-        "title": "더리버사이드호텔 웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202409/20240928/2d39bbf4-c0fa-47be-b6f2-5054bc92f810.jpg"
-      },
-      {
-        "title": "더리버사이드호텔 웨딩",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/3533/202409/20240928/a60bb1e2-317f-4dc0-bf0f-534d8fb6cdc5.png"
-      },
-      {
-        "title": "더리버사이드호텔 웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/28224693-cd0d-48de-bdb8-ade5df13f0da.jpg"
-      },
-      {
-        "title": "더리버사이드호텔 웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/6b1eaa26-e420-4f8b-b441-d7160d7a72f9.jpg"
-      },
-      {
-        "title": "더리버사이드호텔 웨딩",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3533/202601/20260123/40e4d853-349b-433c-b545-ffd3dd78dea6.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 37750000,
-    "minIndividualHallPrice": 21900000,
-    "maxRentalPrice": 14000000,
-    "minRentalPrice": 13000000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "서초구",
-    "maxMealPrice": 95000,
-    "minMealPrice": 89000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
     "partnerProfileId": 22447,
     "partnerProfileUuid": "b26b78ef-fb53-11f0-8d82-023379a10fd2",
     "partnerProfileName": "더채플앳논현_강남",
@@ -817,6 +622,55 @@
     "subRegion": "양천구",
     "maxMealPrice": 80000,
     "minMealPrice": 80000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
+    "partnerProfileId": 22010,
+    "partnerProfileUuid": "1f95708f-dfa6-11f0-8d82-023379a10fd2",
+    "partnerProfileName": "아만티서울호텔_마포",
+    "partnerId": 4135,
+    "partnerUuid": "f04461e0-abbb-11e6-93b9-0abe8d4f74d3",
+    "partnerProfileImages": [
+      {
+        "title": "아만티호텔서울",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3506/202410/20241011/32c3d3e0-54f7-4875-8ce1-169f948a211c.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 38000000,
+    "minIndividualHallPrice": 38000000,
+    "maxRentalPrice": 9500000,
+    "minRentalPrice": 9500000,
+    "availableContract": true,
+    "consultingUsed": true,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": true,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "마포구",
+    "maxMealPrice": 95000,
+    "minMealPrice": 95000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -1065,37 +919,33 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 16818,
-    "partnerProfileUuid": "be8ff8e9-e046-11ef-9d4f-023379a10fd2",
-    "partnerProfileName": "지타워컨벤션_구로",
-    "partnerId": 12233,
-    "partnerUuid": "f18ce2b5-bab5-11eb-9bb0-0ab3aefe6e38",
+    "partnerProfileId": 16240,
+    "partnerProfileUuid": "1d32bd4a-d22b-11ef-9d4f-023379a10fd2",
+    "partnerProfileName": "규수당 문래점_영등포",
+    "partnerId": 1004,
+    "partnerUuid": "2fa1ef16-fd59-11e5-b038-0afd0b3d84dd",
     "partnerProfileImages": [
       {
-        "title": "지타워컨벤션",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202410/20241018/3921db7a-d957-4dbe-9dc7-635f2597906e.jpg"
+        "title": "규수당 문래점_영등포",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/d9a94f4b-cdb3-42c0-8803-b64b5fc2727e.jpg"
       },
       {
-        "title": "지타워컨벤션",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/a33df949-7376-446a-b4fb-1f3c888b80e1.jpg"
+        "title": "규수당 문래점_영등포",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/4ab7039d-aed5-40a3-9218-ebc6927c599c.jpg"
       },
       {
-        "title": "지타워컨벤션",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/38008d93-16a7-4b9a-acc9-a2c7f5c4e69f.jpg"
+        "title": "규수당 문래점_영등포",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4989/202410/20241029/7b704d0c-3f30-41bf-a5f0-a8a445aa9a73.jpg"
       },
       {
-        "title": "지타워컨벤션",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/e60bba24-1d91-4901-9e70-b638fb5e83c7.jpg"
-      },
-      {
-        "title": "지타워컨벤션",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/0b87c4d4-6b75-4b25-9dd5-f0203e374060.jpg"
+        "title": "규수당 문래점_영등포",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4989/202410/20241029/859e36c3-a7a2-42fb-8d9b-3f20e96b7ebf.jpg"
       }
     ],
-    "maxIndividualHallPrice": 57000000,
-    "minIndividualHallPrice": 57000000,
-    "maxRentalPrice": 6000000,
-    "minRentalPrice": 6000000,
+    "maxIndividualHallPrice": 20800000,
+    "minIndividualHallPrice": 20800000,
+    "maxRentalPrice": 6800000,
+    "minRentalPrice": 6800000,
     "availableContract": true,
     "consultingUsed": true,
     "consultingUseAutoApproval": true,
@@ -1104,9 +954,9 @@
     "weddingDayIds": [],
     "isLike": false,
     "region": "서울",
-    "subRegion": "구로구",
-    "maxMealPrice": 120000,
-    "minMealPrice": 120000,
+    "subRegion": "영등포구",
+    "maxMealPrice": 70000,
+    "minMealPrice": 70000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -1130,32 +980,36 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 22010,
-    "partnerProfileUuid": "1f95708f-dfa6-11f0-8d82-023379a10fd2",
-    "partnerProfileName": "아만티서울호텔_마포",
-    "partnerId": 4135,
-    "partnerUuid": "f04461e0-abbb-11e6-93b9-0abe8d4f74d3",
+    "partnerProfileId": 21769,
+    "partnerProfileUuid": "4108d46b-c8fb-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "보타닉파크웨딩_강서",
+    "partnerId": 4463,
+    "partnerUuid": "34a2f60f-bd2d-11e6-93b9-0abe8d4f74d3",
     "partnerProfileImages": [
       {
-        "title": "아만티호텔서울",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3506/202410/20241011/32c3d3e0-54f7-4875-8ce1-169f948a211c.jpg"
+        "title": "보타닉파크웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2372/202410/20241011/89c750c5-2c8b-4faa-83d6-2b76dc11be25.jpg"
+      },
+      {
+        "title": "보타닉파크웨딩",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2372/202511/20251121/0712d852-dc2a-464a-962a-2afd8cd224ff.jpg"
       }
     ],
-    "maxIndividualHallPrice": 38000000,
-    "minIndividualHallPrice": 38000000,
-    "maxRentalPrice": 9500000,
-    "minRentalPrice": 9500000,
+    "maxIndividualHallPrice": 29410000,
+    "minIndividualHallPrice": 29400000,
+    "maxRentalPrice": 7900000,
+    "minRentalPrice": 7900000,
     "availableContract": true,
     "consultingUsed": true,
-    "consultingUseAutoApproval": true,
+    "consultingUseAutoApproval": false,
     "storedToConsulting": true,
     "bookingState": true,
     "weddingDayIds": [],
     "isLike": false,
     "region": "서울",
-    "subRegion": "마포구",
-    "maxMealPrice": 95000,
-    "minMealPrice": 95000,
+    "subRegion": "강서구",
+    "maxMealPrice": 86000,
+    "minMealPrice": 86000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -1228,6 +1082,82 @@
         "content": "",
         "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
         "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
+    "partnerProfileId": 20943,
+    "partnerProfileUuid": "7ca4e963-7dc8-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "틸티드 한남_용산",
+    "partnerId": 12845,
+    "partnerUuid": "c9661391-a133-11ed-a251-0ac98913430c",
+    "partnerProfileImages": [
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6462/202410/20241023/e42d4be0-f99c-444a-9bb5-bfaad33f1b09.jpeg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6462/202508/20250820/e8ec29aa-12e8-433b-aa42-e66ef0ea1b3b.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/f5135dd2-78ef-430f-a9f7-3be1211f34cb.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/85e89717-32df-4109-8541-4386bea880bc.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/565f043b-b548-49ab-9251-58e411e51175.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/b26106b9-2c5d-4677-8458-c7e5d73e62e8.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/80bb2146-dfe9-4ded-b46a-351a437d7a94.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/f0a84ae8-e38f-44fd-af57-69dad693f63c.png"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/34d93dfe-7491-476a-8095-5dd6fb090d2b.jpg"
+      },
+      {
+        "title": "틸티드 한남_용산",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/d13801d2-37f8-4d96-aa12-ca14e86da3fe.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 37840000,
+    "minIndividualHallPrice": 37840000,
+    "maxRentalPrice": 5500000,
+    "minRentalPrice": 5500000,
+    "availableContract": true,
+    "consultingUsed": true,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": true,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "용산구",
+    "maxMealPrice": 98000,
+    "minMealPrice": 98000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
         "contextScope": "HALL_TAB",
         "bannerUrl": "",
         "bannerLink": ""
@@ -1378,82 +1308,6 @@
         "content": "",
         "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
         "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": 20943,
-    "partnerProfileUuid": "7ca4e963-7dc8-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "틸티드 한남_용산",
-    "partnerId": 12845,
-    "partnerUuid": "c9661391-a133-11ed-a251-0ac98913430c",
-    "partnerProfileImages": [
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6462/202410/20241023/e42d4be0-f99c-444a-9bb5-bfaad33f1b09.jpeg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6462/202508/20250820/e8ec29aa-12e8-433b-aa42-e66ef0ea1b3b.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/f5135dd2-78ef-430f-a9f7-3be1211f34cb.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/85e89717-32df-4109-8541-4386bea880bc.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/565f043b-b548-49ab-9251-58e411e51175.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/b26106b9-2c5d-4677-8458-c7e5d73e62e8.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/80bb2146-dfe9-4ded-b46a-351a437d7a94.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/f0a84ae8-e38f-44fd-af57-69dad693f63c.png"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/34d93dfe-7491-476a-8095-5dd6fb090d2b.jpg"
-      },
-      {
-        "title": "틸티드 한남_용산",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6462/202508/20250820/d13801d2-37f8-4d96-aa12-ca14e86da3fe.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 37840000,
-    "minIndividualHallPrice": 37840000,
-    "maxRentalPrice": 5500000,
-    "minRentalPrice": 5500000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "용산구",
-    "maxMealPrice": 98000,
-    "minMealPrice": 98000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
         "contextScope": "HALL_TAB",
         "bannerUrl": "",
         "bannerLink": ""
@@ -2150,59 +2004,6 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 20056,
-    "partnerProfileUuid": "03dcee01-474f-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "더 베르G_영등포",
-    "partnerId": 13859,
-    "partnerUuid": "e41d537d-217f-11f0-9d4f-023379a10fd2",
-    "partnerProfileImages": [
-      {
-        "title": "더베르G_영등포",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7238/202506/20250611/9db8864e-b31b-453c-a24f-cf9818bfd135.jpg"
-      },
-      {
-        "title": "더베르G_영등포",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7238/202506/20250611/3dce10d6-2a2b-41eb-a009-2acaff4e743e.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 43500000,
-    "minIndividualHallPrice": 43500000,
-    "maxRentalPrice": 6000000,
-    "minRentalPrice": 6000000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "영등포구",
-    "maxMealPrice": 110000,
-    "minMealPrice": 110000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
     "partnerProfileId": 16537,
     "partnerProfileUuid": "063905c2-d49a-11ef-9d4f-023379a10fd2",
     "partnerProfileName": "더마레보호텔_수원",
@@ -2298,7 +2099,10 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": []
+    "eventTagCds": [
+      "OFF_SEASON",
+      "REMAINING_SPECIAL"
+    ]
   },
   {
     "partnerProfileId": 14966,
@@ -2757,7 +2561,9 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": []
+    "eventTagCds": [
+      "REMAINING_SPECIAL"
+    ]
   },
   {
     "partnerProfileId": 16061,
@@ -3896,55 +3702,6 @@
       "OFF_SEASON",
       "REMAINING_SPECIAL"
     ]
-  },
-  {
-    "partnerProfileId": 16341,
-    "partnerProfileUuid": "cca20da6-d22b-11ef-9d4f-023379a10fd2",
-    "partnerProfileName": "엠시티웨딩컨벤션_고양",
-    "partnerId": 8577,
-    "partnerUuid": "004d73ca-cc1a-11e6-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "엠시티웨딩컨벤션_고양",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2418/202410/20241013/01a88bd4-5df0-42e0-bea6-2fcdb90f0406.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 17000000,
-    "minIndividualHallPrice": 17000000,
-    "maxRentalPrice": 5000000,
-    "minRentalPrice": 5000000,
-    "availableContract": true,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "경기",
-    "subRegion": "고양시",
-    "maxMealPrice": 60000,
-    "minMealPrice": 60000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
   },
   {
     "partnerProfileId": 16415,
@@ -5235,6 +4992,71 @@
     "eventTagCds": []
   },
   {
+    "partnerProfileId": 16818,
+    "partnerProfileUuid": "be8ff8e9-e046-11ef-9d4f-023379a10fd2",
+    "partnerProfileName": "지타워컨벤션_구로",
+    "partnerId": 12233,
+    "partnerUuid": "f18ce2b5-bab5-11eb-9bb0-0ab3aefe6e38",
+    "partnerProfileImages": [
+      {
+        "title": "지타워컨벤션",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202410/20241018/3921db7a-d957-4dbe-9dc7-635f2597906e.jpg"
+      },
+      {
+        "title": "지타워컨벤션",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/a33df949-7376-446a-b4fb-1f3c888b80e1.jpg"
+      },
+      {
+        "title": "지타워컨벤션",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/38008d93-16a7-4b9a-acc9-a2c7f5c4e69f.jpg"
+      },
+      {
+        "title": "지타워컨벤션",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/e60bba24-1d91-4901-9e70-b638fb5e83c7.jpg"
+      },
+      {
+        "title": "지타워컨벤션",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5718/202411/20241118/0b87c4d4-6b75-4b25-9dd5-f0203e374060.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 57000000,
+    "minIndividualHallPrice": 57000000,
+    "maxRentalPrice": 6000000,
+    "minRentalPrice": 6000000,
+    "availableContract": true,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "구로구",
+    "maxMealPrice": 120000,
+    "minMealPrice": 120000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
     "partnerProfileId": 13829,
     "partnerProfileUuid": "cef4fa95-8de7-11ef-9d4f-023379a10fd2",
     "partnerProfileName": "더뉴컨벤션웨딩_강서",
@@ -5341,6 +5163,87 @@
     "eventTagCds": []
   },
   {
+    "partnerProfileId": 21640,
+    "partnerProfileUuid": "d2d2a5c3-bbaa-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "노블발렌티 삼성점_강남",
+    "partnerId": 9945,
+    "partnerUuid": "4cd0c569-5e1f-11e7-93b9-0abe8d4f74d3",
+    "partnerProfileImages": [
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/305a4aac-0be3-4c9a-970e-e8b46a9891bf.jpg"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/14a6f25a-8d90-4da6-a16a-4a456256a1b3.jpg"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/178788f5-ba9c-4087-8c47-7aedddc2b906.jpg"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/5868ccaf-13d1-4b6c-9069-82a06a0b6eed.jpg"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/6acf5152-b746-4dc5-b97b-602b337c8f46.png"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/fdafcd2e-ca8c-46b0-a916-8128e2547d12.png"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202509/20250908/59dd102e-3f1c-485a-bf46-8acd7e6c4293.png"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202511/20251107/6109c345-e219-4c05-bacf-d350d829aba5.jpg"
+      },
+      {
+        "title": "노블발렌티 삼성점",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4807/202511/20251107/c5422a9d-39cd-4cca-acee-710d0c5680ce.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 40800000,
+    "minIndividualHallPrice": 40800000,
+    "maxRentalPrice": 13000000,
+    "minRentalPrice": 13000000,
+    "availableContract": true,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "강남구",
+    "maxMealPrice": 100000,
+    "minMealPrice": 100000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
     "partnerProfileId": 15096,
     "partnerProfileUuid": "94802e49-a2ec-11ef-9d4f-023379a10fd2",
     "partnerProfileName": "스타시티아트홀_광진",
@@ -5383,6 +5286,59 @@
     "subRegion": "광진구",
     "maxMealPrice": 85000,
     "minMealPrice": 85000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
+    "partnerProfileId": 20056,
+    "partnerProfileUuid": "03dcee01-474f-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "더 베르G_영등포",
+    "partnerId": 13859,
+    "partnerUuid": "e41d537d-217f-11f0-9d4f-023379a10fd2",
+    "partnerProfileImages": [
+      {
+        "title": "더베르G_영등포",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7238/202506/20250611/9db8864e-b31b-453c-a24f-cf9818bfd135.jpg"
+      },
+      {
+        "title": "더베르G_영등포",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7238/202506/20250611/3dce10d6-2a2b-41eb-a009-2acaff4e743e.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 43500000,
+    "minIndividualHallPrice": 43500000,
+    "maxRentalPrice": 6000000,
+    "minRentalPrice": 6000000,
+    "availableContract": true,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "영등포구",
+    "maxMealPrice": 110000,
+    "minMealPrice": 110000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -5790,21 +5746,25 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 15435,
-    "partnerProfileUuid": "df4e5872-ae28-11ef-9d4f-023379a10fd2",
-    "partnerProfileName": "보코 서울 강남 호텔_강남",
-    "partnerId": 12700,
-    "partnerUuid": "710c5021-f2c9-11ec-be92-0ac98913430c",
+    "partnerProfileId": 23090,
+    "partnerProfileUuid": "b11a82b3-1865-11f1-8d82-023379a10fd2",
+    "partnerProfileName": "아미재_강남",
+    "partnerId": 14170,
+    "partnerUuid": "a5ed1525-1389-11f1-8d82-023379a10fd2",
     "partnerProfileImages": [
       {
-        "title": "보코 서울 강남 호텔_강남",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6278/202411/20241129/dfa9e872-5d1e-4210-af62-1e92b3f25498.jpg"
+        "title": "아미재",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7571/202603/20260305/4ef2b214-9d7d-4f06-9ee6-028361d63642.png"
+      },
+      {
+        "title": "아미재",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/7571/202603/20260305/518c1e27-a9e4-427a-8a7b-3fe5c67f2052.png"
       }
     ],
-    "maxIndividualHallPrice": 31850000,
-    "minIndividualHallPrice": 31850000,
-    "maxRentalPrice": 11000000,
-    "minRentalPrice": 11000000,
+    "maxIndividualHallPrice": 52000000,
+    "minIndividualHallPrice": 52000000,
+    "maxRentalPrice": 22000000,
+    "minRentalPrice": 22000000,
     "availableContract": false,
     "consultingUsed": true,
     "consultingUseAutoApproval": true,
@@ -5813,115 +5773,15 @@
     "weddingDayIds": [],
     "isLike": false,
     "region": "서울",
-    "subRegion": "강남구",
-    "maxMealPrice": 99000,
-    "minMealPrice": 99000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
+    "subRegion": "서초구",
+    "maxMealPrice": 100000,
+    "minMealPrice": 100000,
+    "benefits": [],
     "eventTagCds": [
-      "ADDITIONAL_BENEFIT",
+      "NEW_OPEN",
       "OFF_SEASON",
       "REMAINING_SPECIAL"
     ]
-  },
-  {
-    "partnerProfileId": 21623,
-    "partnerProfileUuid": "5224a116-ba52-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "트라디노이_강남",
-    "partnerId": 11381,
-    "partnerUuid": "a7e40b64-b400-11e9-a278-0ab3aefe6e38",
-    "partnerProfileImages": [
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/16109a9c-7dc9-464e-9dd1-1e82e97b158e.jpeg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/e2bef91f-7f63-4cdd-9caa-31009491c7d1.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/2144266d-4fde-4680-af64-16fb13ad6d2e.png"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/f4d35f1a-9eb8-4965-9f14-8a0ba72b88dc.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/ab8bdf1e-c731-44b3-9d8e-93b925313e70.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/16142b91-908e-4552-bf44-114a18558505.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/396b0753-ad7f-484b-9ac4-e09c63148f6c.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/39f850cb-0e66-468b-9cd8-a518f9c10435.jpg"
-      },
-      {
-        "title": "트라디노이",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/707f9fa4-2def-467b-8665-213140f7f19e.jpeg"
-      }
-    ],
-    "maxIndividualHallPrice": 21500000,
-    "minIndividualHallPrice": 21500000,
-    "maxRentalPrice": 4800000,
-    "minRentalPrice": 4800000,
-    "availableContract": false,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "강남구",
-    "maxMealPrice": 78000,
-    "minMealPrice": 78000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
   },
   {
     "partnerProfileId": 16123,
@@ -5975,59 +5835,6 @@
       "OFF_SEASON",
       "REMAINING_SPECIAL"
     ]
-  },
-  {
-    "partnerProfileId": 21046,
-    "partnerProfileUuid": "37f96035-8a19-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "몬드리안서울이태원_용산",
-    "partnerId": 12087,
-    "partnerUuid": "bddf85ba-458e-11eb-9bb0-0ab3aefe6e38",
-    "partnerProfileImages": [
-      {
-        "title": "몬드리안서울이태원",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5528/202410/20241010/72f8cd76-6e23-4f9a-be37-c66140b0cb95.png"
-      },
-      {
-        "title": "몬드리안서울이태원",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5528/202410/20241010/96cc8086-aa40-4b93-8f29-ebf96069e6eb.png"
-      }
-    ],
-    "maxIndividualHallPrice": 52075000,
-    "minIndividualHallPrice": 44075000,
-    "maxRentalPrice": 0,
-    "minRentalPrice": 0,
-    "availableContract": false,
-    "consultingUsed": true,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": true,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "용산구",
-    "maxMealPrice": 150000,
-    "minMealPrice": 130000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
   },
   {
     "partnerProfileId": 19385,
@@ -6970,8 +6777,8 @@
     "bookingState": true,
     "weddingDayIds": [],
     "isLike": false,
-    "region": "",
-    "subRegion": "",
+    "region": "경기",
+    "subRegion": "성남시",
     "maxMealPrice": 100000,
     "minMealPrice": 100000,
     "benefits": [
@@ -7019,8 +6826,8 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6578/202410/20241018/431c032e-2d33-4161-95d3-da23e0869480.jpg"
       }
     ],
-    "maxIndividualHallPrice": 29400000,
-    "minIndividualHallPrice": 29400000,
+    "maxIndividualHallPrice": 27200000,
+    "minIndividualHallPrice": 27200000,
     "maxRentalPrice": 8000000,
     "minRentalPrice": 8000000,
     "availableContract": false,
@@ -7032,8 +6839,8 @@
     "isLike": false,
     "region": "경기",
     "subRegion": "화성시",
-    "maxMealPrice": 88000,
-    "minMealPrice": 88000,
+    "maxMealPrice": 77000,
+    "minMealPrice": 77000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -7958,7 +7765,11 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": []
+    "eventTagCds": [
+      "ADDITIONAL_BENEFIT",
+      "OFF_SEASON",
+      "REMAINING_SPECIAL"
+    ]
   },
   {
     "partnerProfileId": 15084,
@@ -8249,10 +8060,10 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2557/202409/20240930/1838291e-8a4b-41f5-83e3-0cff6de90f88.jpg"
       }
     ],
-    "maxIndividualHallPrice": 19850000,
-    "minIndividualHallPrice": 19850000,
-    "maxRentalPrice": 6500000,
-    "minRentalPrice": 6500000,
+    "maxIndividualHallPrice": 14720000,
+    "minIndividualHallPrice": 14720000,
+    "maxRentalPrice": 770000,
+    "minRentalPrice": 770000,
     "availableContract": false,
     "consultingUsed": true,
     "consultingUseAutoApproval": true,
@@ -8262,8 +8073,8 @@
     "isLike": false,
     "region": "경기",
     "subRegion": "수원시",
-    "maxMealPrice": 65000,
-    "minMealPrice": 65000,
+    "maxMealPrice": 68000,
+    "minMealPrice": 68000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -8284,7 +8095,12 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": []
+    "eventTagCds": [
+      "OFF_SEASON",
+      "REMAINING_SPECIAL",
+      "ADDITIONAL_BENEFIT",
+      "EARLY_BIRD"
+    ]
   },
   {
     "partnerProfileId": 22232,
@@ -8298,8 +8114,8 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2030/202410/20241010/0650863a-f36a-48ed-9279-84e6ac67bec2.png"
       }
     ],
-    "maxIndividualHallPrice": 41750000,
-    "minIndividualHallPrice": 36400000,
+    "maxIndividualHallPrice": 42500000,
+    "minIndividualHallPrice": 37000000,
     "maxRentalPrice": 15000000,
     "minRentalPrice": 15000000,
     "availableContract": false,
@@ -8311,8 +8127,8 @@
     "isLike": false,
     "region": "",
     "subRegion": "",
-    "maxMealPrice": 107000,
-    "minMealPrice": 107000,
+    "maxMealPrice": 110000,
+    "minMealPrice": 110000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -8335,8 +8151,7 @@
     ],
     "eventTagCds": [
       "ADDITIONAL_BENEFIT",
-      "EARLY_BIRD",
-      "REMAINING_SPECIAL"
+      "EARLY_BIRD"
     ]
   },
   {
@@ -8473,10 +8288,10 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/2388/202409/20240912/75bfb2c6-5966-491b-8a09-25c873b174cc.jpg"
       }
     ],
-    "maxIndividualHallPrice": 18500000,
-    "minIndividualHallPrice": 18500000,
-    "maxRentalPrice": 7400000,
-    "minRentalPrice": 7400000,
+    "maxIndividualHallPrice": 12640000,
+    "minIndividualHallPrice": 12640000,
+    "maxRentalPrice": 790000,
+    "minRentalPrice": 790000,
     "availableContract": false,
     "consultingUsed": true,
     "consultingUseAutoApproval": true,
@@ -8486,8 +8301,89 @@
     "isLike": false,
     "region": "경기",
     "subRegion": "수원시",
-    "maxMealPrice": 74000,
-    "minMealPrice": 74000,
+    "maxMealPrice": 79000,
+    "minMealPrice": 79000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
+    "partnerProfileId": 21623,
+    "partnerProfileUuid": "5224a116-ba52-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "트라디노이_강남",
+    "partnerId": 11381,
+    "partnerUuid": "a7e40b64-b400-11e9-a278-0ab3aefe6e38",
+    "partnerProfileImages": [
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/16109a9c-7dc9-464e-9dd1-1e82e97b158e.jpeg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/e2bef91f-7f63-4cdd-9caa-31009491c7d1.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/2144266d-4fde-4680-af64-16fb13ad6d2e.png"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/f4d35f1a-9eb8-4965-9f14-8a0ba72b88dc.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/ab8bdf1e-c731-44b3-9d8e-93b925313e70.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/16142b91-908e-4552-bf44-114a18558505.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/396b0753-ad7f-484b-9ac4-e09c63148f6c.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250721/39f850cb-0e66-468b-9cd8-a518f9c10435.jpg"
+      },
+      {
+        "title": "트라디노이",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4739/202507/20250723/707f9fa4-2def-467b-8665-213140f7f19e.jpeg"
+      }
+    ],
+    "maxIndividualHallPrice": 25900000,
+    "minIndividualHallPrice": 25900000,
+    "maxRentalPrice": 5800000,
+    "minRentalPrice": 5800000,
+    "availableContract": false,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "강남구",
+    "maxMealPrice": 98000,
+    "minMealPrice": 98000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -8576,6 +8472,59 @@
     "eventTagCds": []
   },
   {
+    "partnerProfileId": 15435,
+    "partnerProfileUuid": "df4e5872-ae28-11ef-9d4f-023379a10fd2",
+    "partnerProfileName": "보코 서울 강남 호텔_강남",
+    "partnerId": 12700,
+    "partnerUuid": "710c5021-f2c9-11ec-be92-0ac98913430c",
+    "partnerProfileImages": [
+      {
+        "title": "보코 서울 강남 호텔_강남",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6278/202411/20241129/dfa9e872-5d1e-4210-af62-1e92b3f25498.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 31850000,
+    "minIndividualHallPrice": 31850000,
+    "maxRentalPrice": 11000000,
+    "minRentalPrice": 11000000,
+    "availableContract": false,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "강남구",
+    "maxMealPrice": 99000,
+    "minMealPrice": 99000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": [
+      "ADDITIONAL_BENEFIT",
+      "OFF_SEASON",
+      "REMAINING_SPECIAL"
+    ]
+  },
+  {
     "partnerProfileId": 22607,
     "partnerProfileUuid": "b3907426-0727-11f1-8d82-023379a10fd2",
     "partnerProfileName": "루클라비 더 화이트_강남",
@@ -8601,6 +8550,59 @@
     "region": "서울",
     "subRegion": "강남구",
     "maxMealPrice": 130000,
+    "minMealPrice": 130000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      },
+      {
+        "title": "웨딩북 통해 방문 시 추가 할인 가능",
+        "content": "",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
+        "tag": "할인",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
+    "partnerProfileId": 23200,
+    "partnerProfileUuid": "e9fcb737-1d13-11f1-8d82-023379a10fd2",
+    "partnerProfileName": "몬드리안서울이태원_용산",
+    "partnerId": 12087,
+    "partnerUuid": "bddf85ba-458e-11eb-9bb0-0ab3aefe6e38",
+    "partnerProfileImages": [
+      {
+        "title": "몬드리안서울이태원",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5528/202410/20241010/72f8cd76-6e23-4f9a-be37-c66140b0cb95.png"
+      },
+      {
+        "title": "몬드리안서울이태원",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5528/202410/20241010/96cc8086-aa40-4b93-8f29-ebf96069e6eb.png"
+      }
+    ],
+    "maxIndividualHallPrice": 45000000,
+    "minIndividualHallPrice": 44075000,
+    "maxRentalPrice": 0,
+    "minRentalPrice": 0,
+    "availableContract": false,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "용산구",
+    "maxMealPrice": 150000,
     "minMealPrice": 130000,
     "benefits": [
       {
@@ -9901,10 +9903,10 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/4641/202410/20241025/c0d02f1a-28b5-43fa-8b10-ad8fda35cfb5.jpg"
       }
     ],
-    "maxIndividualHallPrice": 31500000,
-    "minIndividualHallPrice": 31500000,
-    "maxRentalPrice": 6000000,
-    "minRentalPrice": 6000000,
+    "maxIndividualHallPrice": 37300000,
+    "minIndividualHallPrice": 37300000,
+    "maxRentalPrice": 7000000,
+    "minRentalPrice": 7000000,
     "availableContract": false,
     "consultingUsed": false,
     "consultingUseAutoApproval": true,
@@ -9914,8 +9916,8 @@
     "isLike": false,
     "region": "서울",
     "subRegion": "영등포구",
-    "maxMealPrice": 70000,
-    "minMealPrice": 70000,
+    "maxMealPrice": 85000,
+    "minMealPrice": 85000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -10363,8 +10365,8 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6186/202410/20241016/beefa107-2e5b-436b-9a93-e5470453526a.jpg"
       }
     ],
-    "maxIndividualHallPrice": 21750000,
-    "minIndividualHallPrice": 21750000,
+    "maxIndividualHallPrice": 23000000,
+    "minIndividualHallPrice": 23000000,
     "maxRentalPrice": 6000000,
     "minRentalPrice": 6000000,
     "availableContract": false,
@@ -10376,8 +10378,8 @@
     "isLike": false,
     "region": "서울",
     "subRegion": "서초구",
-    "maxMealPrice": 63000,
-    "minMealPrice": 63000,
+    "maxMealPrice": 68000,
+    "minMealPrice": 68000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -10552,13 +10554,7 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": [
-      "ADDITIONAL_BENEFIT",
-      "EXCLUSIVE_BENEFIT",
-      "OFF_SEASON",
-      "REMAINING_SPECIAL",
-      "RENEWAL_OPEN"
-    ]
+    "eventTagCds": []
   },
   {
     "partnerProfileId": 22024,
@@ -11110,6 +11106,58 @@
     "eventTagCds": []
   },
   {
+    "partnerProfileId": 21912,
+    "partnerProfileUuid": "62c1e613-d63d-11f0-9d4f-023379a10fd2",
+    "partnerProfileName": "웨스틴 서울 파르나스_강남",
+    "partnerId": 3035,
+    "partnerUuid": "ca4a3942-78b5-11e6-93b9-0abe8d4f74d3",
+    "partnerProfileImages": [
+      {
+        "title": "웨스틴 서울 파르나스",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5552/202511/20251112/7d70c97f-bf3a-4c18-abf5-df70ba12b6c5.jpg"
+      },
+      {
+        "title": "웨스틴 서울 파르나스",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/5552/202511/20251112/fce595e4-ac99-4d74-a11e-0d783d492357.jpg"
+      },
+      {
+        "title": "웨스틴 서울 파르나스",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5552/202511/20251114/6a0b1c19-231c-446e-bbf5-2ae2814e6d73.jpg"
+      },
+      {
+        "title": "웨스틴 서울 파르나스",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/5552/202511/20251114/b5b7d8e6-509c-43ae-b950-d4bc0448c9d0.jpg"
+      }
+    ],
+    "maxIndividualHallPrice": 72650000,
+    "minIndividualHallPrice": 72650000,
+    "maxRentalPrice": 4400000,
+    "minRentalPrice": 4400000,
+    "availableContract": false,
+    "consultingUsed": false,
+    "consultingUseAutoApproval": true,
+    "storedToConsulting": false,
+    "bookingState": true,
+    "weddingDayIds": [],
+    "isLike": false,
+    "region": "서울",
+    "subRegion": "강남구",
+    "maxMealPrice": 185000,
+    "minMealPrice": 185000,
+    "benefits": [
+      {
+        "title": "웨딩홀 현금 캐시백 100,000원",
+        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
+        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
+        "tag": "캐시백",
+        "contextScope": "HALL_TAB",
+        "bannerUrl": "",
+        "bannerLink": ""
+      }
+    ],
+    "eventTagCds": []
+  },
+  {
     "partnerProfileId": 22199,
     "partnerProfileUuid": "bd599dcd-ed15-11f0-8d82-023379a10fd2",
     "partnerProfileName": "풀만 앰배서더 이스트폴 웨딩_광진",
@@ -11640,10 +11688,10 @@
         "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/5657/202507/20250730/d7c7eb3c-f3bd-444e-b0bf-1c0dc86a7989.jpg"
       }
     ],
-    "maxIndividualHallPrice": 95750000,
-    "minIndividualHallPrice": 95750000,
-    "maxRentalPrice": 13000000,
-    "minRentalPrice": 13000000,
+    "maxIndividualHallPrice": 92100000,
+    "minIndividualHallPrice": 92100000,
+    "maxRentalPrice": 6350000,
+    "minRentalPrice": 6350000,
     "availableContract": false,
     "consultingUsed": false,
     "consultingUseAutoApproval": true,
@@ -11653,8 +11701,8 @@
     "isLike": false,
     "region": "서울",
     "subRegion": "강남구",
-    "maxMealPrice": 85000,
-    "minMealPrice": 85000,
+    "maxMealPrice": 78000,
+    "minMealPrice": 78000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -13179,9 +13227,9 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 23000,
-    "partnerProfileUuid": "a47983d0-13af-11f1-8d82-023379a10fd2",
-    "partnerProfileName": "웨스턴 팰리스 웨딩하우스_인천",
+    "partnerProfileId": 23023,
+    "partnerProfileUuid": "37d0315c-16bf-11f1-8d82-023379a10fd2",
+    "partnerProfileName": "웨스턴 팰리스 웨딩_인천",
     "partnerId": 12920,
     "partnerUuid": "8db7113f-e956-11ed-a251-0ac98913430c",
     "partnerProfileImages": [
@@ -15336,10 +15384,10 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5420/202410/20241014/07ffec89-a189-429d-a9d5-61dad18256b6.jpg"
       }
     ],
-    "maxIndividualHallPrice": 28500000,
-    "minIndividualHallPrice": 28500000,
-    "maxRentalPrice": 9500000,
-    "minRentalPrice": 9500000,
+    "maxIndividualHallPrice": 33000000,
+    "minIndividualHallPrice": 33000000,
+    "maxRentalPrice": 11000000,
+    "minRentalPrice": 11000000,
     "availableContract": false,
     "consultingUsed": false,
     "consultingUseAutoApproval": true,
@@ -15349,8 +15397,8 @@
     "isLike": false,
     "region": "인천",
     "subRegion": "연수구",
-    "maxMealPrice": 95000,
-    "minMealPrice": 95000,
+    "maxMealPrice": 110000,
+    "minMealPrice": 110000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -15864,8 +15912,8 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/3965/202504/20250414/592f2df2-1cd1-400a-8140-dc846c4e001e.jpg"
       }
     ],
-    "maxIndividualHallPrice": 44700000,
-    "minIndividualHallPrice": 44700000,
+    "maxIndividualHallPrice": 48000000,
+    "minIndividualHallPrice": 48000000,
     "maxRentalPrice": 15000000,
     "minRentalPrice": 15000000,
     "availableContract": false,
@@ -15877,8 +15925,8 @@
     "isLike": false,
     "region": "경기",
     "subRegion": "수원시",
-    "maxMealPrice": 99000,
-    "minMealPrice": 99000,
+    "maxMealPrice": 110000,
+    "minMealPrice": 110000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -18315,7 +18363,10 @@
         "bannerLink": ""
       }
     ],
-    "eventTagCds": []
+    "eventTagCds": [
+      "ADDITIONAL_BENEFIT",
+      "FREE_TASTING"
+    ]
   },
   {
     "partnerProfileId": 21766,
@@ -19146,21 +19197,33 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": null,
-    "partnerProfileUuid": null,
+    "partnerProfileId": 23129,
+    "partnerProfileUuid": "f10c798e-190e-11f1-8d82-023379a10fd2",
     "partnerProfileName": "부산호텔컨벤션웨딩홀_부산",
     "partnerId": 4438,
     "partnerUuid": "a7c9b002-bc75-11e6-93b9-0abe8d4f74d3",
     "partnerProfileImages": [
       {
-        "title": "",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/profile/202501/20250126/2fba9708-8da7-4b00-9bbc-a2819aafc4b9.jpg"
+        "title": "부산호텔컨벤션웨딩홀",
+        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6904/202603/20260306/03755689-cdb3-4489-8e0e-fe038233bb71.jpg"
+      },
+      {
+        "title": "부산호텔컨벤션웨딩홀",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6904/202603/20260306/6d1cdff4-c0a1-4e0a-8097-844efc757d71.jpg"
+      },
+      {
+        "title": "부산호텔컨벤션웨딩홀",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6904/202603/20260306/01c5623b-4030-4d9f-88d4-8e488a00ff86.jpg"
+      },
+      {
+        "title": "부산호텔컨벤션웨딩홀",
+        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/6904/202603/20260306/1b92ebad-d257-426f-bbf1-c83fc51071f5.jpg"
       }
     ],
-    "maxIndividualHallPrice": 0,
-    "minIndividualHallPrice": 0,
-    "maxRentalPrice": 0,
-    "minRentalPrice": 0,
+    "maxIndividualHallPrice": 9400000,
+    "minIndividualHallPrice": 9400000,
+    "maxRentalPrice": 800000,
+    "minRentalPrice": 800000,
     "availableContract": false,
     "consultingUsed": false,
     "consultingUseAutoApproval": true,
@@ -19170,8 +19233,8 @@
     "isLike": false,
     "region": "부산",
     "subRegion": "중구",
-    "maxMealPrice": 0,
-    "minMealPrice": 0,
+    "maxMealPrice": 43000,
+    "minMealPrice": 43000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -19342,54 +19405,6 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 16298,
-    "partnerProfileUuid": "832b3c08-d22b-11ef-9d4f-023379a10fd2",
-    "partnerProfileName": "우리컨벤션웨딩홀_부산",
-    "partnerId": 3038,
-    "partnerUuid": "29146ddd-78e3-11e6-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "우리컨벤션웨딩홀_부산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6134/202410/20241023/78cb1468-cb0e-4b62-a21c-7d7a90ef358f.jpg"
-      },
-      {
-        "title": "우리컨벤션웨딩홀_부산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6134/202410/20241023/6fa25398-785a-48c7-8944-27e5bf07a2bc.jpg"
-      },
-      {
-        "title": "우리컨벤션웨딩홀_부산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6134/202410/20241023/200b448a-be6b-40e1-bd47-7d95db969eb4.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 6500000,
-    "minIndividualHallPrice": 6500000,
-    "maxRentalPrice": 800000,
-    "minRentalPrice": 800000,
-    "availableContract": false,
-    "consultingUsed": false,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": false,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "부산",
-    "subRegion": "동구",
-    "maxMealPrice": 38000,
-    "minMealPrice": 38000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
     "partnerProfileId": 16405,
     "partnerProfileUuid": "3be47e7e-d22c-11ef-9d4f-023379a10fd2",
     "partnerProfileName": "이리스웨딩홀&뷔페_부산",
@@ -19432,55 +19447,6 @@
     "subRegion": "부산진구",
     "maxMealPrice": 42000,
     "minMealPrice": 42000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": null,
-    "partnerProfileUuid": null,
-    "partnerProfileName": "파티움하우스_순천",
-    "partnerId": 9978,
-    "partnerUuid": "3e4c9940-6d1d-11e7-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/profile/202501/20250126/075899a9-75ae-45c7-a05f-10f047821927.png"
-      }
-    ],
-    "maxIndividualHallPrice": 0,
-    "minIndividualHallPrice": 0,
-    "maxRentalPrice": 0,
-    "minRentalPrice": 0,
-    "availableContract": false,
-    "consultingUsed": false,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": false,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "전남",
-    "subRegion": "순천시",
-    "maxMealPrice": 0,
-    "minMealPrice": 0,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -20763,8 +20729,8 @@
     "eventTagCds": []
   },
   {
-    "partnerProfileId": 21911,
-    "partnerProfileUuid": "4f3758c6-d63c-11f0-9d4f-023379a10fd2",
+    "partnerProfileId": 23154,
+    "partnerProfileUuid": "1cfb7927-19d1-11f1-8d82-023379a10fd2",
     "partnerProfileName": "세인트존스 호텔_강릉",
     "partnerId": 11006,
     "partnerUuid": "4d6511d5-ea08-11e8-ab42-020502fcb5d0",
@@ -20794,8 +20760,8 @@
         "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6956/202502/20250224/e5a8851c-7d59-45ef-b9df-868ac46f62dd.jpg"
       }
     ],
-    "maxIndividualHallPrice": 15300000,
-    "minIndividualHallPrice": 4700000,
+    "maxIndividualHallPrice": 19900000,
+    "minIndividualHallPrice": 5850000,
     "maxRentalPrice": 2500000,
     "minRentalPrice": 1500000,
     "availableContract": false,
@@ -20807,8 +20773,8 @@
     "isLike": false,
     "region": "강원",
     "subRegion": "강릉시",
-    "maxMealPrice": 64000,
-    "minMealPrice": 64000,
+    "maxMealPrice": 87000,
+    "minMealPrice": 87000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -21415,8 +21381,8 @@
         "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/4704/202409/20240929/24f66758-7d43-4d74-94ed-303140a42975.jpg"
       }
     ],
-    "maxIndividualHallPrice": 50000000,
-    "minIndividualHallPrice": 50000000,
+    "maxIndividualHallPrice": 56000000,
+    "minIndividualHallPrice": 56000000,
     "maxRentalPrice": 20000000,
     "minRentalPrice": 20000000,
     "availableContract": false,
@@ -21428,8 +21394,8 @@
     "isLike": false,
     "region": "서울",
     "subRegion": "강남구",
-    "maxMealPrice": 100000,
-    "minMealPrice": 100000,
+    "maxMealPrice": 120000,
+    "minMealPrice": 120000,
     "benefits": [
       {
         "title": "웨딩홀 현금 캐시백 100,000원",
@@ -22835,36 +22801,6 @@
   {
     "partnerProfileId": null,
     "partnerProfileUuid": null,
-    "partnerProfileName": "아미재_강남",
-    "partnerId": 14170,
-    "partnerUuid": "a5ed1525-1389-11f1-8d82-023379a10fd2",
-    "partnerProfileImages": [
-      {
-        "title": "",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partner/202602/20260227/cebaa798-9039-491f-b151-1103856f479f.png"
-      }
-    ],
-    "maxIndividualHallPrice": 0,
-    "minIndividualHallPrice": 0,
-    "maxRentalPrice": 0,
-    "minRentalPrice": 0,
-    "availableContract": false,
-    "consultingUsed": false,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": false,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "서초구",
-    "maxMealPrice": 0,
-    "minMealPrice": 0,
-    "benefits": [],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": null,
-    "partnerProfileUuid": null,
     "partnerProfileName": "여주S컨벤션",
     "partnerId": 5022,
     "partnerUuid": "c322e023-bdae-11e6-93b9-0abe8d4f74d3",
@@ -23795,111 +23731,6 @@
         "content": "",
         "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
         "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": 21385,
-    "partnerProfileUuid": "d9e8f91d-9f4a-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "드래곤시티_용산",
-    "partnerId": 11975,
-    "partnerUuid": "c2ea06db-0854-11eb-9bb0-0ab3aefe6e38",
-    "partnerProfileImages": [
-      {
-        "title": "드래곤시티_용산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6112/202410/20241010/82729e7e-dc9d-4e6d-b8bd-73dfecdcee8c.png"
-      },
-      {
-        "title": "드래곤시티_용산",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/6112/202410/20241010/10fa9d9d-5ff2-479c-bf80-8f6f0513462e.png"
-      }
-    ],
-    "maxIndividualHallPrice": 56400000,
-    "minIndividualHallPrice": 30300000,
-    "maxRentalPrice": 13000000,
-    "minRentalPrice": 10000000,
-    "availableContract": false,
-    "consultingUsed": false,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": false,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "용산구",
-    "maxMealPrice": 130000,
-    "minMealPrice": 130000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      },
-      {
-        "title": "웨딩북 통해 방문 시 추가 할인 가능",
-        "content": "",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newpricedown.png",
-        "tag": "할인",
-        "contextScope": "HALL_TAB",
-        "bannerUrl": "",
-        "bannerLink": ""
-      }
-    ],
-    "eventTagCds": []
-  },
-  {
-    "partnerProfileId": 21912,
-    "partnerProfileUuid": "62c1e613-d63d-11f0-9d4f-023379a10fd2",
-    "partnerProfileName": "웨스틴 서울 파르나스_강남",
-    "partnerId": 3035,
-    "partnerUuid": "ca4a3942-78b5-11e6-93b9-0abe8d4f74d3",
-    "partnerProfileImages": [
-      {
-        "title": "웨스틴 서울 파르나스",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5552/202511/20251112/7d70c97f-bf3a-4c18-abf5-df70ba12b6c5.jpg"
-      },
-      {
-        "title": "웨스틴 서울 파르나스",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/5552/202511/20251112/fce595e4-ac99-4d74-a11e-0d783d492357.jpg"
-      },
-      {
-        "title": "웨스틴 서울 파르나스",
-        "url": "https://dnna01d8m6k3w.cloudfront.net/partnerProfile/5552/202511/20251114/6a0b1c19-231c-446e-bbf5-2ae2814e6d73.jpg"
-      },
-      {
-        "title": "웨스틴 서울 파르나스",
-        "url": "https://s3-ap-northeast-2.amazonaws.com/seoul-wbookbiz-prd/partnerProfile/5552/202511/20251114/b5b7d8e6-509c-43ae-b950-d4bc0448c9d0.jpg"
-      }
-    ],
-    "maxIndividualHallPrice": 72650000,
-    "minIndividualHallPrice": 72650000,
-    "maxRentalPrice": 4400000,
-    "minRentalPrice": 4400000,
-    "availableContract": false,
-    "consultingUsed": false,
-    "consultingUseAutoApproval": true,
-    "storedToConsulting": false,
-    "bookingState": true,
-    "weddingDayIds": [],
-    "isLike": false,
-    "region": "서울",
-    "subRegion": "강남구",
-    "maxMealPrice": 185000,
-    "minMealPrice": 185000,
-    "benefits": [
-      {
-        "title": "웨딩홀 현금 캐시백 100,000원",
-        "content": "웨딩북을 통해 최초 방문예약 후 계약 진행 시 지급\r\n(200명 이상 보증 시 적용)",
-        "iconUrl": "https://dnna01d8m6k3w.cloudfront.net/benefit/icon/newcashback.png",
-        "tag": "캐시백",
         "contextScope": "HALL_TAB",
         "bannerUrl": "",
         "bannerLink": ""
