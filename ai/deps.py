@@ -7,7 +7,7 @@ _openai_client = None
 
 
 def init_clients():
-    """앱 시작 시 호출 — Neo4j, OpenAI 클라이언트 초기화"""
+    """앱 시작 시 호출 - Neo4j, OpenAI 클라이언트 초기화"""
     global _neo4j_driver, _openai_client
     _neo4j_driver = GraphDatabase.driver(
         settings.neo4j_uri,
@@ -22,7 +22,7 @@ def init_clients():
 
 
 def close_clients():
-    """앱 종료 시 호출 — 연결 해제"""
+    """앱 종료 시 호출 - 연결 해제"""
     global _neo4j_driver
     if _neo4j_driver:
         _neo4j_driver.close()

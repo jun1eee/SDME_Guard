@@ -50,7 +50,7 @@ async def run_pipeline(
         session: 세션 상태 (session_store에서 가져온 dict)
         system_prompt: 도메인별 SYSTEM_PROMPT
         tools_schema: 도메인별 TOOLS_SCHEMA
-        tool_map: 도메인별 TOOL_MAP (tool_name → function)
+        tool_map: 도메인별 TOOL_MAP (tool_name -> function)
         couple_id: 사용자 ID
 
     Returns:
@@ -60,7 +60,7 @@ async def run_pipeline(
     debug = {}
     t_start = time.time()
 
-    # ── 1단계: 동적 시스템 프롬프트 + 대화 히스토리 구성 ──
+    # -- 1단계: 동적 시스템 프롬프트 + 대화 히스토리 구성 --
     dynamic_prompt = build_dynamic_system_prompt(system_prompt, session)
     messages = [{"role": "system", "content": dynamic_prompt}]
 
@@ -69,7 +69,7 @@ async def run_pipeline(
         messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": message})
 
-    # ── 2단계: GPT tool 선택 ──
+    # -- 2단계: GPT tool 선택 --
     try:
         t0 = time.time()
         response = client.chat.completions.create(
@@ -100,7 +100,7 @@ async def run_pipeline(
     is_new_search = False
     tool_used = None
 
-    # ── 3단계: Tool 실행 ──
+    # -- 3단계: Tool 실행 --
     if choice.message.tool_calls:
         tool_results = []
         debug["tool_calls"] = len(choice.message.tool_calls)
@@ -150,7 +150,7 @@ async def run_pipeline(
             elif result_type == "graphrag":
                 answer = data
             elif result_type == "raw":
-                # raw 데이터 → GPT에게 답변 생성 요청
+                # raw 데이터 -> GPT에게 답변 생성 요청
                 messages.append(choice.message)
                 messages.append({"role": "tool", "content": data, "tool_call_id": tc.id})
                 try:
@@ -180,10 +180,10 @@ async def run_pipeline(
             except Exception as e2:
                 answer = "죄송합니다. 답변 생성 중 오류가 발생했습니다."
     else:
-        # tool 미호출 — 직접 답변
+        # tool 미호출 - 직접 답변
         answer = choice.message.content or "웨딩 스드메 관련 질문을 해주세요."
 
-    # ── 4단계: session_state 업데이트 ──
+    # -- 4단계: session_state 업데이트 --
     if not all_vendors and choice.message.tool_calls:
         for tc in choice.message.tool_calls:
             args = json.loads(tc.function.arguments)
