@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
@@ -47,7 +47,7 @@ interface VendorAddon {
 }
 
 interface VendorReview {
-  id: string
+  id: string | null  // null = 크롤링 리뷰, string = 사용자 작성 리뷰
   authorName: string
   rating: number
   content: string
@@ -673,21 +673,6 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
     setSelectedVendor((prev) => (prev?.id === id ? { ...prev, isFavorite: !prev.isFavorite } : prev))
   }
 
-  const addReview = (vendorId: string, review: Omit<VendorReview, "id">) => {
-    const newReview = { ...review, id: Date.now().toString() }
-    setVendors((prev) =>
-      prev.map((v) =>
-        v.id === vendorId
-          ? { ...v, reviews: [...(v.reviews ?? []), newReview], reviewCount: v.reviewCount + 1 }
-          : v
-      )
-    )
-    setSelectedVendor((prev) =>
-      prev?.id === vendorId
-        ? { ...prev, reviews: [...(prev.reviews ?? []), newReview], reviewCount: prev.reviewCount + 1 }
-        : prev
-    )
-  }
 
   if (selectedVendor) {
     return (
@@ -695,7 +680,6 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
         vendor={selectedVendor}
         onBack={() => { detailAbortRef.current?.abort(); setSelectedVendor(null) }}
         onToggleFavorite={() => toggleFavorite(selectedVendor.id)}
-        onAddReview={(r) => addReview(selectedVendor.id, r)}
         onShareVendor={onShareVendor}
         onAddToVote={onAddToVote}
         isLoading={isDetailLoading}
@@ -705,30 +689,35 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background">
-      <div className="mx-auto w-full max-w-4xl px-4 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">업체</h1>
-          <p className="mt-1 text-muted-foreground">AI가 엄선한 최고의 웨딩 업체</p>
-        </div>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background">
+        <div className="mx-auto w-full max-w-4xl px-4 pt-6">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-foreground">업체</h1>
+            <p className="mt-1 text-muted-foreground">AI가 엄선한 최고의 웨딩 업체</p>
+          </div>
 
-        {/* Category Tabs */}
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => { setSelectedCategory(cat.id); setSelectedStyle(null) }}
-              className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${
-                selectedCategory === cat.id
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {/* Category Tabs */}
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => { setSelectedCategory(cat.id); setSelectedStyle(null) }}
+                className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-medium transition-colors ${
+                  selectedCategory === cat.id
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
         </div>
+      </div>
 
+      <div className="mx-auto w-full max-w-4xl px-4 pb-6">
         {/* Style Filter */}
         {currentStyleFilters.length > 0 && (
           <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
@@ -749,7 +738,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
         )}
 
         {/* Search */}
-        <div className="relative mb-6">
+        <div className="relative mb-6 mt-4">
           <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchQuery}
@@ -908,7 +897,6 @@ export function VendorDetailView({
   vendor,
   onBack,
   onToggleFavorite,
-  onAddReview,
   onShareVendor,
   onAddToVote,
   isLoading = false,
@@ -916,7 +904,6 @@ export function VendorDetailView({
   vendor: Vendor
   onBack: () => void
   onToggleFavorite: () => void
-  onAddReview: (review: Omit<VendorReview, "id">) => void
   onShareVendor?: (v: Vendor) => void
   onAddToVote?: (v: Vendor) => void
   isLoading?: boolean
@@ -930,9 +917,48 @@ export function VendorDetailView({
   const [showReport, setShowReport] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
   const [addrCopied, setAddrCopied] = useState(false)
+  const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
+  const vendorId = vendor.id
+
+  // vendor prop이 바뀔 때(fetchVendorDetail 완료 후) reviews 동기화
+  useEffect(() => {
+    if (vendor.reviews && vendor.reviews.length > 0) {
+      setReviews(vendor.reviews)
+    }
+  }, [vendor.id, vendor.reviews])
+
+  const fetchReviews = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}/reviews`, { signal })
+      if (!res.ok) return
+      const json = await res.json() as { status?: number; data?: unknown[] } | unknown[]
+      const items = Array.isArray(json) ? json : ((json as { data?: unknown[] }).data ?? [])
+      setReviews((items as Array<{
+        id: number | null
+        rating: number
+        authorName: string | null
+        content: string
+        reviewedAt: string | null
+      }>).map((r, i) => ({
+        id: r.id != null ? String(r.id) : `crawled-${i}`,
+        authorName: r.authorName ?? "익명",
+        rating: r.rating,
+        content: r.content,
+        date: r.reviewedAt?.split(" ")?.[0] ?? "",
+      })))
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return
+      // 실패 시 기존 리뷰 유지
+    }
+  }, [vendorId])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchReviews(controller.signal)
+    return () => controller.abort()
+  }, [fetchReviews])
 
   const selectedPkg = vendor.packages?.find((p) => p.id === selectedPkgId)
-  const reviews = vendor.reviews ?? []
   const avgRating = reviews.length
     ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
     : vendor.rating
@@ -1452,8 +1478,8 @@ export function VendorDetailView({
             {/* Review list */}
             {reviews.length > 0 ? (
               <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div key={review.id} className="border-t border-border pt-4">
+                {reviews.map((review, i) => (
+                  <div key={review.id ?? `review-${i}`} className="border-t border-border pt-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">{review.authorName}</span>
                       <span className="text-xs text-muted-foreground">{review.date}</span>
@@ -1510,9 +1536,10 @@ export function VendorDetailView({
       )}
       {showReview && (
         <ReviewModal
+          vendorId={vendor.id}
           vendorName={vendor.name}
           onClose={() => setShowReview(false)}
-          onSubmit={(r) => { onAddReview(r); setShowReview(false) }}
+          onSuccess={() => { setShowReview(false); void fetchReviews() }}
         />
       )}
       {showReport && (
@@ -1790,17 +1817,52 @@ function PaymentModal({
 // ─── Review Modal ─────────────────────────────────────────────────────────
 
 function ReviewModal({
+  vendorId,
   vendorName,
   onClose,
-  onSubmit,
+  onSuccess,
 }: {
+  vendorId: string
   vendorName: string
   onClose: () => void
-  onSubmit: (review: Omit<VendorReview, "id">) => void
+  onSuccess: () => void
 }) {
   const [rating, setRating] = useState(5)
   const [hover, setHover] = useState(0)
   const [content, setContent] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ rating, content: content.trim() }),
+      })
+      if (res.status === 400) {
+        setError("이미 리뷰를 작성했습니다.")
+        return
+      }
+      if (res.status === 403) {
+        setError("예약 내역이 없거나 커플 연결이 필요합니다.")
+        return
+      }
+      if (!res.ok) {
+        setError("리뷰 등록에 실패했습니다.")
+        return
+      }
+      onSuccess()
+    } catch {
+      setError("네트워크 오류가 발생했습니다.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <ModalShell onClose={onClose}>
@@ -1836,22 +1898,16 @@ function ReviewModal({
             rows={4}
           />
         </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
       <div className="mt-5 flex gap-2">
         <Button variant="outline" className="flex-1" onClick={onClose}>취소</Button>
         <Button
           className="flex-1 bg-foreground text-background hover:bg-foreground/90"
-          onClick={() =>
-            onSubmit({
-              authorName: "나",
-              rating,
-              content: content.trim(),
-              date: new Date().toISOString().split("T")[0],
-            })
-          }
-          disabled={!content.trim()}
+          onClick={() => void handleSubmit()}
+          disabled={!content.trim() || isSubmitting}
         >
-          리뷰 등록
+          {isSubmitting ? "등록 중..." : "리뷰 등록"}
         </Button>
       </div>
     </ModalShell>

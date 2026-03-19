@@ -1,6 +1,4 @@
-const API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
-  ? `${window.location.origin}/api`
-  : "http://localhost:8080/api"
+const API_BASE = "/api"
 
 let accessToken: string | null = null
 

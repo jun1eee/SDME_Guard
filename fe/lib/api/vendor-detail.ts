@@ -180,12 +180,43 @@ export function mapDetailToVendor(detail: VendorDetailResponse): Vendor {
   }
 }
 
+interface ReviewApiItem {
+  id: number | null
+  rating: number
+  authorName: string | null
+  content: string
+  reviewedAt: string | null
+}
+
+interface ReviewApiEnvelope {
+  status?: number
+  data?: ReviewApiItem[]
+}
+
+async function fetchVendorReviews(vendorId: string | number): Promise<Vendor["reviews"]> {
+  try {
+    const res = await fetch(`/api/vendors/${vendorId}/reviews`, { credentials: "include" })
+    if (!res.ok) return []
+    const json = (await res.json()) as ReviewApiEnvelope | ReviewApiItem[]
+    const items: ReviewApiItem[] = Array.isArray(json) ? json : (json.data ?? [])
+    return items.map((r, i) => ({
+      id: r.id != null ? String(r.id) : `crawled-${i}`,
+      authorName: r.authorName ?? "익명",
+      rating: r.rating,
+      content: r.content,
+      date: r.reviewedAt?.split(/[T ]/)[0] ?? "",
+    }))
+  } catch {
+    return []
+  }
+}
+
 export async function fetchVendorDetail(vendorId: string | number): Promise<Vendor> {
-  const base = typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? `${window.location.origin}/api` : "http://localhost:8080/api"
-  const response = await fetch(`${base}/vendors/${vendorId}`, { credentials: "include" })
+  const response = await fetch(`/api/vendors/${vendorId}`, { credentials: "include" })
   if (!response.ok) throw new Error(String(response.status))
   const result = normalizeResponse((await response.json()) as VendorDetailApiEnvelope | VendorDetailResponse)
-  return mapDetailToVendor(result)
+  const vendor = mapDetailToVendor(result)
+  vendor.reviews = await fetchVendorReviews(vendorId)
+  return vendor
 }
 
