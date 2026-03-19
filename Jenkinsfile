@@ -28,7 +28,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
+                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans' 
                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
             }
         }

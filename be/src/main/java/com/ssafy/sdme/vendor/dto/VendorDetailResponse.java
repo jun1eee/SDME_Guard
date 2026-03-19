@@ -154,10 +154,11 @@ public record VendorDetailResponse(
 
     private static VisitInfo buildVisitInfoFromHall(JsonNode detail) {
         if (detail == null) return null;
-        String address = nullIfBlank(detail.path("address").asText(null));
-        String phone   = nullIfBlank(detail.path("tel").asText(null));
+        String address   = nullIfBlank(detail.path("address").asText(null));
+        String transport = nullIfBlank(detail.path("address2").asText(null));
+        String phone     = nullIfBlank(detail.path("tel").asText(null));
         if (address == null && phone == null) return null;
-        return new VisitInfo(address, null, null, null, null, null, null, phone);
+        return new VisitInfo(address, transport, null, null, null, null, null, phone);
     }
 
     // ── CategoryExtra (studio / dress / makeup) ──────────────────────────────────

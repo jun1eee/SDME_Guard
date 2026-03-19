@@ -19,7 +19,8 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class VendorJsonImporter {
+public class
+VendorJsonImporter {
 
     private static final long STUDIO_OFFSET = 3_000_000L;
     private static final long DRESS_OFFSET  = 4_000_000L;

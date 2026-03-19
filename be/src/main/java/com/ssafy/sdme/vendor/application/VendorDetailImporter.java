@@ -84,15 +84,9 @@ public class VendorDetailImporter {
     }
 
     private boolean importOne(JsonNode node, long offset, Map<Long, Vendor> vendorMap) {
-        String raw = node.path("iwedding_no").asText(null);
-        if (raw == null || raw.isBlank()) return false;
-
-        long sourceId;
-        try {
-            sourceId = offset + Long.parseLong(raw.trim());
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        long partnerId = node.path("partnerId").asLong(0);
+        if (partnerId == 0) return false;
+        long sourceId = offset + partnerId;
 
         com.ssafy.sdme.vendor.domain.Vendor vendor = vendorMap.get(sourceId);
         if (vendor == null) return false;

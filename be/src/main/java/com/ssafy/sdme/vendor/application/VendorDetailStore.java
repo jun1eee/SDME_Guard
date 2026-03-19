@@ -36,13 +36,10 @@ public class VendorDetailStore {
         try (InputStream is = resource.getInputStream()) {
             JsonNode root = objectMapper.readTree(is);
             for (JsonNode node : root) {
-                String raw = node.path("iwedding_no").asText(null);
-                if (raw == null || raw.isBlank()) continue;
-                try {
-                    long sourceId = offset + Long.parseLong(raw.trim());
-                    detailBySourceId.put(sourceId, node);
-                } catch (NumberFormatException ignored) {
-                }
+                long partnerId = node.path("partnerId").asLong(0);
+                if (partnerId == 0) continue;
+                long sourceId = offset + partnerId;
+                detailBySourceId.put(sourceId, node);
             }
         } catch (IOException e) {
             log.warn("Failed to load vendor detail: {}", path, e);
