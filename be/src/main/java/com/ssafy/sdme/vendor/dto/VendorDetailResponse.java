@@ -55,7 +55,7 @@ public record VendorDetailResponse(
         Long id, String name,
         Integer guestMin, Integer guestMax,
         String hallType, String style,
-        String mealType, Integer mealPrice,
+        String mealType, Integer mealPrice, Integer rentalPrice,
         String ceremonyType, Integer ceremonyIntervalMin, Integer ceremonyIntervalMax,
         Boolean hasSubway, Boolean hasParking, Boolean hasValet, Boolean hasVirginRoad
     ) {}
@@ -189,7 +189,7 @@ public record VendorDetailResponse(
                 h.getId(), h.getName(),
                 h.getGuestMin(), h.getGuestMax(),
                 h.getHallType(), h.getStyle(),
-                h.getMealType(), h.getMealPrice(),
+                h.getMealType(), h.getMealPrice(), h.getRentalPrice(),
                 h.getCeremonyType(), h.getCeremonyIntervalMin(), h.getCeremonyIntervalMax(),
                 h.isHasSubway(), h.isHasParking(), h.isHasValet(), h.isHasVirginRoad()
             ))

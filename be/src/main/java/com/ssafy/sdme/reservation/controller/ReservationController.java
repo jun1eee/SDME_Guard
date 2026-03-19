@@ -4,6 +4,7 @@ import com.ssafy.sdme._global.ApiResponse;
 import com.ssafy.sdme._global.common.constant.ApiPath;
 import com.ssafy.sdme.reservation.domain.Reservation;
 import com.ssafy.sdme.reservation.dto.ReservationRequest;
+import com.ssafy.sdme.reservation.dto.ReservationResponse;
 import com.ssafy.sdme.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +26,7 @@ public class ReservationController {
 
     @Operation(summary = "예약 내역 조회", description = "커플의 예약 내역을 조회합니다.")
     @GetMapping
-    public ApiResponse<List<Reservation>> getReservations(HttpServletRequest request) {
+    public ApiResponse<List<ReservationResponse>> getReservations(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
         return ApiResponse.ok(reservationService.getReservations(userId));
     }

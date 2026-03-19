@@ -1,6 +1,4 @@
-﻿const VENDOR_API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
-  ? `${window.location.origin}/api`
-  : "http://localhost:8080/api"
+﻿const VENDOR_API_BASE = "/api"
 
 export function buildVendorListEndpoint(params?: {
   cursor?: string

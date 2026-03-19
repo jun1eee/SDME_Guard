@@ -28,6 +28,14 @@ public class VendorActionController {
     private final VendorActionService vendorActionService;
     private final ReservationService reservationService;
 
+    @Operation(summary = "업체 예약 시간 조회", description = "특정 날짜에 이미 예약된 시간 목록을 조회합니다.")
+    @GetMapping("/{vendorId}/reservations")
+    public ApiResponse<java.util.List<String>> getBookedTimes(
+            @PathVariable Long vendorId,
+            @RequestParam String date) {
+        return ApiResponse.ok(reservationService.getBookedTimes(vendorId, java.time.LocalDate.parse(date)));
+    }
+
     @Operation(summary = "업체 예약", description = "업체를 예약합니다.")
     @PostMapping("/{vendorId}/book")
     public ApiResponse<Reservation> bookVendor(@PathVariable Long vendorId,

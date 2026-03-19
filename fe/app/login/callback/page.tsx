@@ -22,9 +22,9 @@ function CallbackHandler() {
         if (res.data.isNewUser) {
           sessionStorage.setItem("kakaoNickname", res.data.kakaoNickname || "")
           sessionStorage.setItem("kakaoProfileImage", res.data.kakaoProfileImage || "")
-          router.replace('/signup') // 신규 → 회원가입
+          window.location.replace('/signup') // 신규 → 회원가입 (히스토리 교체)
         } else {
-          router.replace('/main') // 기존 → 메인
+          window.location.replace('/main') // 기존 → 메인 (히스토리 교체)
         }
       })
       .catch(() => {

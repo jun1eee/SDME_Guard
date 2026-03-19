@@ -37,6 +37,9 @@ public class VendorHallDetail extends BaseIdEntity {
     @Column
     private Integer mealPrice;
 
+    @Column
+    private Integer rentalPrice;
+
     @Column(length = 10)
     private String ceremonyType;
 
@@ -66,7 +69,7 @@ public class VendorHallDetail extends BaseIdEntity {
         Long vendorId, String name,
         Integer guestMin, Integer guestMax,
         String hallType, String style,
-        String mealType, Integer mealPrice,
+        String mealType, Integer mealPrice, Integer rentalPrice,
         String ceremonyType, Integer ceremonyIntervalMin, Integer ceremonyIntervalMax,
         String entranceType,
         boolean hasSubway, boolean hasParking, boolean hasValet, boolean hasVirginRoad
@@ -79,6 +82,7 @@ public class VendorHallDetail extends BaseIdEntity {
         this.style       = style;
         this.mealType    = mealType;
         this.mealPrice   = mealPrice;
+        this.rentalPrice = rentalPrice;
         this.ceremonyType = ceremonyType;
         this.ceremonyIntervalMin = ceremonyIntervalMin;
         this.ceremonyIntervalMax = ceremonyIntervalMax;

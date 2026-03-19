@@ -104,7 +104,23 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "보르도홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 5000000
+      },
+      {
+        "name": "샴페인홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 9000000
+      }
+    ]
   },
   {
     "partnerId": 13381,
@@ -193,7 +209,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더채플앳대치 단독홀",
+        "rentalPrice": 17820000,
+        "mealPrice": 132000,
+        "childMealPrice": 49500
+      },
+      {
+        "name": "더채플앳대치 단독홀",
+        "rentalPrice": 17820000,
+        "mealPrice": 132000,
+        "childMealPrice": 49500,
+        "suggestPersonnel": 270
+      }
+    ]
   },
   {
     "partnerId": 1004,
@@ -294,7 +325,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 카이타스홀",
+        "rentalPrice": 6800000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000
+      }
+    ]
   },
   {
     "partnerId": 9945,
@@ -404,7 +443,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노블발렌티 삼성점 단독홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 100000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 11161,
@@ -505,7 +552,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "루벨 단독홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 90000,
+        "childMealPrice": 36300
+      },
+      {
+        "name": "루벨 단독홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 4463,
@@ -627,7 +689,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "보타닉파크웨딩 오키드홀",
+        "rentalPrice": 7900000,
+        "mealPrice": 86000,
+        "childMealPrice": 45000
+      },
+      {
+        "name": "보타닉파크웨딩 카라홀",
+        "rentalPrice": 7900000,
+        "mealPrice": 86000,
+        "childMealPrice": 45000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 10644,
@@ -728,7 +805,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아펠가모 공덕점 라로브홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600
+      },
+      {
+        "name": "아펠가모 공덕점 마리에홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "아펠가모 공덕점 라로브홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "아펠가모 공덕점 마리에홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1421,
@@ -829,7 +935,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아펠가모 광화문점 단독홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600
+      },
+      {
+        "name": "아펠가모 광화문점 단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1237,
@@ -930,7 +1051,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 웨딩홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600
+      },
+      {
+        "name": "아펠가모 반포점 단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 13297,
@@ -1025,7 +1161,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아마리스홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 130000,
+        "childMealPrice": 45000
+      },
+      {
+        "name": "벨루스홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 130000,
+        "childMealPrice": 45000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 760,
@@ -1138,7 +1289,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "콘서트홀",
+        "rentalPrice": 14000000,
+        "mealPrice": 95000,
+        "childMealPrice": 40000
+      },
+      {
+        "name": "노벨라홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 95000,
+        "childMealPrice": 40000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "몽블랑홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11663,
@@ -1245,7 +1418,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더채플앳논현 라메르홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 47300
+      },
+      {
+        "name": "더채플앳논현 라포레홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 47300,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "더채플앳논현 라메르홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 47300,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "더채플앳논현 라포레홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 130000,
+        "childMealPrice": 49500,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 3634,
@@ -1346,7 +1548,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000
+      }
+    ]
   },
   {
     "partnerId": 10123,
@@ -1447,7 +1657,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아펠가모 선릉점 단독홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600
+      },
+      {
+        "name": "아펠가모 선릉점 단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1479,
@@ -1554,7 +1779,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 그랜드볼룸홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 100000,
+        "childMealPrice": 39600
+      },
+      {
+        "name": "아펠가모 잠실점 단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 42900,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 763,
@@ -1655,7 +1895,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 커티지홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 44000
+      },
+      {
+        "name": "강남 채플홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 44000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "더채플앳청담 채플홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 47300,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "더채플앳청담 커티지홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 47300,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 13295,
@@ -1750,7 +2019,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 13850000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "flowerFee": 8000000
+      }
+    ]
   },
   {
     "partnerId": 12233,
@@ -1851,7 +2129,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구로 컨벤션홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 120000,
+        "childMealPrice": 50000,
+        "flowerFee": 15000000
+      }
+    ]
   },
   {
     "partnerId": 4135,
@@ -1958,7 +2245,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아만티호텔서울 단독홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 88000
+      }
+    ]
   },
   {
     "partnerId": 3597,
@@ -2059,7 +2354,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 52000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1407,
@@ -2160,7 +2463,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부천 오페라홀",
+        "rentalPrice": 8900000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 4212,
@@ -2261,7 +2572,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서울웨딩타워 단독홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 85000
+      }
+    ]
   },
   {
     "partnerId": 12845,
@@ -2368,7 +2687,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용산 단독홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 98000,
+        "childMealPrice": 98000,
+        "flowerFee": 9800000
+      }
+    ]
   },
   {
     "partnerId": 1652,
@@ -2475,7 +2803,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드컨벤션센터 그랜드홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 95000,
+        "childMealPrice": 38000
+      },
+      {
+        "name": "그랜드컨벤션센터 리젠시홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 95000,
+        "childMealPrice": 38000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11352,
@@ -2567,7 +2910,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 12950000,
+        "mealPrice": 91000,
+        "childMealPrice": 0,
+        "flowerFee": 6600000
+      }
+    ]
   },
   {
     "partnerId": 1021,
@@ -2674,7 +3026,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 11000000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000
+      }
+    ]
   },
   {
     "partnerId": 1880,
@@ -2769,7 +3129,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 컨퍼런스홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 806,
@@ -2894,7 +3262,21 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더 청담 노블레스홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 11000000,
+        "mealPrice": 95000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 3548,
@@ -2995,7 +3377,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "레노스블랑쉬 블랑쉬홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      }
+    ]
   },
   {
     "partnerId": 4197,
@@ -3108,7 +3498,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "가든홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 68000,
+        "childMealPrice": 0,
+        "flowerFee": 4100000
+      }
+    ]
   },
   {
     "partnerId": 11524,
@@ -3209,7 +3608,23 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 디에스홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 69000,
+        "childMealPrice": 62000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 6000000,
+        "mealPrice": 62000,
+        "childMealPrice": 62000,
+        "suggestPersonnel": 200,
+        "flowerFee": 4000000
+      }
+    ]
   },
   {
     "partnerId": 4525,
@@ -3310,7 +3725,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더빅토리아웨딩파티 빅토리아홀",
+        "rentalPrice": 4800000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000
+      },
+      {
+        "name": "더빅토리아웨딩파티 하늘정원홀",
+        "rentalPrice": 4800000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 4221,
@@ -3411,7 +3841,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "삼정호텔 아도니스홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000
+      },
+      {
+        "name": "삼정호텔 제라늄홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 12804,
@@ -3512,7 +3957,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마포 그랜드볼룸홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 8800000
+      },
+      {
+        "name": "마포 아이리스홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 250,
+        "flowerFee": 8800000
+      }
+    ]
   },
   {
     "partnerId": 12189,
@@ -3619,7 +4081,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 53000,
+        "childMealPrice": 53000
+      }
+    ]
   },
   {
     "partnerId": 13859,
@@ -3720,7 +4190,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 6000000,
+        "mealPrice": 110000,
+        "childMealPrice": 45000,
+        "flowerFee": 10000000
+      }
+    ]
   },
   {
     "partnerId": 12512,
@@ -3821,7 +4300,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 8000000,
+        "mealPrice": 93000,
+        "childMealPrice": 93000,
+        "flowerFee": 6500000
+      }
+    ]
   },
   {
     "partnerId": 8444,
@@ -3922,7 +4410,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성남 단독홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 72000,
+        "childMealPrice": 28000
+      }
+    ]
   },
   {
     "partnerId": 1223,
@@ -4023,7 +4519,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동서울웨딩컨벤션 그랜드볼룸홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 63000,
+        "childMealPrice": 30000
+      }
+    ]
   },
   {
     "partnerId": 12946,
@@ -4142,7 +4646,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단돌홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 88000,
+        "childMealPrice": 0,
+        "flowerFee": 3300000
+      }
+    ]
   },
   {
     "partnerId": 1777,
@@ -4240,7 +4753,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마포 컨벤션홀",
+        "rentalPrice": 9900000,
+        "mealPrice": 79000,
+        "childMealPrice": 39000
+      },
+      {
+        "name": "마포 라페네트레홀",
+        "rentalPrice": 7900000,
+        "mealPrice": 79000,
+        "childMealPrice": 39000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11617,
@@ -4341,7 +4869,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 디 아이올라홀",
+        "rentalPrice": 14500000,
+        "mealPrice": 98000,
+        "childMealPrice": 89000
+      }
+    ]
   },
   {
     "partnerId": 12656,
@@ -4454,7 +4990,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강서 그레이홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000,
+        "flowerFee": 1500000
+      }
+    ]
   },
   {
     "partnerId": 13199,
@@ -4561,7 +5106,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 10000000,
+        "mealPrice": 155000,
+        "childMealPrice": 0,
+        "flowerFee": 12500000
+      }
+    ]
   },
   {
     "partnerId": 12624,
@@ -4674,7 +5228,23 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성북 단독홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 6600000
+      },
+      {
+        "name": "성북 단독홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 66000000
+      }
+    ]
   },
   {
     "partnerId": 2602,
@@ -4775,7 +5345,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성동 헤리티지홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 3016,
@@ -4876,7 +5454,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "스탠포드호텔서울 단독홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 5500000
+      }
+    ]
   },
   {
     "partnerId": 13172,
@@ -4971,7 +5558,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "엘로라 인 가든 엘로라홀",
+        "rentalPrice": 7900000,
+        "mealPrice": 79000,
+        "childMealPrice": 42000
+      }
+    ]
   },
   {
     "partnerId": 1073,
@@ -5072,7 +5667,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마포 단독홀",
+        "rentalPrice": 3600000,
+        "mealPrice": 59000,
+        "childMealPrice": 49000
+      }
+    ]
   },
   {
     "partnerId": 1470,
@@ -5185,7 +5788,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 사루비아홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000
+      },
+      {
+        "name": "인천 오페리스홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "suggestPersonnel": 150
+      },
+      {
+        "name": "인천 엘로이즈홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1617,
@@ -5292,7 +5917,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 블리스홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 65000,
+        "childMealPrice": 30000,
+        "flowerFee": 2000000
+      },
+      {
+        "name": "평일 상담 시 홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 65000,
+        "childMealPrice": 30000,
+        "suggestPersonnel": 220,
+        "flowerFee": 2000000
+      }
+    ]
   },
   {
     "partnerId": 13222,
@@ -5363,7 +6005,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "벨라루체웨딩홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000
+      }
+    ]
   },
   {
     "partnerId": 13183,
@@ -5458,7 +6108,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 24000000,
+        "mealPrice": 120000,
+        "childMealPrice": 70000,
+        "flowerFee": 11000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 11000000,
+        "mealPrice": 120000,
+        "childMealPrice": 70000,
+        "suggestPersonnel": 100,
+        "flowerFee": 4000000
+      }
+    ]
   },
   {
     "partnerId": 1759,
@@ -5553,7 +6220,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구 부평채원웨딩홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 67000,
+        "childMealPrice": 67000
+      }
+    ]
   },
   {
     "partnerId": 2229,
@@ -5660,7 +6335,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라마다송도호텔 다빈치홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 66000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "라마다송도호텔 다빈치홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 66000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1598,
@@ -5761,7 +6451,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "샤펠드미앙 단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 9979,
@@ -5862,7 +6560,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 8900000,
+        "mealPrice": 72000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "경민컨벤션웨딩홀  그레이스홀",
+        "rentalPrice": 8900000,
+        "mealPrice": 72000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "경민컨벤션웨딩홀  아모리스홀",
+        "rentalPrice": 8900000,
+        "mealPrice": 72000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12874,
@@ -5957,7 +6677,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용인 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 85000,
+        "childMealPrice": 55000,
+        "flowerFee": 2500000
+      }
+    ]
   },
   {
     "partnerId": 10101,
@@ -6070,7 +6799,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "파티 모던홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 63000,
+        "childMealPrice": 30000
+      },
+      {
+        "name": "파티 클래식홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 63000,
+        "childMealPrice": 30000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "파티 루프탑가든홀",
+        "rentalPrice": 600000,
+        "mealPrice": 60000,
+        "childMealPrice": 30000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 2227,
@@ -6171,7 +6922,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 엘리나홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000
+      }
+    ]
   },
   {
     "partnerId": 4483,
@@ -6272,7 +7031,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "종로 아델라홀",
+        "rentalPrice": 3500000,
+        "mealPrice": 59000,
+        "childMealPrice": 59000,
+        "flowerFee": 3850000
+      }
+    ]
   },
   {
     "partnerId": 12781,
@@ -6367,7 +7135,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아레나파크웨딩 아레나홀",
+        "rentalPrice": 5900000,
+        "mealPrice": 67000,
+        "childMealPrice": 67000
+      }
+    ]
   },
   {
     "partnerId": 13079,
@@ -6456,7 +7232,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "의정부 단독홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 93000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13105,
@@ -6557,7 +7341,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더포레스트 포레스트홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 88000,
+        "childMealPrice": 0,
+        "flowerFee": 4500000
+      }
+    ]
   },
   {
     "partnerId": 8577,
@@ -6759,7 +7552,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "종로 에메랄드홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000
+      },
+      {
+        "name": "종로 에메랄드홀",
+        "rentalPrice": 17500000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "종로 크리스탈홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1276,
@@ -6851,7 +7666,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 8700000,
+        "mealPrice": 69000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1436,
@@ -6958,7 +7781,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "경기교총웨딩하우스 베네치아홀",
+        "rentalPrice": 7600000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000
+      }
+    ]
   },
   {
     "partnerId": 4940,
@@ -7065,7 +7896,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "일산 그리다홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 60000,
+        "childMealPrice": 27000
+      },
+      {
+        "name": "일산 미엘홀",
+        "rentalPrice": 1800000,
+        "mealPrice": 60000,
+        "childMealPrice": 27000,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 764,
@@ -7166,7 +8012,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더테라스웨딩 더테라스홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "flowerFee": 6000000
+      },
+      {
+        "name": "더테라스웨딩 야외홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "suggestPersonnel": 200,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 8578,
@@ -7267,7 +8130,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "고양 단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 53000,
+        "childMealPrice": 53000
+      }
+    ]
   },
   {
     "partnerId": 12264,
@@ -7374,7 +8245,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3500000,
+        "mealPrice": 63000,
+        "childMealPrice": 25000,
+        "flowerFee": 2500000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 3000000,
+        "mealPrice": 63000,
+        "childMealPrice": 25000,
+        "suggestPersonnel": 200,
+        "flowerFee": 2500000
+      }
+    ]
   },
   {
     "partnerId": 1525,
@@ -7475,7 +8363,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "지음웨딩홀 모드니홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 12308,
@@ -7588,7 +8484,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "하남 단독홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000
+      }
+    ]
   },
   {
     "partnerId": 12041,
@@ -7671,7 +8575,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3900000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000,
+        "flowerFee": 7300000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 2500000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000,
+        "suggestPersonnel": 80,
+        "flowerFee": 4600000
+      }
+    ]
   },
   {
     "partnerId": 4965,
@@ -7772,7 +8693,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부천 코랄홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 66000,
+        "childMealPrice": 66000
+      }
+    ]
   },
   {
     "partnerId": 12086,
@@ -7897,7 +8826,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 9800000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 9800000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000,
+        "suggestPersonnel": 60
+      }
+    ]
   },
   {
     "partnerId": 12298,
@@ -8016,7 +8960,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "남양주 단독홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "flowerFee": 5500000
+      }
+    ]
   },
   {
     "partnerId": 14016,
@@ -8108,7 +9061,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 4000000,
+        "mealPrice": 66000,
+        "childMealPrice": 44000,
+        "flowerFee": 2000000
+      },
+      {
+        "name": "야외웨딩홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 66000,
+        "childMealPrice": 44000,
+        "suggestPersonnel": 150,
+        "flowerFee": 2000000
+      }
+    ]
   },
   {
     "partnerId": 12740,
@@ -8215,7 +9185,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "다이닝몽드 다산점 포레스트홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 49000,
+        "childMealPrice": 49000,
+        "flowerFee": 2000000
+      }
+    ]
   },
   {
     "partnerId": 13176,
@@ -8310,7 +9289,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 8000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 5000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 8000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "suggestPersonnel": 100,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 13198,
@@ -8405,7 +9401,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 9900000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000
+      }
+    ]
   },
   {
     "partnerId": 3477,
@@ -8515,7 +9519,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 85000,
+        "childMealPrice": 42500
+      }
+    ]
   },
   {
     "partnerId": 13984,
@@ -8564,7 +9576,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 74000,
+        "childMealPrice": 74000,
+        "flowerFee": 3000000
+      }
+    ]
   },
   {
     "partnerId": 13046,
@@ -8620,7 +9641,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 그레이스가든홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 59000,
+        "childMealPrice": 59000
+      }
+    ]
   },
   {
     "partnerId": 11180,
@@ -8822,7 +9851,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "메리스에이프럴 단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "flowerFee": 3500000
+      }
+    ]
   },
   {
     "partnerId": 13004,
@@ -8880,7 +9918,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "시엠프레홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 65000,
+        "childMealPrice": 65000,
+        "flowerFee": 2500000
+      }
+    ]
   },
   {
     "partnerId": 1512,
@@ -8978,7 +10025,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더뉴컨벤션웨딩 르노브홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 82000,
+        "childMealPrice": 82000
+      },
+      {
+        "name": "더뉴컨벤션웨딩 더뉴홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 82000,
+        "childMealPrice": 82000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 13015,
@@ -9070,7 +10132,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 세인트홀",
+        "rentalPrice": 9800000,
+        "mealPrice": 98000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "강남 메리엘홀",
+        "rentalPrice": 9800000,
+        "mealPrice": 98000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 3208,
@@ -9174,7 +10251,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광진 단독홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 85000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 775,
@@ -9272,7 +10357,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 15500000,
+        "mealPrice": 150000,
+        "childMealPrice": 48000
+      }
+    ]
   },
   {
     "partnerId": 12884,
@@ -9364,7 +10457,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "하남 누아주가든홀",
+        "rentalPrice": 2750000,
+        "mealPrice": 66000,
+        "childMealPrice": 0,
+        "flowerFee": 3850000
+      }
+    ]
   },
   {
     "partnerId": 12830,
@@ -9465,7 +10567,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 70000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 8720,
@@ -9566,7 +10676,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "다이아몬드홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000
+      }
+    ]
   },
   {
     "partnerId": 13219,
@@ -9615,7 +10733,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더힐파노라마 야외홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 58000,
+        "childMealPrice": 3000
+      }
+    ]
   },
   {
     "partnerId": 11391,
@@ -9704,7 +10830,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 5000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "flowerFee": 4000000
+      }
+    ]
   },
   {
     "partnerId": 12347,
@@ -9802,7 +10937,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "관세비스타 야외홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 12663,
@@ -9989,7 +11133,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 11000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 11381,
@@ -10090,7 +11243,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "트라디노이 단독홀",
+        "rentalPrice": 5800000,
+        "mealPrice": 98000,
+        "childMealPrice": 0,
+        "flowerFee": 3900000
+      }
+    ]
   },
   {
     "partnerId": 10494,
@@ -10191,7 +11353,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 플로리아홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000
+      },
+      {
+        "name": "강남 사브리나홀",
+        "rentalPrice": 14000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "강남 그랜드볼룸홀",
+        "rentalPrice": 16000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12087,
@@ -10292,7 +11476,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "flowerFee": 13000000
+      },
+      {
+        "name": "보태니컬가든홀",
+        "rentalPrice": 0,
+        "mealPrice": 150000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200,
+        "flowerFee": 15000000
+      }
+    ]
   },
   {
     "partnerId": 10130,
@@ -10393,7 +11594,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "브라이드밸리 단독홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000
+      }
+    ]
   },
   {
     "partnerId": 13023,
@@ -10482,7 +11691,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 리츄얼홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 110000,
+        "childMealPrice": 45000
+      },
+      {
+        "name": "송파 블룸홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 110000,
+        "childMealPrice": 45000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 3308,
@@ -10583,7 +11807,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마리아쥬스퀘어 단독홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 79000,
+        "childMealPrice": 0,
+        "flowerFee": 3300000
+      }
+    ]
   },
   {
     "partnerId": 12112,
@@ -10678,7 +11911,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 300000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 2100000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 300000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 50,
+        "flowerFee": 2100000
+      },
+      {
+        "name": "홀3",
+        "rentalPrice": 1,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 50,
+        "flowerFee": 2800000
+      }
+    ]
   },
   {
     "partnerId": 1254,
@@ -10779,7 +12037,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 뉴그랜드홀",
+        "rentalPrice": 21000000,
+        "mealPrice": 140000,
+        "childMealPrice": 140000
+      },
+      {
+        "name": "서초 그레이스홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "서초 오르체홀",
+        "rentalPrice": 19000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 12941,
@@ -10886,7 +12166,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 하우스홀",
+        "rentalPrice": 0,
+        "mealPrice": 80000,
+        "childMealPrice": 60000,
+        "flowerFee": 1600000
+      },
+      {
+        "name": "서초 테라스홀",
+        "rentalPrice": 0,
+        "mealPrice": 80000,
+        "childMealPrice": 60000,
+        "suggestPersonnel": 80,
+        "flowerFee": 2400000
+      }
+    ]
   },
   {
     "partnerId": 12942,
@@ -10981,7 +12278,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 로리스홀",
+        "rentalPrice": 0,
+        "mealPrice": 97000,
+        "childMealPrice": 0,
+        "flowerFee": 2000000
+      }
+    ]
   },
   {
     "partnerId": 1478,
@@ -11082,7 +12388,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "호텔리베라 웨딩홀 몽블랑홀",
+        "rentalPrice": 2200000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "flowerFee": 6000000
+      },
+      {
+        "name": "베르사이유홀",
+        "rentalPrice": 2200000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 150,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 1425,
@@ -11183,7 +12506,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "힐스컨벤션 단독홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 69000,
+        "childMealPrice": 32000
+      }
+    ]
   },
   {
     "partnerId": 3823,
@@ -11290,7 +12621,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더아리엘 스카이가든홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 67000,
+        "childMealPrice": 67000
+      }
+    ]
   },
   {
     "partnerId": 13155,
@@ -11355,7 +12694,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 7000000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000,
+        "flowerFee": 7000000
+      }
+    ]
   },
   {
     "partnerId": 1569,
@@ -11456,7 +12804,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 다이아몬드홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000
+      }
+    ]
   },
   {
     "partnerId": 12530,
@@ -11551,7 +12907,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "종로 스토리홀",
+        "rentalPrice": 8350000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000
+      }
+    ]
   },
   {
     "partnerId": 1483,
@@ -11652,7 +13016,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용인 그레이스홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 68000,
+        "childMealPrice": 34000
+      },
+      {
+        "name": "용인 아모르홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 68000,
+        "childMealPrice": 34000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 14050,
@@ -11765,7 +13144,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "글로스터호텔 인천 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13074,
@@ -11860,7 +13247,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "메인홀",
+        "rentalPrice": 17000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 1100000
+      }
+    ]
   },
   {
     "partnerId": 12948,
@@ -11967,7 +13363,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "화성 메인홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 77000,
+        "childMealPrice": 0,
+        "flowerFee": 3800000
+      }
+    ]
   },
   {
     "partnerId": 13291,
@@ -12062,7 +13467,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 9900000,
+        "mealPrice": 88000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12268,
@@ -12145,7 +13558,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성남 단독홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 8519,
@@ -12252,7 +13673,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용인 네이쳐홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 13081,
@@ -12353,7 +13783,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 라피네홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000
+      }
+    ]
   },
   {
     "partnerId": 13288,
@@ -12436,7 +13874,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 1500000,
+        "mealPrice": 65000,
+        "childMealPrice": 65000,
+        "flowerFee": 7700000
+      }
+    ]
   },
   {
     "partnerId": 4489,
@@ -12705,7 +14152,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강동 블랙스톤홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 88000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "강동 마이더스홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 88000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 220
+      }
+    ]
   },
   {
     "partnerId": 11157,
@@ -12803,7 +14265,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 95000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 3033,
@@ -12895,7 +14365,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아모리스 역삼점 단독홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "flowerFee": 6600000
+      }
+    ]
   },
   {
     "partnerId": 1251,
@@ -12987,7 +14466,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 라온제나홀",
+        "rentalPrice": 9800000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000
+      }
+    ]
   },
   {
     "partnerId": 14110,
@@ -13082,7 +14569,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구로 포레스트홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 59000,
+        "childMealPrice": 39000
+      },
+      {
+        "name": "구로 다이아몬드홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 59000,
+        "childMealPrice": 39000,
+        "suggestPersonnel": 100
+      }
+    ]
   },
   {
     "partnerId": 14130,
@@ -13138,7 +14640,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "스페이스가든홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 95000,
+        "childMealPrice": 45000,
+        "flowerFee": 9000000
+      }
+    ]
   },
   {
     "partnerId": 12045,
@@ -13242,7 +14753,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대홍관 단독홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000,
+        "flowerFee": 4500000
+      }
+    ]
   },
   {
     "partnerId": 14019,
@@ -13340,7 +14860,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용산 단독홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 145000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 749,
@@ -13441,7 +14969,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 그랜드홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 72000,
+        "childMealPrice": 72000
+      },
+      {
+        "name": "영등포 그랜드홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 72000,
+        "childMealPrice": 72000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "영등포 그랜드홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 72000,
+        "childMealPrice": 72000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12983,
@@ -13521,7 +15071,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 플레르홀",
+        "rentalPrice": 9900000,
+        "mealPrice": 80000,
+        "childMealPrice": 35000
+      }
+    ]
   },
   {
     "partnerId": 12954,
@@ -13613,7 +15171,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "메리빌리아더프레스티지 가든홀",
+        "rentalPrice": 13500000,
+        "mealPrice": 85000,
+        "childMealPrice": 40000
+      },
+      {
+        "name": "컨벤션홀",
+        "rentalPrice": 13500000,
+        "mealPrice": 85000,
+        "childMealPrice": 40000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 12861,
@@ -13705,7 +15278,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 에메랄드홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 60000,
+        "childMealPrice": 30000
+      },
+      {
+        "name": "영등포 사피어홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 60000,
+        "childMealPrice": 30000,
+        "suggestPersonnel": 80
+      }
+    ]
   },
   {
     "partnerId": 1754,
@@ -13797,7 +15385,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "채림웨딩홀 컨벤션홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1708,
@@ -13889,7 +15485,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노블레스홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      },
+      {
+        "name": "컨벤션홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1913,
@@ -13987,7 +15598,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 아모르홀",
+        "rentalPrice": 770000,
+        "mealPrice": 68000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 3024,
@@ -14195,7 +15814,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용산 파크홀",
+        "rentalPrice": 14500000,
+        "mealPrice": 129000,
+        "childMealPrice": 129000
+      },
+      {
+        "name": "용산 로얄홀",
+        "rentalPrice": 14500000,
+        "mealPrice": 129000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1158,
@@ -14299,7 +15933,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 라비엔홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 75000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "인천 미엘르홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 75000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 917,
@@ -14385,7 +16034,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 790000,
+        "mealPrice": 79000,
+        "childMealPrice": 30000
+      }
+    ]
   },
   {
     "partnerId": 8505,
@@ -14501,7 +16158,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 11000000,
+        "mealPrice": 170000,
+        "childMealPrice": 0,
+        "flowerFee": 27000000
+      },
+      {
+        "name": "강남 체임버홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 170000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 350,
+        "flowerFee": 27000000
+      }
+    ]
   },
   {
     "partnerId": 13370,
@@ -14587,7 +16261,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 16000000,
+        "mealPrice": 130000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 11713,
@@ -14685,7 +16367,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 그랜드볼룸홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 280000,
+        "childMealPrice": 280000,
+        "flowerFee": 28000000
+      }
+    ]
   },
   {
     "partnerId": 10474,
@@ -14783,7 +16474,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 187000,
+        "childMealPrice": 187000,
+        "flowerFee": 19800000
+      }
+    ]
   },
   {
     "partnerId": 3573,
@@ -14875,7 +16575,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 18000000,
+        "mealPrice": 230000,
+        "childMealPrice": 230000,
+        "flowerFee": 16000000
+      }
+    ]
   },
   {
     "partnerId": 2389,
@@ -14973,7 +16682,40 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "롯데호텔 웨딩 크리스탈볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 180000,
+        "childMealPrice": 180000,
+        "flowerFee": 16500000
+      },
+      {
+        "name": "롯데호텔 웨딩 사파이어볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 140000,
+        "childMealPrice": 140000,
+        "suggestPersonnel": 300,
+        "flowerFee": 12100000
+      },
+      {
+        "name": "롯데호텔 웨딩 벨뷰스위트홀",
+        "rentalPrice": 0,
+        "mealPrice": 150000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200,
+        "flowerFee": 8800000
+      },
+      {
+        "name": "롯데호텔 웨딩 아테네가든홀",
+        "rentalPrice": 2200000,
+        "mealPrice": 250000,
+        "childMealPrice": 250000,
+        "suggestPersonnel": 60,
+        "flowerFee": 11000000
+      }
+    ]
   },
   {
     "partnerId": 2395,
@@ -15077,7 +16819,40 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강서 메이필드볼룸홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 120000,
+        "childMealPrice": 110000,
+        "flowerFee": 13200000
+      },
+      {
+        "name": "강서 카라홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "suggestPersonnel": 250,
+        "flowerFee": 9900000
+      },
+      {
+        "name": "강서 벨타워가든홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 140000,
+        "childMealPrice": 140000,
+        "suggestPersonnel": 100,
+        "flowerFee": 14300000
+      },
+      {
+        "name": "강서 아트리움홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 140000,
+        "childMealPrice": 140000,
+        "suggestPersonnel": 250,
+        "flowerFee": 14300000
+      }
+    ]
   },
   {
     "partnerId": 13024,
@@ -15157,7 +16932,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동대문 가든홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 109000,
+        "childMealPrice": 109000,
+        "flowerFee": 6600000
+      },
+      {
+        "name": "동대문 컨벤션홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 109000,
+        "childMealPrice": 109000,
+        "suggestPersonnel": 250,
+        "flowerFee": 6600000
+      }
+    ]
   },
   {
     "partnerId": 8754,
@@ -15261,7 +17053,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 180000,
+        "childMealPrice": 180000,
+        "flowerFee": 22000000
+      },
+      {
+        "name": "오키드홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000,
+        "suggestPersonnel": 300,
+        "flowerFee": 13200000
+      }
+    ]
   },
   {
     "partnerId": 12939,
@@ -15359,7 +17168,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광진 에떼르노홀",
+        "rentalPrice": 14000000,
+        "mealPrice": 110000,
+        "childMealPrice": 99000
+      }
+    ]
   },
   {
     "partnerId": 12988,
@@ -15433,7 +17250,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 108000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1599,
@@ -15525,7 +17350,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아벤티움 단독홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 85000,
+        "childMealPrice": 65000
+      }
+    ]
   },
   {
     "partnerId": 4555,
@@ -15629,7 +17462,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 센트럴파크홀",
+        "rentalPrice": 6980000,
+        "mealPrice": 79900,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4554,
@@ -15727,7 +17568,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 그랜드볼룸홀",
+        "rentalPrice": 38500000,
+        "mealPrice": 160000,
+        "childMealPrice": 160000
+      },
+      {
+        "name": "영등포 파크볼룸홀",
+        "rentalPrice": 38500000,
+        "mealPrice": 160000,
+        "childMealPrice": 160000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1310,
@@ -15825,7 +17681,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성남 플로렌스홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 70000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 13054,
@@ -15917,7 +17781,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안양 갤러리아홀",
+        "rentalPrice": 18000000,
+        "mealPrice": 92000,
+        "childMealPrice": 92000
+      },
+      {
+        "name": "안양 크리스탈캐슬홀",
+        "rentalPrice": 18000000,
+        "mealPrice": 92000,
+        "childMealPrice": 92000,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 1222,
@@ -16009,7 +17888,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더베네치아 베네치아홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      }
+    ]
   },
   {
     "partnerId": 12520,
@@ -16125,7 +18012,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "중구 보타닉글라스홀",
+        "rentalPrice": 16500000,
+        "mealPrice": 121000,
+        "childMealPrice": 121000,
+        "flowerFee": 14300000
+      },
+      {
+        "name": "중구 크레스트가든홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 72600,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250,
+        "flowerFee": 11000000
+      }
+    ]
   },
   {
     "partnerId": 12958,
@@ -16229,7 +18133,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "flowerFee": 13000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 0,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "suggestPersonnel": 200,
+        "flowerFee": 13000000
+      }
+    ]
   },
   {
     "partnerId": 12805,
@@ -16321,7 +18242,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마포 나루볼룸홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "flowerFee": 13000000
+      }
+    ]
   },
   {
     "partnerId": 12742,
@@ -16413,7 +18343,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성남 스페이스볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 135000,
+        "childMealPrice": 135000
+      }
+    ]
   },
   {
     "partnerId": 12611,
@@ -16505,7 +18443,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마포 임페리얼홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000
+      },
+      {
+        "name": "마포 그랜드볼룸홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 80000,
+        "childMealPrice": 80000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12971,
@@ -16603,7 +18556,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 더살롱홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 154000,
+        "childMealPrice": 154000,
+        "flowerFee": 8500000
+      },
+      {
+        "name": "강남 더살롱홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 154000,
+        "childMealPrice": 154000,
+        "suggestPersonnel": 110,
+        "flowerFee": 8500000
+      },
+      {
+        "name": "홀3",
+        "rentalPrice": 1500000,
+        "mealPrice": 176000,
+        "childMealPrice": 176000,
+        "suggestPersonnel": 110,
+        "flowerFee": 1700000
+      }
+    ]
   },
   {
     "partnerId": 4946,
@@ -16701,7 +18679,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "고양 그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 95000,
+        "childMealPrice": 95000,
+        "flowerFee": 15400000
+      },
+      {
+        "name": "웨딩북 웨딩홀",
+        "rentalPrice": 0,
+        "mealPrice": 95000,
+        "childMealPrice": 95000,
+        "suggestPersonnel": 200,
+        "flowerFee": 15400000
+      }
+    ]
   },
   {
     "partnerId": 2209,
@@ -16799,7 +18794,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "중구 그랜드볼룸홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 170000,
+        "childMealPrice": 0,
+        "flowerFee": 16000000
+      },
+      {
+        "name": "중구 남산홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 170000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250,
+        "flowerFee": 16000000
+      }
+    ]
   },
   {
     "partnerId": 10645,
@@ -16891,7 +18903,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노블발렌티 대치점 단독홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 98000,
+        "childMealPrice": 98000
+      }
+    ]
   },
   {
     "partnerId": 4553,
@@ -16983,7 +19003,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 그랜드볼룸홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000,
+        "flowerFee": 4800000
+      }
+    ]
   },
   {
     "partnerId": 4497,
@@ -17075,7 +19104,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 6000000,
+        "mealPrice": 150000,
+        "childMealPrice": 80000,
+        "flowerFee": 18000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 6000000,
+        "mealPrice": 150000,
+        "childMealPrice": 80000,
+        "suggestPersonnel": 200,
+        "flowerFee": 18000000
+      },
+      {
+        "name": "더 플라자 메이플홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 250000,
+        "childMealPrice": 80000,
+        "suggestPersonnel": 100,
+        "flowerFee": 18000000
+      }
+    ]
   },
   {
     "partnerId": 11944,
@@ -17173,7 +19227,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "롯데호텔 월드 크리스탈볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 180000,
+        "childMealPrice": 180000,
+        "flowerFee": 18700000
+      },
+      {
+        "name": "롯데호텔 월드 사파이어볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 180000,
+        "childMealPrice": 180000,
+        "suggestPersonnel": 300,
+        "flowerFee": 18700000
+      },
+      {
+        "name": "롯데호텔 월드 에메랄드룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 150,
+        "flowerFee": 10560000
+      }
+    ]
   },
   {
     "partnerId": 784,
@@ -17274,7 +19353,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "분당앤스퀘어 아모르홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 70000,
+        "childMealPrice": 25000
+      },
+      {
+        "name": "분당앤스퀘어 컨벤션홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 70000,
+        "childMealPrice": 25000,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 4976,
@@ -17384,7 +19478,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 2200000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "flowerFee": 7000000
+      }
+    ]
   },
   {
     "partnerId": 2333,
@@ -17476,7 +19579,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 330000,
+        "mealPrice": 88000,
+        "childMealPrice": 0,
+        "flowerFee": 3300000
+      }
+    ]
   },
   {
     "partnerId": 1498,
@@ -17568,7 +19680,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "보테가마지오 로스타뇨홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 110000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 11630,
@@ -17660,7 +19780,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "엘리에나호텔 그랜드볼룸홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 138000,
+        "childMealPrice": 138000,
+        "flowerFee": 7000000
+      },
+      {
+        "name": "엘리에나호텔 임페리얼홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 138000,
+        "childMealPrice": 138000,
+        "suggestPersonnel": 300,
+        "flowerFee": 7000000
+      },
+      {
+        "name": "엘리에나호텔 컨벤션홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 138000,
+        "childMealPrice": 138000,
+        "suggestPersonnel": 300,
+        "flowerFee": 7000000
+      }
+    ]
   },
   {
     "partnerId": 11938,
@@ -17752,7 +19897,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "중구 그랜드볼룸 라온홀",
+        "rentalPrice": 0,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "flowerFee": 7700000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 5500000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000,
+        "suggestPersonnel": 150,
+        "flowerFee": 7700000
+      }
+    ]
   },
   {
     "partnerId": 893,
@@ -17856,7 +20018,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 컨벤션홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 10878,
@@ -17972,7 +20142,32 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "파주 가우디움홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 88000,
+        "childMealPrice": 33000,
+        "flowerFee": 5000000
+      },
+      {
+        "name": "파주 파티가든홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 66000,
+        "childMealPrice": 33000,
+        "suggestPersonnel": 200,
+        "flowerFee": 5000000
+      },
+      {
+        "name": "파주 해피가든홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 88000,
+        "childMealPrice": 37500,
+        "suggestPersonnel": 200,
+        "flowerFee": 3300000
+      }
+    ]
   },
   {
     "partnerId": 5041,
@@ -18088,7 +20283,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 1650000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 2200000
+      },
+      {
+        "name": "서원아트리움 야외홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 50,
+        "flowerFee": 6600000
+      }
+    ]
   },
   {
     "partnerId": 1437,
@@ -18192,7 +20404,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더화이트베일 화이트베일홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "더화이트베일 화이트베일홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "홀3",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1488,
@@ -18284,7 +20518,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "루나미엘레 그랜드볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 100000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "루나미엘레 컨벤션홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 100000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1438,
@@ -18376,7 +20625,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 셀레나홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000,
+        "flowerFee": 15000000
+      }
+    ]
   },
   {
     "partnerId": 14138,
@@ -18474,7 +20732,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 11000000,
+        "mealPrice": 90000,
+        "childMealPrice": 39000
+      }
+    ]
   },
   {
     "partnerId": 14115,
@@ -18560,7 +20826,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라브르에드니아 단독홀",
+        "rentalPrice": 25000000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000
+      },
+      {
+        "name": "라브르에드니아 단독홀",
+        "rentalPrice": 25000000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 13037,
@@ -18664,7 +20945,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 7000000,
+        "mealPrice": 98000,
+        "childMealPrice": 98000,
+        "flowerFee": 3800000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 7000000,
+        "mealPrice": 98000,
+        "childMealPrice": 98000,
+        "suggestPersonnel": 200,
+        "flowerFee": 3800000
+      }
+    ]
   },
   {
     "partnerId": 14156,
@@ -18750,7 +21048,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안양 그레이스홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 110000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 14121,
@@ -18842,7 +21148,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마렌지나인 마렌지홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 93000,
+        "childMealPrice": 88000
+      }
+    ]
   },
   {
     "partnerId": 14116,
@@ -18940,7 +21254,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 2500000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000,
+        "flowerFee": 8000000
+      }
+    ]
   },
   {
     "partnerId": 13867,
@@ -19032,7 +21355,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 8000000,
+        "mealPrice": 88000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 14117,
@@ -19081,7 +21412,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 20000000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000,
+        "flowerFee": 17000000
+      }
+    ]
   },
   {
     "partnerId": 1355,
@@ -19179,7 +21519,23 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "하버파크호텔웨딩홀",
+        "rentalPrice": 3800000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 3300000
+      },
+      {
+        "name": "하버파크호텔웨딩홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 4400000
+      }
+    ]
   },
   {
     "partnerId": 1508,
@@ -19271,7 +21627,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 81000,
+        "childMealPrice": 81000,
+        "flowerFee": 6800000
+      },
+      {
+        "name": "토파즈홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 81000,
+        "childMealPrice": 81000,
+        "suggestPersonnel": 200,
+        "flowerFee": 6800000
+      }
+    ]
   },
   {
     "partnerId": 8539,
@@ -19387,7 +21760,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "밀리토피아 그랜드볼룸홀",
+        "rentalPrice": 7150000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000
+      },
+      {
+        "name": "밀리토피아 아이리스홀",
+        "rentalPrice": 4840000,
+        "mealPrice": 73000,
+        "childMealPrice": 100000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "밀리토피아 카멜리아홀",
+        "rentalPrice": 4840000,
+        "mealPrice": 73000,
+        "childMealPrice": 73000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 14106,
@@ -19577,7 +21972,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더클래스 청담 단독홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 135000,
+        "childMealPrice": 0,
+        "flowerFee": 8000000
+      }
+    ]
   },
   {
     "partnerId": 12780,
@@ -19669,7 +22073,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아산 아레나홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "모나무르웨딩홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 65000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 11589,
@@ -19761,7 +22180,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 앙피레홀",
+        "rentalPrice": 17000000,
+        "mealPrice": 130000,
+        "childMealPrice": 0,
+        "flowerFee": 11000000
+      }
+    ]
   },
   {
     "partnerId": 4994,
@@ -19853,7 +22281,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12195,
@@ -19945,7 +22381,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "온즈드롬 도산점 단독홀",
+        "rentalPrice": 6350000,
+        "mealPrice": 78000,
+        "childMealPrice": 0,
+        "flowerFee": 4050000
+      }
+    ]
   },
   {
     "partnerId": 3358,
@@ -20043,7 +22488,40 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광진 비스타홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 170000,
+        "childMealPrice": 170000,
+        "flowerFee": 25000000
+      },
+      {
+        "name": "워커홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 300,
+        "flowerFee": 15000000
+      },
+      {
+        "name": "광진 아트홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 150000,
+        "childMealPrice": 150000,
+        "suggestPersonnel": 150,
+        "flowerFee": 8000000
+      },
+      {
+        "name": "광진 애스톤 하우스홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 260000,
+        "childMealPrice": 260000,
+        "suggestPersonnel": 50,
+        "flowerFee": 25000000
+      }
+    ]
   },
   {
     "partnerId": 3319,
@@ -20141,7 +22619,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "빌라드지디 논현점 단독홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 100000,
+        "childMealPrice": 40000,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 2482,
@@ -20233,7 +22720,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성북 단독홀",
+        "rentalPrice": 6800000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 2907,
@@ -20331,7 +22826,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라비두스 그랜드 라 베네홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 110000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4523,
@@ -20435,7 +22938,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 15000000,
+        "mealPrice": 170000,
+        "childMealPrice": 170000,
+        "flowerFee": 15000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 10000000,
+        "mealPrice": 170000,
+        "childMealPrice": 170000,
+        "suggestPersonnel": 100,
+        "flowerFee": 10000000
+      }
+    ]
   },
   {
     "partnerId": 14042,
@@ -20521,7 +23041,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 40000
+      }
+    ]
   },
   {
     "partnerId": 1395,
@@ -20625,7 +23153,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "중구 헤스티아홀",
+        "rentalPrice": 9800000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000
+      },
+      {
+        "name": "중구 뮤즈홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 3422,
@@ -20717,7 +23260,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "종로 노블레스홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 70000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 10473,
@@ -20803,7 +23354,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "이천 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 58000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12854,
@@ -20895,7 +23454,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "용산 단독홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 8800000
+      }
+    ]
   },
   {
     "partnerId": 13020,
@@ -20969,7 +23537,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안산 베니르홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000
+      }
+    ]
   },
   {
     "partnerId": 4517,
@@ -21067,7 +23643,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동대문 단독홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 12924,
@@ -21171,7 +23755,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성남 그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "flowerFee": 60000000
+      },
+      {
+        "name": "성남 더 가든홀",
+        "rentalPrice": 0,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 200,
+        "flowerFee": 60000000
+      }
+    ]
   },
   {
     "partnerId": 14137,
@@ -21263,7 +23864,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라비앙루미 단독홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 77000,
+        "childMealPrice": 45000,
+        "flowerFee": 1500000
+      }
+    ]
   },
   {
     "partnerId": 12910,
@@ -21417,7 +24027,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "컨벤션 헤리티지홀",
+        "rentalPrice": 10600000,
+        "mealPrice": 120000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "컨벤션 헤리티지홀",
+        "rentalPrice": 10600000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 10151,
@@ -21509,7 +24134,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 그레이스홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000
+      },
+      {
+        "name": "송파 아모리스홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 14136,
@@ -21595,7 +24235,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마레벨라웨딩 송도 마레벨라홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 95000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13000,
@@ -21773,7 +24421,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광진 단독홀",
+        "rentalPrice": 0,
+        "mealPrice": 72000,
+        "childMealPrice": 0,
+        "flowerFee": 1980000
+      }
+    ]
   },
   {
     "partnerId": 12070,
@@ -21859,7 +24516,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동작 파티홀",
+        "rentalPrice": 0,
+        "mealPrice": 65000,
+        "childMealPrice": 0,
+        "flowerFee": 1100000
+      }
+    ]
   },
   {
     "partnerId": 12066,
@@ -21945,7 +24611,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마리앤코 라파밀리아 단독홀",
+        "rentalPrice": 0,
+        "mealPrice": 68000,
+        "childMealPrice": 0,
+        "flowerFee": 1650000
+      }
+    ]
   },
   {
     "partnerId": 12455,
@@ -22031,7 +24706,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마리앤코 양재점 단독홀",
+        "rentalPrice": 0,
+        "mealPrice": 80000,
+        "childMealPrice": 80000,
+        "flowerFee": 1900000
+      }
+    ]
   },
   {
     "partnerId": 12999,
@@ -22117,7 +24801,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 단독홀",
+        "rentalPrice": 0,
+        "mealPrice": 75000,
+        "childMealPrice": 75000,
+        "flowerFee": 1800000
+      }
+    ]
   },
   {
     "partnerId": 13033,
@@ -22203,7 +24896,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동대문 벨라홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 77000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "동대문 루체홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 77000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "동대문 플로체홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 77000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 13044,
@@ -22375,7 +25090,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 단독홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      }
+    ]
   },
   {
     "partnerId": 12921,
@@ -22559,7 +25282,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안양 벨라홀",
+        "rentalPrice": 105000000,
+        "mealPrice": 88000,
+        "childMealPrice": 78000
+      },
+      {
+        "name": "안양 메리엘홀",
+        "rentalPrice": 10500000,
+        "mealPrice": 88000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12920,
@@ -22657,7 +25395,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 웨스턴홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 39000
+      },
+      {
+        "name": "인천 팰리스홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12810,
@@ -22749,7 +25502,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "평택 제이하우스홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 45000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12945,
@@ -22841,7 +25602,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노원 단독홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      }
+    ]
   },
   {
     "partnerId": 12967,
@@ -22933,7 +25702,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 플렌티홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 8000000
+      }
+    ]
   },
   {
     "partnerId": 12869,
@@ -23019,7 +25797,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 4220000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "flowerFee": 8600000
+      }
+    ]
   },
   {
     "partnerId": 753,
@@ -23123,7 +25910,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 플로렌스홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 70000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "강남 아뜰리에홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 70000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 4991,
@@ -23215,7 +26017,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노보텔앰배서더수원 샴페인홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 79000,
+        "childMealPrice": 79000,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 12614,
@@ -23313,7 +26124,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3300000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000,
+        "flowerFee": 6600000
+      }
+    ]
   },
   {
     "partnerId": 1482,
@@ -23405,7 +26225,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "에리카홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000
+      },
+      {
+        "name": "컨벤션홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "suggestPersonnel": 100
+      }
+    ]
   },
   {
     "partnerId": 4343,
@@ -23503,7 +26338,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아시시홀",
+        "rentalPrice": 7100000,
+        "mealPrice": 64000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "대전 라도무스홀",
+        "rentalPrice": 7100000,
+        "mealPrice": 64000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "대전 아트리움홀",
+        "rentalPrice": 7100000,
+        "mealPrice": 64000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11473,
@@ -23601,7 +26458,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 8770000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000
+      }
+    ]
   },
   {
     "partnerId": 1197,
@@ -23693,7 +26558,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 11380,
@@ -23785,7 +26658,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그래머시 코엑스 그랜드볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 81000,
+        "childMealPrice": 81000,
+        "flowerFee": 7000000
+      },
+      {
+        "name": "그래머시 코엑스 아셈볼룸홀",
+        "rentalPrice": 0,
+        "mealPrice": 81000,
+        "childMealPrice": 81000,
+        "suggestPersonnel": 500,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 1283,
@@ -23883,7 +26773,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "엘컨벤션 컨벤션홀",
+        "rentalPrice": 6600000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000
+      }
+    ]
   },
   {
     "partnerId": 10194,
@@ -23987,7 +26885,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "리움하우스웨딩 가든홀",
+        "rentalPrice": 3850000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000,
+        "flowerFee": 3300000
+      },
+      {
+        "name": "리움하우스웨딩 리움홀",
+        "rentalPrice": 3850000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000,
+        "suggestPersonnel": 150,
+        "flowerFee": 3300000
+      }
+    ]
   },
   {
     "partnerId": 14015,
@@ -24079,7 +26994,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 12000000,
+        "mealPrice": 88000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 11470,
@@ -24263,7 +27186,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 단독홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000
+      }
+    ]
   },
   {
     "partnerId": 1227,
@@ -24355,7 +27286,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 7000000,
+        "mealPrice": 68000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12234,
@@ -24447,7 +27386,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 16500000,
+        "mealPrice": 160000,
+        "childMealPrice": 53000
+      }
+    ]
   },
   {
     "partnerId": 11971,
@@ -24551,7 +27498,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "평택 컨벤션홀",
+        "rentalPrice": 4200000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 10298,
@@ -24643,7 +27598,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 120000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "더컨벤션 송파문정점 아모르홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 120000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 350
+      }
+    ]
   },
   {
     "partnerId": 12113,
@@ -24735,7 +27705,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 14300000,
+        "mealPrice": 132000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 10898,
@@ -24784,7 +27762,50 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 르씨엘홀",
+        "rentalPrice": 4800000,
+        "mealPrice": 73000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "드메르웨딩홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 73000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "광주 베일리홀",
+        "rentalPrice": 4800000,
+        "mealPrice": 73000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "광주 라비엔홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 73000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 230
+      },
+      {
+        "name": "드메르웨딩홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 81000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "드메르웨딩홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 81000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11834,
@@ -24888,7 +27909,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 컨벤션홀",
+        "rentalPrice": 16500000,
+        "mealPrice": 121000,
+        "childMealPrice": 88000
+      },
+      {
+        "name": "영등포 파티움홀",
+        "rentalPrice": 16500000,
+        "mealPrice": 121000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1638,
@@ -24980,7 +28016,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "가천컨벤션센터 단독홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000
+      }
+    ]
   },
   {
     "partnerId": 1350,
@@ -25072,7 +28116,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 볼룸홀",
+        "rentalPrice": 4950000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "flowerFee": 9500000
+      }
+    ]
   },
   {
     "partnerId": 11655,
@@ -25164,7 +28217,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광명 그랜드볼룸홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 79000,
+        "childMealPrice": 79000
+      }
+    ]
   },
   {
     "partnerId": 12356,
@@ -25256,7 +28317,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "밸리컨벤션 그랑데홀",
+        "rentalPrice": 7900000,
+        "mealPrice": 73000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 10896,
@@ -25354,7 +28423,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 8000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 8000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1560,
@@ -25452,7 +28536,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "상록아트홀 그랜드볼룸홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000
+      },
+      {
+        "name": "상록아트홀 아트홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 795,
@@ -25556,7 +28655,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안양 브리에홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000
+      },
+      {
+        "name": "안양 라포레홀",
+        "rentalPrice": 13000000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 11891,
@@ -25648,7 +28762,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 그랜드볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000
+      }
+    ]
   },
   {
     "partnerId": 797,
@@ -25746,7 +28868,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "컨벤션 안산 그랜드볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 89000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "컨벤션 안산 파티오볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 89000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "컨벤션 안산 테라스볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 89000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1228,
@@ -25838,7 +28982,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "단독홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 85000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 11155,
@@ -25930,7 +29082,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 40000
+      },
+      {
+        "name": "다이너스티홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 40000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 11158,
@@ -26022,7 +29189,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "웨딩시그니처 트리니티홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 89000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "웨딩시그니처 아너스홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 89000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1111,
@@ -26114,7 +29296,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더블유스퀘어 웨딩홀 채플홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 79000,
+        "childMealPrice": 79000
+      },
+      {
+        "name": "그레이스홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1441,
@@ -26206,7 +29403,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "디노체컨벤션 단독홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4714,
@@ -26298,7 +29503,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 그랜드볼룸홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 110000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1715,
@@ -26402,7 +29615,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광진 그레이스홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000
+      },
+      {
+        "name": "광진 아모르홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "광진 베니르홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "광진 루시드홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 2301,
@@ -26488,7 +29730,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "삼산월드컨벤션센터 단독홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 70000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 10301,
@@ -26580,7 +29830,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그레이스홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "더베일리홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "브릴리에홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 80000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 3600,
@@ -26672,7 +29944,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "여의도웨딩컨벤션 그랜드볼룸홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 85000,
+        "childMealPrice": 45000
+      }
+    ]
   },
   {
     "partnerId": 4454,
@@ -26758,7 +30038,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 블루스타홀",
+        "rentalPrice": 700000,
+        "mealPrice": 51000,
+        "childMealPrice": 51000
+      },
+      {
+        "name": "대구 모닝스타홀",
+        "rentalPrice": 500000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "대구 화이트스타홀",
+        "rentalPrice": 700000,
+        "mealPrice": 51000,
+        "childMealPrice": 51000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 10702,
@@ -26850,7 +30152,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 라비에벨홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 78000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 11920,
@@ -26948,7 +30258,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000,
+        "flowerFee": 6000000
+      }
+    ]
   },
   {
     "partnerId": 4415,
@@ -27040,7 +30359,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "컨벤션홀",
+        "rentalPrice": 7800000,
+        "mealPrice": 75000,
+        "childMealPrice": 70000
+      }
+    ]
   },
   {
     "partnerId": 4996,
@@ -27132,7 +30459,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 베르사이유홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000
+      }
+    ]
   },
   {
     "partnerId": 1716,
@@ -27224,7 +30559,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 그랜드볼룸홀",
+        "rentalPrice": 11500000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000
+      },
+      {
+        "name": "송파 아모르홀",
+        "rentalPrice": 11500000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "송파 비스타홀",
+        "rentalPrice": 11500000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 788,
@@ -27322,7 +30679,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "소풍컨벤션웨딩부페 라온제나홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 82000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "소풍컨벤션웨딩부페  베일리홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 82000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12232,
@@ -27426,7 +30798,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "선운각 단독홀",
+        "rentalPrice": 7700000,
+        "mealPrice": 93000,
+        "childMealPrice": 93000,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 12287,
@@ -27518,7 +30899,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 아스틴홀",
+        "rentalPrice": 3500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      },
+      {
+        "name": "대전 하모니볼룸홀",
+        "rentalPrice": 3500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11970,
@@ -27610,7 +31006,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "국제웨딩컨벤션 라루스홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "국제웨딩컨벤션 펠리스홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 55000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 11960,
@@ -27708,7 +31119,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 10000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000
+      }
+    ]
   },
   {
     "partnerId": 9754,
@@ -27788,7 +31207,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 아모레홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 64000,
+        "childMealPrice": 64000
+      },
+      {
+        "name": "광주 알루체홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 64000,
+        "childMealPrice": 64000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "광주 페디스홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 64000,
+        "childMealPrice": 64000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11329,
@@ -27880,7 +31321,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 12000000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000
+      }
+    ]
   },
   {
     "partnerId": 3433,
@@ -27966,7 +31415,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 벨라지오홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      },
+      {
+        "name": "대구 보타닉가든홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 4417,
@@ -28052,7 +31516,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "연회 펠리체홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12229,
@@ -28150,7 +31622,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "레이크파크볼룸홀",
+        "rentalPrice": 6050000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000,
+        "flowerFee": 5000000
+      }
+    ]
   },
   {
     "partnerId": 11010,
@@ -28230,7 +31711,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 브리에가든홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 59000,
+        "childMealPrice": 59000
+      },
+      {
+        "name": "대구 프라임홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 59000,
+        "childMealPrice": 59000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "대구 퀸즈가든홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 59000,
+        "childMealPrice": 59000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 2840,
@@ -28316,7 +31819,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 그랜드볼룸홀",
+        "rentalPrice": 2400000,
+        "mealPrice": 53000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "대구 스텔라홀",
+        "rentalPrice": 2400000,
+        "mealPrice": 53000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 4712,
@@ -28408,7 +31926,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더센트럴파크호텔송도 릴리홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "더센트럴파크호텔송도 로즈홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 65000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "더센트럴파크호텔송도 워터풀홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 65000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1213,
@@ -28500,7 +32040,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 7000000,
+        "mealPrice": 74000,
+        "childMealPrice": 74000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 6500000,
+        "mealPrice": 74000,
+        "childMealPrice": 74000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 1125,
@@ -28592,7 +32147,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "타워웨딩홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000
+      },
+      {
+        "name": "타워웨딩홀 라피네홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "타워웨딩홀 펠리체홀",
+        "rentalPrice": 16000000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 12213,
@@ -28684,7 +32261,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "웨스턴빌리프 비스타홀",
+        "rentalPrice": 7000000,
+        "mealPrice": 66000,
+        "childMealPrice": 66000
+      }
+    ]
   },
   {
     "partnerId": 1505,
@@ -28782,7 +32367,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "평택 투게더홀",
+        "rentalPrice": 4200000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "평택 투데이홀",
+        "rentalPrice": 4200000,
+        "mealPrice": 55000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 747,
@@ -28880,7 +32480,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 90000,
+        "childMealPrice": 39000
+      },
+      {
+        "name": "그랜드컨벤션홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 90000,
+        "childMealPrice": 39000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "그레이스켈리홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 90000,
+        "childMealPrice": 39000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 1717,
@@ -28972,7 +32594,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구로 그레이스홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000
+      },
+      {
+        "name": "구로 다이너스티홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000,
+        "suggestPersonnel": 220
+      },
+      {
+        "name": "구로 아스타스홀",
+        "rentalPrice": 7500000,
+        "mealPrice": 75000,
+        "childMealPrice": 35000,
+        "suggestPersonnel": 220
+      }
+    ]
   },
   {
     "partnerId": 9652,
@@ -29064,7 +32708,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "노원 단독홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 65000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 11520,
@@ -29156,7 +32808,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "파티 수원 그레이스홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 65000,
+        "childMealPrice": 62000
+      }
+    ]
   },
   {
     "partnerId": 1247,
@@ -29248,7 +32908,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아산 블리스홀",
+        "rentalPrice": 6700000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      },
+      {
+        "name": "루체홀",
+        "rentalPrice": 6700000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 11909,
@@ -29340,7 +33015,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "페리도트홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 65000,
+        "childMealPrice": 65000,
+        "flowerFee": 1500000
+      }
+    ]
   },
   {
     "partnerId": 11162,
@@ -29432,7 +33116,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "에스칼라디움 칼라디움홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 68000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1186,
@@ -29530,7 +33222,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더휴웨딩홀 단독홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000
+      }
+    ]
   },
   {
     "partnerId": 2330,
@@ -29622,7 +33322,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "규수당 운정점 베일리홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000
+      }
+    ]
   },
   {
     "partnerId": 1575,
@@ -29726,7 +33434,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "인천 오스카홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 69000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "인천 벨라지오홀",
+        "rentalPrice": 6000000,
+        "mealPrice": 69000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1258,
@@ -29812,7 +33535,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 그랜드볼룸홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "flowerFee": 1000000
+      },
+      {
+        "name": "대전 컨벤션홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 200,
+        "flowerFee": 1000000
+      }
+    ]
   },
   {
     "partnerId": 10595,
@@ -29904,7 +33644,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동작 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 65000,
+        "childMealPrice": 32500
+      }
+    ]
   },
   {
     "partnerId": 2377,
@@ -29996,7 +33744,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광명역사컨벤션웨딩홀 단독홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 76000,
+        "childMealPrice": 76000
+      }
+    ]
   },
   {
     "partnerId": 11397,
@@ -30088,7 +33844,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "웨딩라포엠 단독홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000
+      }
+    ]
   },
   {
     "partnerId": 3515,
@@ -30180,7 +33944,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "컨벤션웨딩홀 컨벤션홀",
+        "rentalPrice": 9000000,
+        "mealPrice": 85000,
+        "childMealPrice": 39500
+      }
+    ]
   },
   {
     "partnerId": 4441,
@@ -30266,7 +34038,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 52000,
+        "childMealPrice": 52000
+      }
+    ]
   },
   {
     "partnerId": 1003,
@@ -30328,7 +34108,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아산터미널웨딩홀 단독홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000
+      }
+    ]
   },
   {
     "partnerId": 1129,
@@ -30426,7 +34214,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안산 헤리티지홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 65000,
+        "childMealPrice": 65000
+      }
+    ]
   },
   {
     "partnerId": 3482,
@@ -30482,7 +34278,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 라비아홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 62000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "광주 오비도스홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 62000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "광주 비스타홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 62000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 772,
@@ -30574,7 +34392,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라페니체 라페니체홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 58000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 750,
@@ -30672,7 +34498,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아트컨벤션웨딩홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "평택 카넬리안노아홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 55000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 8908,
@@ -30770,7 +34611,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강남 단독홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 70000,
+        "childMealPrice": 70000,
+        "flowerFee": 3200000
+      }
+    ]
   },
   {
     "partnerId": 4819,
@@ -30856,7 +34706,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "전주 소노홀",
+        "rentalPrice": 1280000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000
+      },
+      {
+        "name": "전주 펠리체홀",
+        "rentalPrice": 1280000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "전주 펠리체홀",
+        "rentalPrice": 1280000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 12702,
@@ -30948,7 +34820,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "안산 단독홀",
+        "rentalPrice": 4800000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      }
+    ]
   },
   {
     "partnerId": 3379,
@@ -31040,7 +34920,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라플레이스 단독홀",
+        "rentalPrice": 8500000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000
+      }
+    ]
   },
   {
     "partnerId": 10121,
@@ -31132,7 +35020,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마리앤코 서울역점 메인홀",
+        "rentalPrice": 0,
+        "mealPrice": 85000,
+        "childMealPrice": 85000,
+        "flowerFee": 1800000
+      }
+    ]
   },
   {
     "partnerId": 4711,
@@ -31236,7 +35133,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3500000,
+        "mealPrice": 70000,
+        "childMealPrice": 32500,
+        "flowerFee": 4000000
+      }
+    ]
   },
   {
     "partnerId": 4608,
@@ -31328,7 +35234,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 리즈홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 55000,
+        "childMealPrice": 60000
+      },
+      {
+        "name": "광주 라메르홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 55000,
+        "childMealPrice": 60000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "라붐웨딩홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 55000,
+        "childMealPrice": 60000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 13197,
@@ -31377,7 +35305,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 메이에르홀",
+        "rentalPrice": 2700000,
+        "mealPrice": 67000,
+        "childMealPrice": 67000
+      }
+    ]
   },
   {
     "partnerId": 1513,
@@ -31463,7 +35399,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "동대문 단독홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      }
+    ]
   },
   {
     "partnerId": 12289,
@@ -31519,7 +35463,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 메리엘홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000
+      },
+      {
+        "name": "광주 펠리체홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "광주 아모르홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "광주 엘린홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 78000,
+        "childMealPrice": 78000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 10475,
@@ -31617,7 +35590,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "홀3",
+        "rentalPrice": 500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 100
+      },
+      {
+        "name": "무등홀",
+        "rentalPrice": 500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 12279,
@@ -31666,7 +35668,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 라벤더홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 66000,
+        "childMealPrice": 66000
+      },
+      {
+        "name": "광주 로즈홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 66000,
+        "childMealPrice": 66000,
+        "suggestPersonnel": 250
+      }
+    ]
   },
   {
     "partnerId": 12867,
@@ -31722,7 +35739,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그라데이션홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "flowerFee": 2500000
+      },
+      {
+        "name": "광주 컨벤션홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "suggestPersonnel": 250,
+        "flowerFee": 2500000
+      }
+    ]
   },
   {
     "partnerId": 2444,
@@ -31863,7 +35897,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산 단독홀",
+        "rentalPrice": 2200000,
+        "mealPrice": 52000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12288,
@@ -31967,7 +36009,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "층 웨딩홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000
+      },
+      {
+        "name": "층 웨딩홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 100
+      }
+    ]
   },
   {
     "partnerId": 4924,
@@ -32047,7 +36104,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "창원 단독홀",
+        "rentalPrice": 1300000,
+        "mealPrice": 38000,
+        "childMealPrice": 38000
+      }
+    ]
   },
   {
     "partnerId": 12833,
@@ -32139,7 +36204,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 단독홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 54000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4740,
@@ -32225,7 +36298,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 라포르테홀",
+        "rentalPrice": 4700000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000
+      }
+    ]
   },
   {
     "partnerId": 4659,
@@ -32446,7 +36527,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 보네르홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000,
+        "flowerFee": 1000000
+      }
+    ]
   },
   {
     "partnerId": 4438,
@@ -32526,7 +36616,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산호텔컨벤션웨딩홀 컨벤션홀",
+        "rentalPrice": 800000,
+        "mealPrice": 43000,
+        "childMealPrice": 43000
+      }
+    ]
   },
   {
     "partnerId": 10471,
@@ -32851,7 +36949,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산 컨벤션홀",
+        "rentalPrice": 800000,
+        "mealPrice": 42000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "이리스웨딩홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 42000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 9978,
@@ -32986,7 +37099,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산 웨딩홀",
+        "rentalPrice": 500000,
+        "mealPrice": 38000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4669,
@@ -33072,7 +37193,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산 컨벤션 웨딩홀",
+        "rentalPrice": 500000,
+        "mealPrice": 52000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 3004,
@@ -33158,7 +37287,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 앰버스홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000
+      },
+      {
+        "name": "대구 컨벤션홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 9777,
@@ -33342,7 +37486,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3500000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 2200000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1096,
@@ -33465,7 +37624,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "오월의신부 엘파크르홀",
+        "rentalPrice": 3900000,
+        "mealPrice": 64000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 2400,
@@ -33557,7 +37724,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "베리컨벤션 피에스타홀",
+        "rentalPrice": 5900000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      },
+      {
+        "name": "베리컨벤션 라벤더홀",
+        "rentalPrice": 5900000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 11100,
@@ -33631,7 +37813,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "베르테 웨딩홀",
+        "rentalPrice": 6800000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      },
+      {
+        "name": "루체오 웨딩홀",
+        "rentalPrice": 6800000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "홀3",
+        "rentalPrice": 6800000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "비렌티 웨딩 매그넘 웨딩홀",
+        "rentalPrice": 6800000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000,
+        "suggestPersonnel": 80
+      }
+    ]
   },
   {
     "partnerId": 11946,
@@ -33717,7 +37928,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "천안 단독홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000
+      }
+    ]
   },
   {
     "partnerId": 9145,
@@ -33809,7 +38028,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "스타디움컨벤션웨딩 컨벤션홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 43000,
+        "childMealPrice": 43000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 2000000,
+        "mealPrice": 43000,
+        "childMealPrice": 43000,
+        "suggestPersonnel": 100
+      }
+    ]
   },
   {
     "partnerId": 9849,
@@ -33883,7 +38117,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 단독홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 48000,
+        "childMealPrice": 48000
+      }
+    ]
   },
   {
     "partnerId": 13071,
@@ -33963,7 +38205,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아일랜드유 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 49000,
+        "childMealPrice": 49000
+      }
+    ]
   },
   {
     "partnerId": 3172,
@@ -34031,7 +38281,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "전주 알펜시아홀",
+        "rentalPrice": 500000,
+        "mealPrice": 46000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "전주 마리아주홀",
+        "rentalPrice": 700000,
+        "mealPrice": 46000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 150
+      }
+    ]
   },
   {
     "partnerId": 1342,
@@ -34117,7 +38382,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 야외홀",
+        "rentalPrice": 3500000,
+        "mealPrice": 53000,
+        "childMealPrice": 53000
+      },
+      {
+        "name": "대구 실내홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 53000,
+        "childMealPrice": 53000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 1148,
@@ -34209,7 +38489,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "오블리주홀",
+        "rentalPrice": 3000000,
+        "mealPrice": 52000,
+        "childMealPrice": 52000
+      }
+    ]
   },
   {
     "partnerId": 12301,
@@ -34319,7 +38607,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 14500000,
+        "mealPrice": 90000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4947,
@@ -34429,7 +38725,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "고양 그랜드볼룸홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000,
+        "flowerFee": 4400000
+      },
+      {
+        "name": "고양 아네스홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000,
+        "suggestPersonnel": 300,
+        "flowerFee": 4400000
+      }
+    ]
   },
   {
     "partnerId": 9957,
@@ -34485,7 +38798,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "웨딩천안 그레이스홀",
+        "rentalPrice": 6200000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000
+      },
+      {
+        "name": "웨딩천안 투게더홀",
+        "rentalPrice": 6200000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "웨딩천안 투데이홀",
+        "rentalPrice": 6200000,
+        "mealPrice": 68000,
+        "childMealPrice": 68000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 2427,
@@ -34589,7 +38924,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 2200000,
+        "mealPrice": 68000,
+        "childMealPrice": 0,
+        "flowerFee": 3500000
+      },
+      {
+        "name": "강남 파크홀",
+        "rentalPrice": 2200000,
+        "mealPrice": 68000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 80,
+        "flowerFee": 3500000
+      }
+    ]
   },
   {
     "partnerId": 12285,
@@ -34669,7 +39021,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "영등포 그랜드 볼룸홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 185000,
+        "childMealPrice": 0,
+        "flowerFee": 18000000
+      }
+    ]
   },
   {
     "partnerId": 4821,
@@ -34804,7 +39165,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더늘봄웨딩홀 아리에홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 58000,
+        "childMealPrice": 58000
+      }
+    ]
   },
   {
     "partnerId": 11006,
@@ -34890,7 +39259,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 2500000,
+        "mealPrice": 87000,
+        "childMealPrice": 87000
+      },
+      {
+        "name": "서브홀",
+        "rentalPrice": 1500000,
+        "mealPrice": 87000,
+        "childMealPrice": 87000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 2182,
@@ -34946,7 +39330,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강릉 리버홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 57000,
+        "childMealPrice": 57000
+      },
+      {
+        "name": "강릉 세인트홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 55000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 12349,
@@ -35038,7 +39437,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 19000000,
+        "mealPrice": 175000,
+        "childMealPrice": 175000
+      }
+    ]
   },
   {
     "partnerId": 3756,
@@ -35124,7 +39531,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "로즈홀",
+        "rentalPrice": 300000,
+        "mealPrice": 43000,
+        "childMealPrice": 43000
+      },
+      {
+        "name": "파인홀",
+        "rentalPrice": 300000,
+        "mealPrice": 43000,
+        "childMealPrice": 43000,
+        "suggestPersonnel": 70
+      }
+    ]
   },
   {
     "partnerId": 2492,
@@ -35259,7 +39681,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "파로스컨벤션 파로스홀",
+        "rentalPrice": 6900000,
+        "mealPrice": 67000,
+        "childMealPrice": 67000
+      }
+    ]
   },
   {
     "partnerId": 4649,
@@ -35345,7 +39775,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "웨딩홀",
+        "rentalPrice": 1600000,
+        "mealPrice": 44000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13190,
@@ -35394,7 +39832,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라오웨딩홀",
+        "rentalPrice": 3800000,
+        "mealPrice": 56000,
+        "childMealPrice": 29000
+      }
+    ]
   },
   {
     "partnerId": 2488,
@@ -35541,7 +39987,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "다르미앙 단독홀",
+        "rentalPrice": 5500000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000,
+        "flowerFee": 2800000
+      }
+    ]
   },
   {
     "partnerId": 13120,
@@ -35719,7 +40174,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "드레스가든 단독홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 120000,
+        "childMealPrice": 120000
+      }
+    ]
   },
   {
     "partnerId": 13156,
@@ -35811,7 +40274,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 그랜드볼룸홀",
+        "rentalPrice": 15000000,
+        "mealPrice": 110000,
+        "childMealPrice": 110000
+      }
+    ]
   },
   {
     "partnerId": 13075,
@@ -35903,7 +40374,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "시흥 마벨리에홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 54900,
+        "childMealPrice": 54900
+      }
+    ]
   },
   {
     "partnerId": 780,
@@ -36013,7 +40492,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "강서 베뉴지홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 85000,
+        "childMealPrice": 85000
+      },
+      {
+        "name": "강서 아트홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000,
+        "suggestPersonnel": 250
+      },
+      {
+        "name": "강서 네이처홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 75000,
+        "childMealPrice": 75000,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "강서 더마리아칼라스홀",
+        "rentalPrice": 11000000,
+        "mealPrice": 82000,
+        "childMealPrice": 82000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 13203,
@@ -36117,7 +40625,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "서초 단독홀",
+        "rentalPrice": 6500000,
+        "mealPrice": 95000,
+        "childMealPrice": 95000,
+        "flowerFee": 7700000
+      }
+    ]
   },
   {
     "partnerId": 12328,
@@ -36197,7 +40714,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 단독홀",
+        "rentalPrice": 2500000,
+        "mealPrice": 52000,
+        "childMealPrice": 52000
+      }
+    ]
   },
   {
     "partnerId": 793,
@@ -36289,7 +40814,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000
+      },
+      {
+        "name": "스타티스홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "테크노마트 웨딩시티 아모르홀",
+        "rentalPrice": 8000000,
+        "mealPrice": 63000,
+        "childMealPrice": 63000,
+        "suggestPersonnel": 220
+      }
+    ]
   },
   {
     "partnerId": 12192,
@@ -36473,7 +41020,36 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 10500000,
+        "mealPrice": 96000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "웨딩그룹위더스 펠리체홀",
+        "rentalPrice": 10500000,
+        "mealPrice": 96000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "웨딩그룹위더스 엘린홀",
+        "rentalPrice": 10500000,
+        "mealPrice": 96000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      },
+      {
+        "name": "웨딩그룹위더스 엘린홀",
+        "rentalPrice": 10500000,
+        "mealPrice": 96000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 13549,
@@ -36590,7 +41166,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "아름다운웨딩홀 단독홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 57000,
+        "childMealPrice": 57000
+      }
+    ]
   },
   {
     "partnerId": 12872,
@@ -36725,7 +41309,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "충주 그랜드홀",
+        "rentalPrice": 1200000,
+        "mealPrice": 39000,
+        "childMealPrice": 25000
+      }
+    ]
   },
   {
     "partnerId": 12722,
@@ -36817,7 +41409,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "관악 그레이스파티홀",
+        "rentalPrice": 9550000,
+        "mealPrice": 69000,
+        "childMealPrice": 69000
+      }
+    ]
   },
   {
     "partnerId": 12923,
@@ -36909,7 +41509,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "청주 단독홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 58000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 10305,
@@ -37099,7 +41707,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드웨딩홀 그랜드홀",
+        "rentalPrice": 2000000,
+        "mealPrice": 47000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 12759,
@@ -37193,7 +41809,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구로 그랜드볼룸홀",
+        "rentalPrice": 26000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000
+      },
+      {
+        "name": "구로 파노라마홀",
+        "rentalPrice": 26000000,
+        "mealPrice": 130000,
+        "childMealPrice": 130000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 12933,
@@ -37281,7 +41912,43 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "구로 링크홀",
+        "rentalPrice": 28000000,
+        "mealPrice": 170000,
+        "childMealPrice": 55000
+      },
+      {
+        "name": "구로 베일리홀",
+        "rentalPrice": 28000000,
+        "mealPrice": 170000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "구로 플라자홀",
+        "rentalPrice": 28000000,
+        "mealPrice": 170000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "구로 가든홀",
+        "rentalPrice": 28000000,
+        "mealPrice": 170000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "구로 화이트홀",
+        "rentalPrice": 28000000,
+        "mealPrice": 170000,
+        "childMealPrice": 55000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 4741,
@@ -37455,7 +42122,29 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "그랜드볼룸홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 140000,
+        "childMealPrice": 52000
+      },
+      {
+        "name": "세인트그레이스홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 140000,
+        "childMealPrice": 52000,
+        "suggestPersonnel": 300
+      },
+      {
+        "name": "하늘정원홀",
+        "rentalPrice": 20000000,
+        "mealPrice": 140000,
+        "childMealPrice": 52000,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 11017,
@@ -37541,7 +42230,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라뷰컨벤션웨딩 끌레르홀",
+        "rentalPrice": 1200000,
+        "mealPrice": 50000,
+        "childMealPrice": 25000
+      },
+      {
+        "name": "라뷰컨벤션웨딩 라벨리에홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 50000,
+        "childMealPrice": 25000,
+        "suggestPersonnel": 200
+      }
+    ]
   },
   {
     "partnerId": 12502,
@@ -37615,7 +42319,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원 단독홀",
+        "rentalPrice": 5000000,
+        "mealPrice": 65000,
+        "childMealPrice": 65000
+      }
+    ]
   },
   {
     "partnerId": 13113,
@@ -37783,7 +42495,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "송파 올림피아홀",
+        "rentalPrice": 10000000,
+        "mealPrice": 77000,
+        "childMealPrice": 77000
+      }
+    ]
   },
   {
     "partnerId": 8871,
@@ -37839,7 +42559,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "춘천 세인트홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000
+      },
+      {
+        "name": "춘천 스카이홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000,
+        "suggestPersonnel": 0
+      }
+    ]
   },
   {
     "partnerId": 12843,
@@ -37976,7 +42711,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 22000000,
+        "mealPrice": 100000,
+        "childMealPrice": 100000,
+        "flowerFee": 10000000
+      }
+    ]
   },
   {
     "partnerId": 5022,
@@ -38224,7 +42968,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "온즈드롬 합정점 저스티나홀",
+        "rentalPrice": 10450000,
+        "mealPrice": 99000,
+        "childMealPrice": 99000,
+        "flowerFee": 3850000
+      }
+    ]
   },
   {
     "partnerId": 12342,
@@ -38304,7 +43057,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "수원점 프리지아홀",
+        "rentalPrice": 1000000,
+        "mealPrice": 53000,
+        "childMealPrice": 53000
+      }
+    ]
   },
   {
     "partnerId": 4980,
@@ -38396,7 +43157,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 990000,
+        "mealPrice": 50000,
+        "childMealPrice": 50000
+      }
+    ]
   },
   {
     "partnerId": 4452,
@@ -39309,7 +44078,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 3000000,
+        "mealPrice": 90000,
+        "childMealPrice": 90000,
+        "flowerFee": 3000000
+      }
+    ]
   },
   {
     "partnerId": 14018,
@@ -39395,7 +44173,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "오드힐 하우스 단독홀",
+        "rentalPrice": 14000000,
+        "mealPrice": 95000,
+        "childMealPrice": 47500
+      }
+    ]
   },
   {
     "partnerId": 11975,
@@ -39579,7 +44365,16 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "하모니볼룸홀",
+        "rentalPrice": 4400000,
+        "mealPrice": 185000,
+        "childMealPrice": 0,
+        "flowerFee": 22000000
+      }
+    ]
   },
   {
     "partnerId": 14081,
@@ -39653,7 +44448,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "성북 단독홀",
+        "rentalPrice": 8800000,
+        "mealPrice": 0,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 14135,
@@ -39788,7 +44591,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "솔스퀘어컨벤션 단독홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 83000,
+        "childMealPrice": 38000
+      }
+    ]
   },
   {
     "partnerId": 12632,
@@ -39844,7 +44655,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "광주 루체홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 69000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "광주 안젤로홀",
+        "rentalPrice": 4500000,
+        "mealPrice": 69000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 300
+      }
+    ]
   },
   {
     "partnerId": 14063,
@@ -39930,7 +44756,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "파티 단독홀",
+        "rentalPrice": 4000000,
+        "mealPrice": 58000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13724,
@@ -40065,7 +44899,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "김제 단독홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 2582,
@@ -40249,7 +45091,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "김제 단독홀",
+        "rentalPrice": 330000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 13692,
@@ -40335,7 +45185,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "전주 단독홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 60000,
+        "childMealPrice": 60000
+      }
+    ]
   },
   {
     "partnerId": 13779,
@@ -40525,7 +45383,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "라미컨벤션웨딩 단독홀",
+        "rentalPrice": 1700000,
+        "mealPrice": 49000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13785,
@@ -40574,7 +45440,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "마리나웨딩홀",
+        "rentalPrice": 1800000,
+        "mealPrice": 45000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 13570,
@@ -40660,7 +45534,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대전 단독홀",
+        "rentalPrice": 3900000,
+        "mealPrice": 55000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 1232,
@@ -40887,7 +45769,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "부산 단독홀",
+        "rentalPrice": 3900000,
+        "mealPrice": 89000,
+        "childMealPrice": 89000
+      }
+    ]
   },
   {
     "partnerId": 13786,
@@ -41022,7 +45912,15 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "호텔인터시티 웨딩 단독홀",
+        "rentalPrice": 3300000,
+        "mealPrice": 88000,
+        "childMealPrice": 0
+      }
+    ]
   },
   {
     "partnerId": 4795,
@@ -41482,7 +46380,24 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "대구 안나홀",
+        "rentalPrice": 1200000,
+        "mealPrice": 45000,
+        "childMealPrice": 45000,
+        "flowerFee": 2700000
+      },
+      {
+        "name": "대구 리아홀",
+        "rentalPrice": 1300000,
+        "mealPrice": 45000,
+        "childMealPrice": 45000,
+        "suggestPersonnel": 80,
+        "flowerFee": 2700000
+      }
+    ]
   },
   {
     "partnerId": 14017,
@@ -41521,7 +46436,23 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "홀1",
+        "rentalPrice": 1100000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 3000000
+      },
+      {
+        "name": "홀2",
+        "rentalPrice": 2200000,
+        "mealPrice": 88000,
+        "childMealPrice": 88000,
+        "flowerFee": 3000000
+      }
+    ]
   },
   {
     "partnerId": 13815,
@@ -41851,7 +46782,22 @@
       }
     ],
     "regTsp": null,
-    "bookingState": 1
+    "bookingState": 1,
+    "hallDetails": [
+      {
+        "name": "더메이호텔 그랜드볼룸홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 82000,
+        "childMealPrice": 0
+      },
+      {
+        "name": "더메이호텔 더메이홀",
+        "rentalPrice": 9500000,
+        "mealPrice": 82000,
+        "childMealPrice": 0,
+        "suggestPersonnel": 230
+      }
+    ]
   },
   {
     "partnerId": 13808,

@@ -65,6 +65,24 @@ export default function ChatPage() {
   const [coupleConnected, setCoupleConnected] = useState(false)
   const [myInviteCode, setMyInviteCode] = useState("")
 
+  // 뒤로가기 시 URL 기반 뷰 복원
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname
+      const pathMap: Record<string, ViewType> = {
+        "/reservation": "reservation",
+        "/wishlist": "wishlist",
+        "/vote": "vote",
+        "/reviews": "reviews",
+        "/mypage": "my-page",
+        "/couple-chat": "couple-chat",
+      }
+      setCurrentView(pathMap[path] || null)
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
   // 로그인 체크: 미인증이면 /login, 미가입이면 /signup으로 리다이렉트
   useEffect(() => {
     const init = async () => {
@@ -160,7 +178,7 @@ export default function ChatPage() {
           if (!(pendingView in PANEL_VIEWS)) {
             setCurrentView(pendingView as ViewType)
           }
-          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat" }
+          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
           window.history.replaceState(null, "", urlMap[pendingView] || "/main")
           // 패널 뷰를 위해 임시 저장
           if (pendingView in PANEL_VIEWS) {
@@ -179,31 +197,33 @@ export default function ChatPage() {
               }
               const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
               const myId = res.data.id
-              const favs: VendorShare[] = favRes.data.map((f: any) => {
-                const cat = CATEGORY_MAP[f.category] ?? "studio"
-                const isMe = f.userId === myId
-                return {
-                  id: `fav-${f.id}`,
-                  vendorId: f.vendorId.toString(),
-                  name: f.name || "",
-                  category: cat,
-                  categoryLabel: CAT_LABEL[cat] || "",
-                  price: f.price ? `${f.price.toLocaleString()}원` : "",
-                  rating: f.rating || 0,
-                  address: "",
-                  tags: [],
-                  description: f.description || "",
-                  coverUrl: f.imageUrl || undefined,
-                  sharedBy: isMe ? r : (r === "groom" ? "bride" : "groom"),
-                }
-              })
+              const favs: VendorShare[] = favRes.data
+                .filter((f: any) => f.name && f.category)
+                .map((f: any) => {
+                  const cat = CATEGORY_MAP[f.category] ?? "studio"
+                  const isMe = f.userId === myId
+                  return {
+                    id: `fav-${f.id}`,
+                    vendorId: f.vendorId.toString(),
+                    name: f.name,
+                    category: cat,
+                    categoryLabel: CAT_LABEL[cat] || "",
+                    price: f.price ? `${f.price.toLocaleString()}원` : "",
+                    rating: f.rating || 0,
+                    address: "",
+                    tags: [],
+                    description: f.description || "",
+                    coverUrl: f.imageUrl || undefined,
+                    sharedBy: isMe ? r : (r === "groom" ? "bride" : "groom"),
+                  }
+                })
               setFavoriteVendors(favs)
             })
             .catch(() => {})
         }
         loadFavorites()
-        // 3초마다 찜 데이터 폴링
-        const favInterval = setInterval(loadFavorites, 3000)
+        // 30초마다 찜 데이터 폴링
+        const favInterval = setInterval(loadFavorites, 30000)
         ;(window as any).__favInterval = favInterval
 
         setAuthChecked(true)
@@ -224,8 +244,16 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
   const [currentView, setCurrentView] = useState<ViewType | null>(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("openPanels")) return null
-    return null
+    if (typeof window === "undefined") return null
+    const path = window.location.pathname
+    const pathMap: Record<string, ViewType> = {
+      "/reservation": "reservation",
+      "/wishlist": "wishlist",
+      "/vote": "vote",
+      "/mypage": "my-page",
+      "/couple-chat": "couple-chat",
+    }
+    return pathMap[path] || null
   })
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([])
   const [sharedVendors, setSharedVendors] = useState<VendorShare[]>([])
@@ -518,7 +546,7 @@ export default function ChatPage() {
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
     // URL 업데이트 (페이지 이동 없이)
-    const urlMap: Record<string, string> = { "my-page": "/mypage" }
+    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
     window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
@@ -526,7 +554,7 @@ export default function ChatPage() {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
-      const urlMap: Record<string, string> = { "my-page": "/mypage" }
+      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
       window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
