@@ -1,2 +1,6 @@
-# AI 작업 문서 (로컬 전용)
+# AI generated artifacts
 mydocs/
+__pycache__/
+*.pyc
+.venv/
+.env

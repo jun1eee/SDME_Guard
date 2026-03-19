@@ -72,3 +72,51 @@
 ## 팀 컨벤션
 
 Git, Coding, API 컨벤션은 [CONVENTION.md](./CONVENTION.md)를 참고한다.
+
+
+## 🐳 로컬 Docker 실행 가이드
+
+### 📋 사전 준비
+- Node.js 20+
+- Java 21(로컬 기준)
+
+**1. `be/.env` 파일 생성**
+- `be` 폴더 안에 `.env` 파일 생성
+
+
+**2. 백엔드 빌드**
+```bash
+cd be
+./gradlew clean build -x test
+cd ..
+```
+
+---
+
+### ▶️ 실행 방법
+```bash
+# 실행
+docker compose up -d
+
+# 종료
+docker compose down
+```
+
+---
+
+### 🌐 접속 정보 (로컬 기준)
+
+| 서비스 | URL |
+|--------|-----|
+| 프론트엔드 | http://localhost:3000 |
+| 백엔드 API | http://localhost:8080 |
+| 전체 (Nginx) | http://localhost |
+
+---
+
+### ⚠️ 주의사항
+
+- **8080, 3000, 80 포트**가 다른 프로그램과 충돌하지 않아야 합니다
+- `.env` 파일은 절대 GitLab에 올리지 마세요
+
+

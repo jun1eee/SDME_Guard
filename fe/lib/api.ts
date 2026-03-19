@@ -1,6 +1,47 @@
-const API_BASE = "http://localhost:8080/api"
+const API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
+  ? `${window.location.origin}/api`
+  : "http://localhost:8080/api"
+
+const AI_API_BASE = typeof window !== "undefined" && window.location.hostname !== "localhost"
+  ? `${window.location.origin}/ai-api`
+  : `${process.env.NEXT_PUBLIC_AI_API_URL || "http://localhost:8000"}/api`
 
 let accessToken: string | null = null
+
+interface PlannerChatContext {
+  page?: string
+  user_id?: number | null
+  couple_id?: number | null
+  metadata?: Record<string, unknown>
+}
+
+export type PlannerRoute = "sdm" | "hall"
+
+export interface PlannerRecommendation {
+  id: string
+  source: "sdm" | "hall"
+  category: "studio" | "dress" | "makeup" | "venue"
+  title: string
+  subtitle?: string | null
+  description?: string | null
+  price_label?: string | null
+  rating?: number | null
+  review_count?: number | null
+  address?: string | null
+  image_url?: string | null
+  link_url?: string | null
+  tags: string[]
+}
+
+export interface PlannerChatPayload {
+  session_id: string
+  answer: string
+  route_used: string
+  trace_id: string
+  vendors: string[]
+  recommendations: PlannerRecommendation[]
+  debug_log?: string | null
+}
 
 export function getAccessToken(): string | null {
   return accessToken
@@ -70,15 +111,23 @@ async function fetchApi<T>(
           headers,
           credentials: "include",
         })
-        return retryRes.json()
+        const retryData = await retryRes.json()
+        if (!retryRes.ok) {
+          throw new Error(retryData.message || `API Error: ${retryRes.status}`)
+        }
+        return retryData
       }
     }
 
-    clearAccessToken()
+    // 재발급 실패해도 토큰 유지 (폴링 등에서 반복 호출될 수 있음)
     throw new Error("인증이 만료되었습니다.")
   }
 
-  return res.json()
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.message || `API Error: ${res.status}`)
+  }
+  return data
 }
 
 // Auth API
@@ -112,6 +161,19 @@ export async function logout() {
   return fetchApi<void>("/auth/logout", { method: "POST" })
 }
 
+// Test Login API
+export async function testLogin(userId: number) {
+  return fetchApi<{
+    isNewUser: boolean
+    accessToken: string
+    refreshToken: string
+    nickname: string
+    profileImage: string
+  }>(`/auth/test-login/${userId}`, {
+    method: "POST",
+  })
+}
+
 // User API
 export async function getMyInfo() {
   return fetchApi<{
@@ -121,19 +183,25 @@ export async function getMyInfo() {
     nickname: string
     profileImage: string
     coupleId: number | null
-    partnerNickname: string | null
     createdAt: string
   }>("/user/me")
 }
 
+export async function getCoupleProfile() {
+  return fetchApi<{
+    coupleId: number
+    weddingDate: string | null
+    totalBudget: number | null
+    connectedAt: string | null
+    status: string
+    groom: { id: number; name: string; nickname: string; profileImage: string | null } | null
+    bride: { id: number; name: string; nickname: string; profileImage: string | null } | null
+  }>("/couples/me")
+}
+
 export async function editUser(data: {
+  name?: string
   nickname?: string
-  groomName?: string
-  brideName?: string
-  groomNickname?: string
-  brideNickname?: string
-  groomPhoto?: string
-  bridePhoto?: string
 }) {
   return fetchApi("/user/edit", {
     method: "PUT",
@@ -160,7 +228,65 @@ export async function savePreference(data: {
 }
 
 export async function getPreference() {
-  return fetchApi("/user/preference")
+  return fetchApi<{
+    surveyId: number
+    weddingDate: string
+    totalBudget: number
+    sdmBudget: number
+    hallBudget: number
+    weddingHallReserved: boolean
+    sdmReserved: boolean
+    hallStyle: string
+    guestCount: number
+    preferredRegions: { city: string; districts: string[] }[]
+    styles: string[] | null
+    colors: string[] | null
+    moods: string[] | null
+    foods: string[] | null
+  }>("/user/preference")
+}
+
+export async function getCouplePreferences() {
+  return fetchApi<{
+    groom: {
+      styles: string[] | null; colors: string[] | null
+      moods: string[] | null; foods: string[] | null
+      weddingDate: string | null; totalBudget: number | null
+      guestCount: number | null
+      preferredRegions: { city: string; districts: string[] }[] | null
+    }
+    bride: {
+      styles: string[] | null; colors: string[] | null
+      moods: string[] | null; foods: string[] | null
+      weddingDate: string | null; totalBudget: number | null
+      guestCount: number | null
+      preferredRegions: { city: string; districts: string[] }[] | null
+    }
+  }>("/couples/me/preferences")
+}
+
+export async function updateSharedInfo(data: {
+  weddingDate: string
+  totalBudget: number
+  guestCount: number
+  preferredRegions?: { city: string; districts: string[] }[]
+}) {
+  return fetchApi("/user/preference/shared-info", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTastes(data: {
+  styles: string[]
+  colors: string[]
+  moods: string[]
+  foods: string[]
+}) {
+  return fetchApi("/user/preference/tastes", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
 }
 
 // Couple API
@@ -171,7 +297,7 @@ export async function createInviteCode() {
 }
 
 export async function connectCouple(inviteCode: string) {
-  return fetchApi<{ coupleId: number; partnerNickname: string }>("/couples/connect", {
+  return fetchApi<{ coupleId: number; partnerNickname: string }>("/couples/invite/accept", {
     method: "POST",
     body: JSON.stringify({ inviteCode }),
   })
@@ -179,4 +305,144 @@ export async function connectCouple(inviteCode: string) {
 
 export async function getMyCoupleInfo() {
   return fetchApi("/couples/me")
+}
+
+export async function disconnectCouple() {
+  return fetchApi("/couples/disconnect", { method: "POST" })
+}
+
+export async function withdraw() {
+  return fetchApi("/auth/withdraw", { method: "DELETE" })
+}
+
+// 찜목록
+interface FavoriteItem {
+  id: number
+  vendorId: number
+  name: string
+  category: string
+  price: number
+  rating: number
+  imageUrl: string
+  description: string
+  createdAt: string
+}
+
+export async function getMyFavorites() {
+  return fetchApi<FavoriteItem[]>("/personal/favorites")
+}
+
+export async function addFavorite(vendorId: number) {
+  return fetchApi<FavoriteItem>(`/personal/favorites/${vendorId}`, {
+    method: "POST",
+  })
+}
+
+export async function removeFavorite(vendorId: number) {
+  return fetchApi(`/personal/favorites/${vendorId}`, { method: "DELETE" })
+}
+
+export async function getCoupleFavorites() {
+  return fetchApi<FavoriteItem[]>("/couple/favorites")
+}
+
+export async function getAllCoupleFavorites() {
+  return fetchApi<(FavoriteItem & { userId: number })[]>("/couple/favorites/all")
+}
+
+// 업체 공유
+export async function shareVendor(vendorId: number, message?: string) {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sharedUserId: number; message: string; sharedAt: string
+  }>(`/vendors/${vendorId}/share`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  })
+}
+
+export async function getSharedVendors() {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sharedUserId: number; message: string; sharedAt: string
+  }[]>("/vendors/shared")
+}
+
+// 투표
+export async function getVoteItems() {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; category: string
+    price: number; rating: number; imageUrl: string
+    sourceType: string; createdByUserId: number; partnerVoted: boolean
+    myScore: string | null; myReason: string | null; createdAt: string
+  }[]>("/votes/items")
+}
+
+export async function createVoteItem(data: { vendorId: number; sharedVendorId?: number; sourceType: string }) {
+  return fetchApi<{ id: number; vendorId: number; coupleId: number; sourceType: string; createdByUserId: number }>("/votes/items", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function submitVote(voteItemId: number, data: { score: string; reason?: string }) {
+  return fetchApi<{ id: number; userId: number; voteItemId: number; score: string; reason: string }>(`/votes/${voteItemId}/votes`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteVote(voteItemId: number) {
+  return fetchApi(`/votes/${voteItemId}/votes`, { method: "DELETE" })
+}
+
+export async function deleteVoteItem(voteItemId: number) {
+  return fetchApi(`/votes/items/${voteItemId}`, { method: "DELETE" })
+}
+
+export async function unshareVendor(vendorId: number) {
+  return fetchApi(`/vendors/${vendorId}/share`, { method: "DELETE" })
+}
+
+export async function getChatMessages() {
+  return fetchApi<{
+    id: number
+    senderId: number
+    senderName: string
+    senderRole: string
+    content: string
+    messageType: string
+    vendorId: number | null
+    createdAt: string
+  }[]>("/chat/couple/messages")
+}
+
+export async function chatWithPlanner(data: {
+  route: PlannerRoute
+  sessionId?: string | null
+  message: string
+  context?: PlannerChatContext
+  debug?: boolean
+}) {
+  const res = await fetch(`${AI_API_BASE}/chat/${data.route}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: data.sessionId ?? null,
+      message: data.message,
+      context: data.context,
+      debug: data.debug ?? false,
+    }),
+  })
+
+  const json = await res.json()
+  if (!res.ok) {
+    throw new Error(json.message || `AI API Error: ${res.status}`)
+  }
+
+  return json as { success: boolean; data: PlannerChatPayload }
 }
