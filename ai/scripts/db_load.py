@@ -6,7 +6,7 @@ from neo4j import GraphDatabase
 from openai import OpenAI
 
 # === 설정 (.env에서 로드) ===
-load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 NEO4J_URI = os.environ["NEO4J_URI"]
 NEO4J_USER = os.environ["NEO4J_USER"]
@@ -17,7 +17,8 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
-_BASE = os.path.dirname(os.path.abspath(__file__))
+# ai/ 루트 기준 경로 (scripts/ 에서 한 단계 위)
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def pick_existing_path(*candidates):
@@ -27,17 +28,17 @@ def pick_existing_path(*candidates):
     return candidates[0]
 
 VENDOR_FILES = {
-    "dress":  os.path.join(_BASE, "json", "iwedding_dress_detail.json"),
-    "makeup": os.path.join(_BASE, "json", "iwedding_makeup_detail.json"),
-    "studio": os.path.join(_BASE, "json", "iwedding_studio_detail.json"),
+    "dress":  os.path.join(_BASE, "data", "json", "iwedding_dress_detail.json"),
+    "makeup": os.path.join(_BASE, "data", "json", "iwedding_makeup_detail.json"),
+    "studio": os.path.join(_BASE, "data", "json", "iwedding_studio_detail.json"),
 }
 HALL_LIST_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_list.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_reco_list.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_list.json"),
 )
 HALL_DETAIL_PATH = pick_existing_path(
-    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json"),
-    os.path.join(_BASE, "json", "weddingbook_halls_detail.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_reco_detail.json"),
+    os.path.join(_BASE, "data", "json", "weddingbook_halls_detail.json"),
 )
 
 
@@ -88,6 +89,28 @@ def setup(session):
 
 
 # ──────────────────────────────────────────
+# 주소에서 동(洞) 이름 추출
+# ──────────────────────────────────────────
+def extract_dong(address):
+    """주소 문자열에서 동(洞) 이름 추출. 없으면 None 반환."""
+    if not address:
+        return None
+    # 1순위: 괄호 안의 동 — (청담동), (논현동 101-3), (성수동2가)
+    m = re.search(r"\((\S+동\d*가?)\b", address)
+    if m:
+        return m.group(1)
+    # 2순위: 구 뒤의 지번 동 — 강남구 신사동 (도로명 "동로/동길" 제외)
+    m = re.search(r"[시군구]\s+(\S+동\d*가?)(?!\s*로|길)\b", address)
+    if m:
+        return m.group(1)
+    # 3순위: 주소가 동으로 시작 — 청담동2-10
+    m = re.match(r"(\S+동\d*가?)(?!\s*로|길)\b", address)
+    if m:
+        return m.group(1)
+    return None
+
+
+# ──────────────────────────────────────────
 # 스드메 (Vendor 노드)
 # ──────────────────────────────────────────
 def insert_vendors(session, items, category, batch_size=100):
@@ -131,6 +154,7 @@ def insert_vendors(session, items, category, batch_size=100):
                 "subCategory":     item.get("iwedding_sub_category", ""),
                 "tags":   [t["name"] for t in item.get("tags", []) if t.get("name")],
                 "styles": [sf["name"] for sf in item.get("styleFilter", []) if sf.get("name")],
+                "dong":    extract_dong(item.get("address", "")),
             }
             for item in items[i:i+batch_size]
         ]
@@ -157,6 +181,18 @@ def insert_vendors(session, items, category, batch_size=100):
             MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
             MERGE (r:Region {name: row.region})
             MERGE (v)-[:IN_REGION]->(r)
+        """, batch=batch)
+
+        # District 노드 (동 단위)
+        session.run("""
+            UNWIND $batch AS row
+            WITH row WHERE row.dong IS NOT NULL
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            MERGE (d:District {name: row.dong})
+            MERGE (v)-[:IN_DISTRICT]->(d)
+            WITH d, row
+            MATCH (r:Region {name: row.region})
+            MERGE (d)-[:PART_OF]->(r)
         """, batch=batch)
 
         session.run("""
