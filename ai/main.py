@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """앱 시작/종료 시 클라이언트 초기화/해제"""
-    logger.info("FastAPI 서버 시작 -클라이언트 초기화")
+    logger.info("FastAPI 서버 시작 - 클라이언트 초기화")
     init_clients()
+    from sdm.graphrag import init_graphrag
+    init_graphrag()
     yield
     logger.info("FastAPI 서버 종료 -클라이언트 해제")
     close_clients()
@@ -69,8 +71,8 @@ def health():
     return {"status": "ok"}
 
 
-# 라우터 등록 (2단계 이후 추가)
-# from sdm.router import router as sdm_router
-# app.include_router(sdm_router, prefix="/api/chat")
+# 라우터 등록
+from sdm.router import router as sdm_router
+app.include_router(sdm_router, prefix="/api/chat")
 # from hall.router import router as hall_router
 # app.include_router(hall_router, prefix="/api/chat")
