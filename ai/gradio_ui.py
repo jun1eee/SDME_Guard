@@ -213,8 +213,17 @@ with gr.Blocks(title="웨딩 스드메 추천 챗봇", theme=gr.themes.Base(prim
                 gr.Button("메이크업 추천").click(lambda: "메이크업 추천해줘", outputs=[msg])
                 gr.Button("야외씬 잘 찍는곳").click(lambda: "야외씬 잘 찍는곳 추천해줘", outputs=[msg])
 
-    gr.Markdown("### Neo4j 그래프 — ★: 쿼리 매칭 노드")
+    with gr.Row():
+        gr.Markdown("### Neo4j 그래프 — ★: 쿼리 매칭 노드")
+        graph_btn = gr.Button("인터랙티브 그래프 열기 (새 탭)", size="sm", scale=0)
+
     graph_plot = gr.Plot(value=build_empty_figure())
+
+    # 새 탭으로 vis.js 그래프 열기 (호버 하이라이트 + 클릭 상세정보)
+    graph_btn.click(
+        fn=None,
+        js="() => { window.open('http://localhost:8000/api/chat/sdm/graph/view', '_blank'); }",
+    )
 
     msg.submit(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_plot])
     send_btn.click(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_plot])

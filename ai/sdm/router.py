@@ -188,222 +188,183 @@ async def get_vendor_graph(req: dict):
 @router.get("/sdm/graph/view", response_class=HTMLResponse)
 async def graph_view():
     """vis.js 그래프 시각화 HTML 페이지"""
-    nodes_json = json.dumps(_latest_graph.get("nodes", []), ensure_ascii=False)
-    edges_json = json.dumps(_latest_graph.get("edges", []), ensure_ascii=False)
+    # JSON을 script 태그에 안전하게 삽입 (f-string 충돌 방지)
+    graph_json = json.dumps({
+        "nodes": _latest_graph.get("nodes", []),
+        "edges": _latest_graph.get("edges", []),
+        "matched": _latest_graph.get("matched_keywords", []),
+    }, ensure_ascii=False).replace("</", "<\\/")  # script 태그 injection 방지
     query = _latest_graph.get("query", "")
-    matched_json = json.dumps(_latest_graph.get("matched_keywords", []), ensure_ascii=False)
 
     return f"""<!DOCTYPE html>
 <html><head>
 <meta charset="utf-8">
-<title>Neo4j Graph</title>
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<title>Neo4j Graph - {query}</title>
+<script src="/static/vis-network.min.js"></script>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   body {{ font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }}
   #graph {{ width:100%; height:calc(100vh - 50px); }}
-  #info-bar {{
+  #bar {{
     height:50px; display:flex; align-items:center; justify-content:space-between;
     padding:0 20px; background:#16213e; border-bottom:1px solid #333;
   }}
-  #info-bar .query {{ color:#e94560; font-weight:bold; }}
-  #info-bar .legend span {{ margin:0 8px; font-size:13px; }}
-  #tooltip {{
-    display:none; position:absolute; background:rgba(22,33,62,0.95);
-    border:1px solid #e94560; border-radius:8px; padding:12px 16px;
-    font-size:13px; max-width:300px; z-index:100; color:#eee;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  #bar .q {{ color:#e94560; font-weight:bold; }}
+  #bar .legend span {{ margin:0 6px; font-size:12px; }}
+  .dot {{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; vertical-align:middle; }}
+  /* 상세 패널 */
+  #detail {{
+    display:none; position:fixed; right:0; top:50px; width:320px; height:calc(100vh - 50px);
+    background:rgba(22,33,62,0.97); border-left:2px solid #e94560;
+    padding:20px; overflow-y:auto; z-index:200;
   }}
-  #tooltip .title {{ font-size:15px; font-weight:bold; color:#e94560; margin-bottom:6px; }}
-  #tooltip .type {{ color:#888; font-size:11px; margin-bottom:4px; }}
-  .dot {{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:middle; }}
+  #detail .close {{ position:absolute; top:10px; right:14px; cursor:pointer; font-size:20px; color:#888; }}
+  #detail .close:hover {{ color:#e94560; }}
+  #detail h2 {{ color:#e94560; font-size:18px; margin-bottom:12px; }}
+  #detail .group-badge {{
+    display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px;
+    margin-bottom:10px; color:#fff;
+  }}
+  #detail .info-row {{ margin:6px 0; font-size:13px; }}
+  #detail .info-row .label {{ color:#888; }}
+  #detail .connections {{ margin-top:14px; }}
+  #detail .connections h3 {{ font-size:14px; color:#aaa; margin-bottom:8px; }}
+  #detail .conn-item {{
+    padding:4px 8px; margin:3px 0; border-radius:4px; font-size:12px;
+    background:rgba(255,255,255,0.05); cursor:pointer;
+  }}
+  #detail .conn-item:hover {{ background:rgba(233,69,96,0.2); }}
 </style>
 </head><body>
-<div id="info-bar">
-  <div>
-    <span class="query">Query: {query or "(없음)"}</span>
-  </div>
+<div id="bar">
+  <div><span class="q">Query: {query or "-"}</span></div>
   <div class="legend">
     <span><span class="dot" style="background:#e94560"></span>업체</span>
     <span><span class="dot" style="background:#3498db"></span>지역</span>
+    <span><span class="dot" style="background:#00bcd4"></span>동</span>
     <span><span class="dot" style="background:#2ecc71"></span>태그</span>
     <span><span class="dot" style="background:#9b59b6"></span>스타일</span>
     <span><span class="dot" style="background:#f39c12"></span>리뷰</span>
     <span><span class="dot" style="background:#1abc9c"></span>패키지</span>
-    <span style="color:#ff6b6b">&#9733; = 쿼리 매칭</span>
+    <span style="color:#ff6b6b">&#9733; 쿼리매칭</span>
+    <span style="color:#888;margin-left:16px">호버: 연결 강조 | 클릭: 상세정보</span>
   </div>
 </div>
 <div id="graph"></div>
-<div id="tooltip"></div>
+<div id="detail"><span class="close" onclick="closeDetail()">&times;</span><div id="detail-body"></div></div>
+<script type="application/json" id="graph-data">{graph_json}</script>
 
 <script>
-var matchedKeywords = {matched_json};
+var _d = JSON.parse(document.getElementById('graph-data').textContent);
+var matched = _d.matched || [];
+var rawN = _d.nodes || [], rawE = _d.edges || [];
+var cMap = {{vendor:'#e94560',region:'#3498db',district:'#00bcd4',tag:'#2ecc71',style:'#9b59b6',review:'#f39c12','package':'#1abc9c'}};
+var sMap = {{vendor:'dot',region:'diamond',district:'diamond',tag:'dot',style:'triangle',review:'square','package':'star'}};
+var gLabel = {{vendor:'업체',region:'지역',district:'동',tag:'태그',style:'스타일',review:'리뷰','package':'패키지'}};
 
-var colorMap = {{
-  vendor: '#e94560', region: '#3498db', tag: '#2ecc71',
-  style: '#9b59b6', review: '#f39c12', 'package': '#1abc9c'
-}};
-var shapeMap = {{
-  vendor: 'dot', region: 'diamond', tag: 'dot',
-  style: 'triangle', review: 'square', 'package': 'star'
-}};
+function isM(l){{ for(var i=0;i<matched.length;i++) if(l.indexOf(matched[i])>=0) return true; return false; }}
 
-var rawNodes = {nodes_json};
-var rawEdges = {edges_json};
+var vn=rawN.map(function(n){{
+  var g=n.group||'tag',m=isM(n.label),sz=g==='vendor'?35:(m?20:13);
+  return {{id:n.id,label:n.label,group:g,
+    color:{{background:cMap[g]||'#95a5a6',border:m?'#ff6b6b':(cMap[g]||'#95a5a6'),
+      highlight:{{background:'#ff6b6b',border:'#ff0000'}},hover:{{background:cMap[g]||'#95a5a6',border:'#fff'}}}},
+    shape:sMap[g]||'dot',size:sz,borderWidth:m?4:(g==='vendor'?3:1),
+    font:{{size:g==='vendor'?16:(m?14:11),color:'#eee',strokeWidth:3,strokeColor:'#1a1a2e'}},
+    shadow:m?{{enabled:true,color:'#ff6b6b',size:15,x:0,y:0}}:false,
+    title:n.title||n.label,_g:g,_m:m}};
+}});
 
-// 쿼리 매칭 여부 확인
-function isMatched(label) {{
-  for (var i = 0; i < matchedKeywords.length; i++) {{
-    if (label.indexOf(matchedKeywords[i]) >= 0) return true;
+var ve=rawE.map(function(e){{
+  return {{from:e.from,to:e.to,label:e.label||'',dashes:e.dashes||false,
+    font:{{size:9,color:'#555',strokeWidth:0}},
+    arrows:{{to:{{enabled:true,scaleFactor:0.5}}}},
+    color:{{color:'#333',highlight:'#e94560',hover:'#666'}},
+    smooth:{{type:'continuous'}}}};
+}});
+
+var nodes=new vis.DataSet(vn),edges=new vis.DataSet(ve);
+var net=new vis.Network(document.getElementById('graph'),{{nodes:nodes,edges:edges}},{{
+  physics:{{solver:'forceAtlas2Based',forceAtlas2Based:{{gravitationalConstant:-50,centralGravity:0.008,springLength:140}},stabilization:{{iterations:150}}}},
+  interaction:{{hover:true,tooltipDelay:100,zoomView:true,dragView:true,hideEdgesOnDrag:true,hideEdgesOnZoom:true}},
+  layout:{{improvedLayout:true}}
+}});
+
+var allN=nodes.getIds(),allE=edges.getIds();
+
+// 호버: 연결 하이라이트
+net.on('hoverNode',function(p){{
+  var h=p.node,cn=net.getConnectedNodes(h),ce=net.getConnectedEdges(h);
+  cn.push(h);
+  var nu=[];
+  allN.forEach(function(id){{
+    if(cn.indexOf(id)===-1) nu.push({{id:id,opacity:0.1,font:{{color:'rgba(255,255,255,0.05)'}}}});
+    else {{ var n=nodes.get(id); nu.push({{id:id,opacity:1,font:{{color:'#eee',size:n._g==='vendor'?16:13,strokeWidth:3,strokeColor:'#1a1a2e'}}}}); }}
+  }});
+  nodes.update(nu);
+  var eu=[];
+  allE.forEach(function(id){{
+    if(ce.indexOf(id)===-1) eu.push({{id:id,color:{{color:'rgba(50,50,50,0.05)'}},font:{{color:'transparent'}}}});
+    else eu.push({{id:id,color:{{color:'#e94560'}},font:{{color:'#e94560',size:11}},width:2.5}});
+  }});
+  edges.update(eu);
+}});
+
+net.on('blurNode',function(){{
+  var nu=[];allN.forEach(function(id){{var n=nodes.get(id);nu.push({{id:id,opacity:1,font:{{color:'#eee',size:n._g==='vendor'?16:(n._m?14:11),strokeWidth:3,strokeColor:'#1a1a2e'}}}});}});
+  nodes.update(nu);
+  var eu=[];allE.forEach(function(id){{eu.push({{id:id,color:{{color:'#333'}},font:{{color:'#555',size:9}},width:1}});}});
+  edges.update(eu);
+}});
+
+// 클릭: 상세 패널
+net.on('click',function(p){{
+  if(p.nodes.length===0){{ closeDetail(); return; }}
+  var id=p.nodes[0], n=nodes.get(id);
+  if(!n) return;
+
+  // 연결된 노드/엣지 정보
+  var connNodes=net.getConnectedNodes(id);
+  var connEdges=net.getConnectedEdges(id);
+
+  // 상세 패널 구성
+  var html='';
+  var badge='<span class="group-badge" style="background:'+cMap[n._g]+'">'+gLabel[n._g]+'</span>';
+  if(n._m) badge+=' <span style="color:#ff6b6b;font-size:14px">&#9733; 쿼리 매칭</span>';
+  html+= badge;
+  html+='<h2>'+n.label+'</h2>';
+  if(n.title && n.title!==n.label) html+='<div class="info-row">'+n.title+'</div>';
+
+  // 연결 정보
+  html+='<div class="connections"><h3>연결 ('+connNodes.length+'개)</h3>';
+  var grouped={{}};
+  connEdges.forEach(function(eid){{
+    var e=edges.get(eid);
+    var otherId=(e.from===id)?e.to:e.from;
+    var other=nodes.get(otherId);
+    if(!other) return;
+    var rel=e.label||'CONNECTED';
+    if(!grouped[rel]) grouped[rel]=[];
+    grouped[rel].push(other);
+  }});
+
+  for(var rel in grouped) {{
+    html+='<div style="margin-top:8px;color:#888;font-size:11px">'+rel+'</div>';
+    grouped[rel].forEach(function(other){{
+      var c=cMap[other._g]||'#888';
+      html+='<div class="conn-item" onclick="focusNode(\''+other.id+'\')">'
+        +'<span class="dot" style="background:'+c+'"></span> '+other.label+'</div>';
+    }});
   }}
-  return false;
-}}
+  html+='</div>';
 
-// 노드 생성
-var visNodes = rawNodes.map(function(n) {{
-  var g = n.group || 'tag';
-  var matched = isMatched(n.label);
-  var size = g === 'vendor' ? 35 : (matched ? 20 : 13);
-  var node = {{
-    id: n.id,
-    label: n.label,
-    group: g,
-    color: {{
-      background: colorMap[g] || '#95a5a6',
-      border: matched ? '#ff6b6b' : (colorMap[g] || '#95a5a6'),
-      highlight: {{ background: '#ff6b6b', border: '#ff0000' }},
-      hover: {{ background: colorMap[g] || '#95a5a6', border: '#fff' }}
-    }},
-    shape: shapeMap[g] || 'dot',
-    size: size,
-    borderWidth: matched ? 4 : (g === 'vendor' ? 3 : 1),
-    font: {{
-      size: g === 'vendor' ? 16 : (matched ? 14 : 11),
-      color: '#eee',
-      strokeWidth: 3,
-      strokeColor: '#1a1a2e'
-    }},
-    shadow: matched ? {{ enabled: true, color: '#ff6b6b', size: 15, x: 0, y: 0 }} : false,
-    title: n.title || n.label,
-    _group: g,
-    _matched: matched
-  }};
-  return node;
+  document.getElementById('detail-body').innerHTML=html;
+  document.getElementById('detail').style.display='block';
+  net.focus(id,{{scale:1.2,animation:true}});
 }});
 
-// 엣지 생성
-var visEdges = rawEdges.map(function(e) {{
-  return {{
-    from: e.from, to: e.to,
-    label: e.label || '',
-    dashes: e.dashes || false,
-    font: {{ size: 9, color: '#666', strokeWidth: 0 }},
-    arrows: {{ to: {{ enabled: true, scaleFactor: 0.5 }} }},
-    color: {{ color: '#444', highlight: '#e94560', hover: '#888' }},
-    smooth: {{ type: 'continuous' }}
-  }};
-}});
-
-var nodes = new vis.DataSet(visNodes);
-var edges = new vis.DataSet(visEdges);
-
-var container = document.getElementById('graph');
-var network = new vis.Network(container, {{ nodes: nodes, edges: edges }}, {{
-  physics: {{
-    solver: 'forceAtlas2Based',
-    forceAtlas2Based: {{ gravitationalConstant: -50, centralGravity: 0.008, springLength: 140 }},
-    stabilization: {{ iterations: 150 }},
-  }},
-  interaction: {{
-    hover: true,
-    tooltipDelay: 100,
-    zoomView: true,
-    dragView: true,
-    hideEdgesOnDrag: true,
-    hideEdgesOnZoom: true
-  }},
-  layout: {{ improvedLayout: true }}
-}});
-
-// 호버 시 연결된 노드 하이라이트, 나머지 흐리게
-var allNodeIds = nodes.getIds();
-var allEdgeIds = edges.getIds();
-
-network.on('hoverNode', function(params) {{
-  var hoveredId = params.node;
-  var connectedNodes = network.getConnectedNodes(hoveredId);
-  var connectedEdges = network.getConnectedEdges(hoveredId);
-  connectedNodes.push(hoveredId);
-
-  // 연결 안 된 노드 흐리게
-  var updates = [];
-  allNodeIds.forEach(function(id) {{
-    if (connectedNodes.indexOf(id) === -1) {{
-      updates.push({{ id: id, opacity: 0.15, font: {{ color: 'rgba(255,255,255,0.1)' }} }});
-    }} else {{
-      var n = nodes.get(id);
-      updates.push({{ id: id, opacity: 1.0, font: {{ color: '#eee', size: n._group === 'vendor' ? 16 : 13, strokeWidth: 3, strokeColor: '#1a1a2e' }} }});
-    }}
-  }});
-  nodes.update(updates);
-
-  // 연결 안 된 엣지 흐리게
-  var edgeUpdates = [];
-  allEdgeIds.forEach(function(id) {{
-    if (connectedEdges.indexOf(id) === -1) {{
-      edgeUpdates.push({{ id: id, color: {{ color: 'rgba(68,68,68,0.1)' }}, font: {{ color: 'transparent' }} }});
-    }} else {{
-      edgeUpdates.push({{ id: id, color: {{ color: '#e94560' }}, font: {{ color: '#e94560', size: 11 }}, width: 2 }});
-    }}
-  }});
-  edges.update(edgeUpdates);
-
-  // 커스텀 툴팁
-  var node = nodes.get(hoveredId);
-  if (node) {{
-    var groupLabel = {{
-      vendor: '업체', region: '지역', tag: '태그',
-      style: '스타일', review: '리뷰', 'package': '패키지'
-    }};
-    var tooltip = document.getElementById('tooltip');
-    var matchStr = node._matched ? ' <span style="color:#ff6b6b">&#9733; 쿼리 매칭</span>' : '';
-    tooltip.innerHTML = '<div class="type">' + (groupLabel[node._group] || '') + matchStr + '</div>'
-      + '<div class="title">' + node.label + '</div>'
-      + (node.title && node.title !== node.label ? '<div>' + node.title + '</div>' : '');
-    tooltip.style.display = 'block';
-    var pos = params.event.center || params.pointer.DOM;
-    tooltip.style.left = (pos.x + 15) + 'px';
-    tooltip.style.top = (pos.y + 15) + 'px';
-  }}
-}});
-
-network.on('blurNode', function() {{
-  // 모든 노드/엣지 원래대로
-  var updates = [];
-  allNodeIds.forEach(function(id) {{
-    var n = nodes.get(id);
-    updates.push({{ id: id, opacity: 1.0, font: {{
-      color: '#eee',
-      size: n._group === 'vendor' ? 16 : (n._matched ? 14 : 11),
-      strokeWidth: 3, strokeColor: '#1a1a2e'
-    }} }});
-  }});
-  nodes.update(updates);
-
-  var edgeUpdates = [];
-  allEdgeIds.forEach(function(id) {{
-    edgeUpdates.push({{ id: id, color: {{ color: '#444' }}, font: {{ color: '#666', size: 9 }}, width: 1 }});
-  }});
-  edges.update(edgeUpdates);
-
-  document.getElementById('tooltip').style.display = 'none';
-}});
-
-network.on('click', function(params) {{
-  if (params.nodes.length > 0) {{
-    network.focus(params.nodes[0], {{ scale: 1.5, animation: true }});
-  }}
-}});
+function closeDetail(){{ document.getElementById('detail').style.display='none'; }}
+function focusNode(id){{ net.focus(id,{{scale:1.5,animation:true}}); net.selectNodes([id]); }}
 </script>
 </body></html>"""
 

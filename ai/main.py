@@ -83,6 +83,13 @@ def health():
     return {"status": "ok"}
 
 
+# Static 파일 서빙 (vis.js 등)
+import os
+from fastapi.staticfiles import StaticFiles
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
 # 라우터 등록
 from sdm.router import router as sdm_router
 app.include_router(sdm_router, prefix="/api/chat")
