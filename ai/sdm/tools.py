@@ -28,12 +28,39 @@ def _extract_location(query: str) -> str | None:
     return None
 
 
+# 주요 지역 좌표 캐시 (API 장애/한도 초과 시 fallback)
+_LOCATION_CACHE = {
+    "강남역": (37.4979, 127.0276), "역삼역": (37.5007, 127.0365),
+    "선릉역": (37.5045, 127.0491), "삼성역": (37.5089, 127.0637),
+    "잠실역": (37.5133, 127.1001), "송파역": (37.5048, 127.1127),
+    "가좌역": (37.5687, 126.9148), "홍대입구역": (37.5571, 126.9244),
+    "신촌역": (37.5551, 126.9366), "합정역": (37.5496, 126.9138),
+    "건대입구역": (37.5404, 127.0694), "왕십리역": (37.5614, 127.0380),
+    "청담역": (37.5178, 127.0530), "압구정역": (37.5270, 127.0284),
+    "논현역": (37.5118, 127.0215), "신사역": (37.5163, 127.0199),
+    "강남": (37.4979, 127.0276), "역삼": (37.5007, 127.0365),
+    "잠실": (37.5133, 127.1001), "송파": (37.5048, 127.1127),
+    "청담": (37.5178, 127.0530), "논현": (37.5118, 127.0215),
+    "신사": (37.5163, 127.0199), "홍대": (37.5571, 126.9244),
+    "성수": (37.5445, 127.0564), "가좌": (37.5687, 126.9148),
+    "경복궁역": (37.5759, 126.9738), "기흥역": (37.2755, 127.1170),
+    "수원역": (37.2658, 127.0002), "판교역": (37.3948, 127.1112),
+}
+
+
 def geocode_query(query: str) -> tuple:
-    """사용자 입력에서 위치 추출 → 카카오맵 지오코딩. (lat, lng, place_name)"""
-    if not settings.kakao_api_key:
-        return None, None, None
+    """사용자 입력에서 위치 추출 → 캐시 or 카카오맵 지오코딩. (lat, lng, place_name)"""
     location = _extract_location(query)
     if not location:
+        return None, None, None
+
+    # 1순위: 로컬 캐시
+    if location in _LOCATION_CACHE:
+        lat, lng = _LOCATION_CACHE[location]
+        return lat, lng, location
+
+    # 2순위: 카카오맵 API
+    if not settings.kakao_api_key:
         return None, None, None
     try:
         resp = http_requests.get(
@@ -45,7 +72,9 @@ def geocode_query(query: str) -> tuple:
         if resp.status_code == 200:
             docs = resp.json().get("documents", [])
             if docs:
-                return float(docs[0]["y"]), float(docs[0]["x"]), docs[0].get("place_name", location)
+                lat, lng = float(docs[0]["y"]), float(docs[0]["x"])
+                _LOCATION_CACHE[location] = (lat, lng)  # 캐시 추가
+                return lat, lng, docs[0].get("place_name", location)
     except Exception:
         pass
     return None, None, None

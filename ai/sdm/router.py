@@ -261,6 +261,12 @@ async def get_vendor_graph(
 
     result = {"nodes": nodes, "edges": edges, "query": query, "matched_keywords": matched_keywords}
     _latest_graph.update(result)
+    # 공용 그래프에도 반영
+    try:
+        from main import update_shared_graph
+        update_shared_graph(result)
+    except Exception:
+        pass
     return result
 
 

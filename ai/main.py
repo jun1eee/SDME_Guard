@@ -113,11 +113,39 @@ _static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(_static_dir):
     app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
+# 공용 그래프 데이터 (sdm/hall 공유)
+from fastapi.responses import HTMLResponse
+_shared_graph = {"nodes": [], "edges": [], "query": "", "matched_keywords": []}
+
+
+def update_shared_graph(data: dict):
+    _shared_graph.update(data)
+
+
+@app.get("/api/graph/data")
+def shared_graph_data():
+    return {
+        "nodes": _shared_graph.get("nodes", []),
+        "edges": _shared_graph.get("edges", []),
+        "matched": _shared_graph.get("matched_keywords", []),
+        "query": _shared_graph.get("query", ""),
+    }
+
+
+@app.get("/api/graph/view", response_class=HTMLResponse)
+def shared_graph_view():
+    from sdm.router import _GRAPH_HTML_TEMPLATE
+    query = _shared_graph.get("query", "") or "-"
+    return _GRAPH_HTML_TEMPLATE.replace("__QUERY__", query).replace(
+        "/api/chat/sdm/graph/data", "/api/graph/data"
+    )
+
+
 # 라우터 등록
 from sdm.router import router as sdm_router
 from hall.router import router as hall_router
-app.include_router(sdm_router, prefix="/api/chat")  # sdm은 prefix 없음
-app.include_router(hall_router)  # hall은 자체 prefix /api/chat
+app.include_router(sdm_router, prefix="/api/chat")
+app.include_router(hall_router)
 
 # Gradio 개발 테스트 UI
 try:
