@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "*"
 
+    # ai-jw 호환 alias
+    @property
+    def neo4j_password(self) -> str:
+        return self.neo4j_pw
+
+    @property
+    def kakao_rest_api_key(self) -> str:
+        return self.kakao_api_key
+
     @property
     def cors_origin_list(self) -> list[str]:
         if self.cors_origins.strip() == "*":
