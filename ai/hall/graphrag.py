@@ -456,6 +456,8 @@ class HallGraphRagEngine:
             self._search_query(where_extra="h.partnerId IN $partnerIds"),
             partnerIds=partner_ids,
             regions=[],
+            subwayLines=[],
+            stations=[],
             styles=[],
             features=[],
             budgetLimit=None,
