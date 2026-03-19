@@ -253,7 +253,8 @@ class HallGraphRagEngine:
                         hall_coord[0],
                         hall_coord[1],
                     )
-                    score += max(0.0, 3.5 - (distance_km / 1.8))
+                    # 거리 보너스: 1km 이내 +5, 3km +3, 5km +1, 7km 0
+                    score += max(0.0, 7.0 - distance_km)
             matches.append((score, hall))
 
         matches.sort(key=lambda item: item[0], reverse=True)
@@ -420,33 +421,36 @@ class HallGraphRagEngine:
 
     def _fetch_candidates(self, query: str, criteria: HallCriteria, limit: int) -> list[HallRecord]:
         self._ensure_driver()
-        tokens = self._tokenize_query(query)
-        params = {
-            "regions": criteria.regions,
-            "subwayLines": criteria.subway_lines,
-            "stations": criteria.stations,
-            "styles": criteria.styles,
-            "features": criteria.features,
-            "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
-            "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
-            "tokens": tokens,
-            "limit": limit,
-        }
+
+        if criteria.stations or criteria.subway_lines:
+            # 역/호선 지정 → Neo4j 그래프/텍스트 매칭 대신 Kakao 거리 스코어링에 완전 위임
+            # 서울(또는 지정 region) 전체 후보풀 확보 후 search_scored에서 실제 거리로 정렬
+            geo_region = criteria.regions if criteria.regions else ["서울"]
+            params = {
+                "regions": geo_region,
+                "subwayLines": [],
+                "stations": [],
+                "styles": criteria.styles,
+                "features": criteria.features,
+                "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
+                "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
+                "tokens": [],
+                "limit": 120,
+            }
+        else:
+            params = {
+                "regions": criteria.regions,
+                "subwayLines": [],
+                "stations": [],
+                "styles": criteria.styles,
+                "features": criteria.features,
+                "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
+                "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
+                "tokens": self._tokenize_query(query),
+                "limit": limit,
+            }
+
         rows = self._run_query(self._search_query(), **params)
-
-        if (criteria.stations or criteria.subway_lines) and len(rows) < limit // 2:
-            # 역/호선 그래프 필터로 결과 부족 → 그래프 관계 필터만 제거하고 token 유지
-            # (address2·searchText에 역 이름이 있는 홀을 텍스트 매칭으로 보충)
-            broad_params = dict(params)
-            broad_params["stations"] = []
-            broad_params["subwayLines"] = []
-            broad_params["styles"] = []
-            broad_params["features"] = []
-            broad_params["limit"] = max(limit * 4, 40)
-            broad_rows = self._run_query(self._search_query(), **broad_params)
-            seen_ids = {row.get("partnerId") for row in rows}
-            rows = rows + [r for r in broad_rows if r.get("partnerId") not in seen_ids]
-
         return [self._row_to_hall(row) for row in rows]
 
     def _fetch_halls_by_partner_ids(self, partner_ids: list[int]) -> list[HallRecord]:
@@ -713,7 +717,8 @@ class HallGraphRagEngine:
         strict_region: bool = False,
     ) -> float | None:
         searchable = hall.searchable_text
-        score = hall.rating * 0.08 + min(hall.review_count, 500) * 0.015
+        # rating을 주 기준으로, review는 보조 (리뷰 많은 먼 홀이 거리 보너스를 압도하지 않도록 조정)
+        score = hall.rating * 1.2 + min(hall.review_count, 300) * 0.008
 
         if criteria.regions:
             region_score = max(
