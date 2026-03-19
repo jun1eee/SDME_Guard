@@ -1,37 +1,16 @@
-from neo4j import GraphDatabase
-from openai import OpenAI
-from config import settings
+"""FastAPI 의존성 주입 (DI)"""
+from fastapi import Request
 
-_neo4j_driver = None
-_openai_client = None
+from session_store import InMemorySessionStore
 
 
-def init_clients():
-    """앱 시작 시 호출 - Neo4j, OpenAI 클라이언트 초기화"""
-    global _neo4j_driver, _openai_client
-    _neo4j_driver = GraphDatabase.driver(
-        settings.neo4j_uri,
-        auth=(settings.neo4j_user, settings.neo4j_pw),
-    )
-    _openai_client = OpenAI()
-
-    # 연결 확인
-    with _neo4j_driver.session() as session:
-        cnt = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
-        print(f"Neo4j 연결 완료 - 노드 {cnt}개")
+def get_session_store(request: Request) -> InMemorySessionStore:
+    return request.app.state.session_store
 
 
-def close_clients():
-    """앱 종료 시 호출 - 연결 해제"""
-    global _neo4j_driver
-    if _neo4j_driver:
-        _neo4j_driver.close()
-        print("Neo4j 연결 종료")
+def get_sdm_service(request: Request):
+    return request.app.state.sdm_service
 
 
-def get_driver():
-    return _neo4j_driver
-
-
-def get_openai():
-    return _openai_client
+def get_hall_service(request: Request):
+    return request.app.state.hall_service
