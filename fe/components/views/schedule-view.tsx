@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Plus,
   ChevronLeft,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { getAccessToken } from "@/lib/api"
 
 interface ScheduleItem {
   id: string
@@ -25,53 +26,50 @@ interface ScheduleItem {
   status: "진행중" | "대기중" | "완료"
 }
 
-const initialSchedule: ScheduleItem[] = [
-  {
-    id: "1",
-    title: "드레스 피팅",
-    date: "2026-04-20",
-    time: "11:00",
-    location: "메종 블랑쉬 아틀리에",
-    category: "피팅",
-    status: "진행중",
-  },
-  {
-    id: "2",
-    title: "메이크업 리허설",
-    date: "2026-05-01",
-    time: "10:00",
-    location: "글로우 뷰티",
-    category: "리허설",
-    status: "대기중",
-  },
-  {
-    id: "3",
-    title: "식사 시식회",
-    date: "2026-05-10",
-    time: "18:00",
-    location: "더 그랜드 파빌리온",
-    category: "시식",
-    status: "대기중",
-  },
-  {
-    id: "4",
-    title: "스튜디오 촬영",
-    date: "2026-05-15",
-    time: "09:00",
-    location: "로앤스튜디오",
-    category: "촬영",
-    status: "대기중",
-  },
-]
+interface ScheduleApiItem {
+  id: number
+  title: string
+  date: string
+  time: string
+  location: string
+  category: string
+  status: string
+}
+
+function mapApiItem(item: ScheduleApiItem): ScheduleItem {
+  return {
+    id: String(item.id),
+    title: item.title,
+    date: item.date ?? "",
+    time: item.time ?? "00:00",
+    location: item.location ?? "미정",
+    category: item.category ?? "STUDIO",
+    status: (item.status as ScheduleItem["status"]) ?? "대기중",
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getAccessToken()
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"]
 
+const CATEGORIES = [
+  { value: "STUDIO", label: "스튜디오" },
+  { value: "DRESS", label: "드레스" },
+  { value: "MAKEUP", label: "메이크업" },
+  { value: "HALL", label: "웨딩홀" },
+] as const
+
 const CATEGORY_COLORS: Record<string, string> = {
-  피팅: "bg-pink-100 text-pink-700",
-  리허설: "bg-violet-100 text-violet-700",
-  시식: "bg-amber-100 text-amber-700",
-  촬영: "bg-blue-100 text-blue-700",
-  기타: "bg-muted text-muted-foreground",
+  STUDIO: "bg-blue-100 text-blue-700",
+  DRESS: "bg-pink-100 text-pink-700",
+  MAKEUP: "bg-violet-100 text-violet-700",
+  HALL: "bg-amber-100 text-amber-700",
 }
 
 const statusColors = {
@@ -112,7 +110,7 @@ function ScheduleForm({
   const [date, setDate] = useState(initial?.date ?? "")
   const [time, setTime] = useState(initial?.time ?? "")
   const [location, setLocation] = useState(initial?.location ?? "")
-  const [category, setCategory] = useState(initial?.category ?? "")
+  const [category, setCategory] = useState(initial?.category ?? "STUDIO")
   const [status, setStatus] = useState<ScheduleItem["status"]>(initial?.status ?? "대기중")
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,7 +121,7 @@ function ScheduleForm({
       date,
       time: time || "00:00",
       location: location || "미정",
-      category: category || "기타",
+      category,
       status,
     })
   }
@@ -150,7 +148,15 @@ function ScheduleForm({
         </div>
         <div>
           <label className="mb-1 block text-sm text-muted-foreground">카테고리</label>
-          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="예: 피팅, 리허설, 시식" />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
         </div>
         <div className="md:col-span-2">
           <label className="mb-1 block text-sm text-muted-foreground">상태</label>
@@ -183,11 +189,29 @@ function ScheduleForm({
 // ─── Main View ────────────────────────────────────────────────────────────────
 
 export function ScheduleView() {
-  const [items, setItems] = useState<ScheduleItem[]>(initialSchedule)
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 9))
+  const [items, setItems] = useState<ScheduleItem[]>([])
+  const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/schedules", {
+          credentials: "include",
+          headers: authHeaders(),
+        })
+        if (!res.ok) return
+        const json = await res.json()
+        const raw: ScheduleApiItem[] = Array.isArray(json) ? json : (json.data ?? [])
+        setItems(raw.map(mapApiItem))
+      } catch {
+        // ignore
+      }
+    }
+    void load()
+  }, [])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -221,18 +245,82 @@ export function ScheduleView() {
   const isToday = (day: number) =>
     today.getFullYear() === year && today.getMonth() === month && today.getDate() === day
 
-  const handleAdd = (item: Omit<ScheduleItem, "id">) => {
-    setItems((prev) => [...prev, { ...item, id: Date.now().toString() }])
+  const updateStatus = async (id: string, status: ScheduleItem["status"]) => {
+    await fetch(`/api/schedules/${id}/status`, {
+      method: "PUT",
+      credentials: "include",
+      headers: authHeaders(),
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  const handleAdd = async (item: Omit<ScheduleItem, "id">) => {
+    try {
+      const res = await fetch("/api/schedules", {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          title: item.title,
+          date: item.date,
+          time: item.time,
+          location: item.location,
+          category: item.category,
+        }),
+      })
+      if (res.ok) {
+        const json = await res.json()
+        const created: ScheduleApiItem = json.data ?? json
+        const newItem = mapApiItem(created)
+        if (item.status !== "대기중") {
+          await updateStatus(newItem.id, item.status)
+          newItem.status = item.status
+        }
+        setItems((prev) => [...prev, newItem])
+      }
+    } catch {
+      // ignore
+    }
     setShowAddForm(false)
   }
 
-  const handleEdit = (id: string, item: Omit<ScheduleItem, "id">) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...item, id } : i)))
+  const handleEdit = async (id: string, item: Omit<ScheduleItem, "id">) => {
+    try {
+      const res = await fetch(`/api/schedules/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          title: item.title,
+          date: item.date,
+          time: item.time,
+          location: item.location,
+          category: item.category,
+        }),
+      })
+      if (res.ok) {
+        await updateStatus(id, item.status)
+        setItems((prev) => prev.map((i) => (i.id === id ? { ...item, id } : i)))
+      }
+    } catch {
+      // ignore
+    }
     setEditingId(null)
   }
 
-  const handleDelete = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await fetch(`/api/schedules/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: authHeaders(),
+      })
+      if (res.ok) {
+        setItems((prev) => prev.filter((i) => i.id !== id))
+      }
+    } catch {
+      // ignore
+    }
     setDeletingId(null)
   }
 
@@ -394,13 +482,13 @@ export function ScheduleView() {
                         {/* 날짜 블록 */}
                         <div className="shrink-0 text-center w-10">
                           <div className="text-xs text-muted-foreground leading-none">
-                            {new Date(event.date).getMonth() + 1}월
+                            {event.date ? new Date(event.date).getMonth() + 1 : "-"}월
                           </div>
                           <div className="text-xl font-bold text-foreground leading-tight">
-                            {new Date(event.date).getDate()}
+                            {event.date ? new Date(event.date).getDate() : "-"}
                           </div>
                           <div className="text-xs text-muted-foreground leading-none">
-                            {DAYS[new Date(event.date).getDay()]}
+                            {event.date ? DAYS[new Date(event.date).getDay()] : ""}
                           </div>
                         </div>
 
