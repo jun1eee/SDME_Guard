@@ -180,9 +180,19 @@ def tool_search_semantic(query, category, region=None, max_price=None, min_price
     )
     result = vec_rag.search(query_text=query)
     vendors = extract_vendors_from_retriever(result)
+    answer = result.answer
     if not vendors:
-        vendors = extract_vendors_from_answer(result.answer)
-    return "graphrag", result.answer, vendors
+        vendors = extract_vendors_from_answer(answer)
+    # semantic 결과 없으면 structured로 교차 시도
+    if answer and any(p in answer for p in NO_RESULT_PHRASES):
+        rag = get_rag_cypher()
+        result2 = rag.search(query_text=query)
+        vendors2 = extract_vendors_from_retriever(result2)
+        if not vendors2:
+            vendors2 = extract_vendors_from_answer(result2.answer)
+        if vendors2:
+            return "graphrag", result2.answer, vendors2
+    return "graphrag", answer, vendors
 
 
 def tool_compare_vendors(vendor_names, criteria=None, **kwargs):

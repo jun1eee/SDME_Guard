@@ -141,10 +141,31 @@ async def run_pipeline(
             if tool_name in ("search_structured", "search_semantic"):
                 is_new_search = True
 
-            # category 보완
+            # category 보완: 빈 값이면 세션에서 채움
             if "category" in tool_args and not tool_args.get("category"):
                 if session.get("category"):
                     tool_args["category"] = session["category"]
+
+            # category 교정: 사용자 메시지 키워드와 GPT 선택이 충돌하면 교정
+            if "category" in tool_args:
+                _kw_map = {
+                    "dress": ["드레스", "드레스샵", "벌"],
+                    "makeup": ["메이크업", "메이크업샵", "헤어"],
+                    "studio": ["스튜디오", "촬영"],
+                }
+                _matched_cats = set()
+                for _cat, _keywords in _kw_map.items():
+                    if any(kw in message for kw in _keywords):
+                        _matched_cats.add(_cat)
+                # 키워드가 정확히 1개 카테고리만 가리키고, GPT 선택과 다르면 교정
+                if len(_matched_cats) == 1:
+                    correct_cat = _matched_cats.pop()
+                    if tool_args["category"] != correct_cat:
+                        debug["category_corrected"] = {
+                            "from": tool_args["category"],
+                            "to": correct_cat,
+                        }
+                        tool_args["category"] = correct_cat
 
             # couple_id 주입
             tool_args["couple_id"] = couple_id
