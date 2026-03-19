@@ -1,22 +1,44 @@
 import json
 import os
+import re
+from dotenv import load_dotenv
 from neo4j import GraphDatabase
+from openai import OpenAI
 
-# === 설정 ===
-NEO4J_URI = "neo4j://127.0.0.1:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PW = "password123"
+# === 설정 (.env에서 로드) ===
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
+NEO4J_URI = os.environ["NEO4J_URI"]
+NEO4J_USER = os.environ["NEO4J_USER"]
+NEO4J_PW = os.environ["NEO4J_PW"]
+
+openai_client = OpenAI()
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIM = 1536
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 _BASE = os.path.dirname(os.path.abspath(__file__))
+
+
+def pick_existing_path(*candidates):
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
 
 VENDOR_FILES = {
     "dress":  os.path.join(_BASE, "json", "iwedding_dress_detail.json"),
     "makeup": os.path.join(_BASE, "json", "iwedding_makeup_detail.json"),
     "studio": os.path.join(_BASE, "json", "iwedding_studio_detail.json"),
 }
-HALL_LIST_PATH   = os.path.join(_BASE, "json", "weddingbook_halls_list.json")
-HALL_DETAIL_PATH = os.path.join(_BASE, "json", "weddingbook_halls_detail.json")
+HALL_LIST_PATH = pick_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_list.json"),
+    os.path.join(_BASE, "json", "weddingbook_halls_list.json"),
+)
+HALL_DETAIL_PATH = pick_existing_path(
+    os.path.join(_BASE, "json", "weddingbook_halls_reco_detail.json"),
+    os.path.join(_BASE, "json", "weddingbook_halls_detail.json"),
+)
 
 
 # ──────────────────────────────────────────
@@ -93,9 +115,15 @@ def insert_vendors(session, items, category, batch_size=100):
                 "viewCnt":         item.get("viewCnt", 0),
                 "orderCnt":        item.get("orderCnt", 0),
                 "holiday":         item.get("holiday", ""),
-                "packageInfoStr":  json.dumps(item.get("packageInfo", []), ensure_ascii=False),
-                "addcostStr":      json.dumps(item.get("addcostOptions", []), ensure_ascii=False),
-                "reviewsStr":      json.dumps(item.get("reviews", []), ensure_ascii=False),
+                "packages": [
+                    {"title": p.get("title", ""), "value": p.get("value", ""), "desc": p.get("desc", "")}
+                    for p in item.get("packageInfo", []) if p.get("title")
+                ],
+                "reviews": [
+                    {"name": r.get("name", ""), "contents": r.get("contents", ""),
+                     "score": r.get("score", 0), "date": r.get("date", "")}
+                    for r in item.get("reviews", []) if r.get("contents")
+                ],
                 "detailCmt":       item.get("detailCmt", ""),
                 "iweddingNo":      item.get("iwedding_no", ""),
                 "enterpriseCode":  item.get("iwedding_enterprise_code", ""),
@@ -118,8 +146,7 @@ def insert_vendors(session, items, category, batch_size=100):
                 productPrice: row.productPrice, salePrice: row.salePrice,
                 eventOptionPrice: row.eventOptionPrice, eventPrice: row.eventPrice,
                 likeCnt: row.likeCnt, viewCnt: row.viewCnt, orderCnt: row.orderCnt,
-                holiday: row.holiday, packageInfoStr: row.packageInfoStr,
-                addcostStr: row.addcostStr, reviewsStr: row.reviewsStr,
+                holiday: row.holiday,
                 detailCmt: row.detailCmt, iweddingNo: row.iweddingNo,
                 enterpriseCode: row.enterpriseCode, productName: row.productName,
                 subCategory: row.subCategory}
@@ -148,12 +175,140 @@ def insert_vendors(session, items, category, batch_size=100):
             MERGE (v)-[:HAS_STYLE]->(sf)
         """, batch=batch)
 
+        # Review 노드
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            UNWIND row.reviews AS rev
+            CREATE (rv:Review {name: rev.name, contents: rev.contents,
+                               score: rev.score, date: rev.date})
+            CREATE (v)-[:HAS_REVIEW]->(rv)
+        """, batch=batch)
+
+        # Package 노드
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
+            UNWIND row.packages AS pkg
+            CREATE (p:Package {title: pkg.title, value: pkg.value, desc: pkg.desc})
+            CREATE (v)-[:HAS_PACKAGE]->(p)
+        """, batch=batch)
+
         print(f"  [{category}] {min(i+len(batch), len(items))}/{len(items)}")
 
     cnt = session.run(
         "MATCH (v:Vendor {category: $cat}) RETURN count(v) AS cnt", cat=category
     ).single()["cnt"]
     print(f"  → [{category}] Vendor 노드 {cnt}개 완료\n")
+
+
+def create_tag_co_occurs(session, category):
+    """같은 카테고리에서 같은 Vendor에 동시 등장하는 Tag 쌍에 CO_OCCURS 관계 생성"""
+    session.run("""
+        MATCH (v:Vendor {category: $cat})-[:HAS_TAG]->(t1:Tag {category: $cat}),
+              (v)-[:HAS_TAG]->(t2:Tag {category: $cat})
+        WHERE id(t1) < id(t2)
+        WITH t1, t2, count(v) AS cnt
+        WHERE cnt >= 2
+        MERGE (t1)-[r:CO_OCCURS]->(t2)
+        SET r.count = cnt
+    """, cat=category)
+    co_cnt = session.run("""
+        MATCH (:Tag {category: $cat})-[r:CO_OCCURS]->(:Tag {category: $cat})
+        RETURN count(r) AS cnt
+    """, cat=category).single()["cnt"]
+    print(f"  → [{category}] CO_OCCURS 관계 {co_cnt}개 생성\n")
+
+
+# ──────────────────────────────────────────
+# 스드메 임베딩 생성
+# ──────────────────────────────────────────
+CATEGORY_KR = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}
+
+
+def _clean_html(text):
+    """HTML 태그 및 불필요한 공백 제거"""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("\r\n", " ").replace("\n", " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _build_embedding_text(item, category):
+    """Vendor 1개의 임베딩용 텍스트 조합"""
+    parts = [
+        item.get("name", ""),
+        CATEGORY_KR.get(category, category),
+        item.get("region", ""),
+    ]
+
+    tags = [t["name"] for t in item.get("tags", []) if t.get("name")]
+    if tags:
+        parts.append(" ".join(tags))
+
+    detail = _clean_html(item.get("detailCmt", ""))
+    if detail:
+        parts.append(detail)
+
+    reviews = sorted(
+        [r for r in item.get("reviews", []) if r.get("contents")],
+        key=lambda r: r.get("score", 0),
+        reverse=True,
+    )[:3]
+    for r in reviews:
+        parts.append(_clean_html(r["contents"])[:200])
+
+    return " | ".join(p for p in parts if p)
+
+
+def _batch_embed(texts, batch_size=100):
+    """OpenAI 임베딩 API 배치 호출"""
+    embeddings = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        resp = openai_client.embeddings.create(input=batch, model=EMBEDDING_MODEL)
+        embeddings.extend([d.embedding for d in resp.data])
+    return embeddings
+
+
+def create_vendor_embeddings(session, items, category):
+    """Vendor 노드에 embedding 속성 추가"""
+    texts = [_build_embedding_text(item, category) for item in items]
+    partner_ids = [item.get("partnerId", 0) for item in items]
+
+    print(f"  [{category}] 임베딩 생성 중... ({len(texts)}개)")
+    embeddings = _batch_embed(texts)
+
+    for i in range(0, len(embeddings), 100):
+        batch = [
+            {"partnerId": partner_ids[j], "embedding": embeddings[j]}
+            for j in range(i, min(i + 100, len(embeddings)))
+        ]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: $cat})
+            SET v.embedding = row.embedding
+        """, batch=batch, cat=category)
+
+    print(f"  → [{category}] 임베딩 {len(embeddings)}개 저장 완료")
+
+
+def create_vector_index(session):
+    """Vendor 벡터 인덱스 생성 (기존 인덱스 있으면 삭제 후 재생성)"""
+    existing = session.run("SHOW INDEXES YIELD name, type WHERE type = 'VECTOR' RETURN name").data()
+    for idx in existing:
+        name = idx["name"]
+        session.run(f"DROP INDEX {name}")
+        print(f"  기존 벡터 인덱스 삭제: {name}")
+
+    session.run("""
+        CREATE VECTOR INDEX vendor_embedding_index IF NOT EXISTS
+        FOR (v:Vendor) ON (v.embedding)
+        OPTIONS {indexConfig: {
+            `vector.dimensions`: $dim,
+            `vector.similarity_function`: 'COSINE'
+        }}
+    """, dim=EMBEDDING_DIM)
+    print(f"  → vendor_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
 
 
 # ──────────────────────────────────────────
@@ -169,22 +324,27 @@ def _upsert_hall(tx, list_item, detail_item):
         name        = detail_item.get("name") or list_item.get("partnerProfileName")
         tel         = detail_item.get("tel")
         address     = detail_item.get("address")
+        address2    = detail_item.get("address2")
         profileUrl  = detail_item.get("profileUrl")
         reviewCnt   = detail_item.get("reviewCnt")
         rating      = detail_item.get("rating")
         memoContent = detail_item.get("memoContent")
         typeName    = detail_item.get("typeName")
         modTsp      = detail_item.get("modTsp")
+        logoUrl     = detail_item.get("logoUrl")
+        coverUrl    = detail_item.get("coverUrl")
         uuid        = detail_item.get("uuid") or partnerUuid
     else:
         name = list_item.get("partnerProfileName")
-        tel = address = profileUrl = reviewCnt = rating = memoContent = modTsp = None
+        tel = address = address2 = profileUrl = reviewCnt = rating = memoContent = modTsp = None
         typeName = "웨딩홀"
+        logoUrl = coverUrl = None
         uuid = partnerUuid
 
     props = {
         "partnerId": partnerId, "uuid": uuid, "name": name, "typeName": typeName,
         "region": region, "subRegion": subRegion, "tel": tel, "address": address,
+        "address2": address2, "logoUrl": logoUrl, "coverUrl": coverUrl,
         "profileUrl": profileUrl, "reviewCnt": reviewCnt, "rating": rating,
         "memoContent": memoContent, "modTsp": modTsp,
         "minIndividualHallPrice": list_item.get("minIndividualHallPrice"),
@@ -195,6 +355,10 @@ def _upsert_hall(tx, list_item, detail_item):
         "maxMealPrice":    list_item.get("maxMealPrice"),
         "availableContract": list_item.get("availableContract"),
         "bookingState":      list_item.get("bookingState"),
+        "consultingUsed":    list_item.get("consultingUsed"),
+        "consultingUseAutoApproval": list_item.get("consultingUseAutoApproval"),
+        "storedToConsulting": list_item.get("storedToConsulting"),
+        "isLike":            list_item.get("isLike"),
         "partnerProfileId":   list_item.get("partnerProfileId"),
         "partnerProfileUuid": list_item.get("partnerProfileUuid"),
         "partnerProfileName": list_item.get("partnerProfileName"),
@@ -308,17 +472,30 @@ def main():
             print(f"  {len(items)}개 항목 로드됨")
             insert_vendors(session, items, category)
 
+        # Tag 동시출현 관계
+        for category in VENDOR_FILES:
+            create_tag_co_occurs(session, category)
+
+        # 스드메 임베딩 생성 + 벡터 인덱스
+        print("\n[embedding] 임베딩 생성 시작...")
+        for category, path in VENDOR_FILES.items():
+            items = load_json(path)
+            create_vendor_embeddings(session, items, category)
+        create_vector_index(session)
+
         # 웨딩홀
         print("[hall] 로딩 시작...")
         list_items   = load_json(HALL_LIST_PATH)
         detail_items = load_json(HALL_DETAIL_PATH)
+        print(f"  hall list source: {HALL_LIST_PATH}")
+        print(f"  hall detail source: {HALL_DETAIL_PATH}")
         print(f"  list {len(list_items)}개 / detail {len(detail_items)}개 로드됨")
         insert_halls(session, list_items, detail_items)
 
         # 최종 통계
         total_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
         total_rels  = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt").single()["cnt"]
-        print(f"✅ 전체 로드 완료 — 노드: {total_nodes}개 / 관계: {total_rels}개")
+        print(f"전체 로드 완료 -- 노드: {total_nodes}개 / 관계: {total_rels}개")
 
     driver.close()
 
