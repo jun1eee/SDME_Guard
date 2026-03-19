@@ -95,3 +95,12 @@ from sdm.router import router as sdm_router
 app.include_router(sdm_router, prefix="/api/chat")
 # from hall.router import router as hall_router
 # app.include_router(hall_router, prefix="/api/chat")
+
+# Gradio 개발 테스트 UI 마운트 (같은 포트에서 iframe 동작)
+try:
+    from gradio_ui import demo as gradio_demo
+    import gradio as gr
+    app = gr.mount_gradio_app(app, gradio_demo, path="/ui")
+    logger.info("Gradio UI: http://localhost:8000/ui")
+except Exception as e:
+    logger.warning(f"Gradio UI 로드 실패 (무시): {e}")

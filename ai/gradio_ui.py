@@ -5,9 +5,10 @@ import uuid
 import requests
 import gradio as gr
 
+# FastAPI와 같은 프로세스에서 실행될 때는 localhost:8000 사용
 API_URL = "http://localhost:8000/api/chat/sdm"
 GRAPH_URL = "http://localhost:8000/api/chat/sdm/graph"
-GRAPH_VIEW_URL = "http://localhost:8000/api/chat/sdm/graph/view"
+GRAPH_VIEW_URL = "/api/chat/sdm/graph/view"  # 같은 출처 (iframe용)
 session_id = str(uuid.uuid4())
 
 EMPTY_GRAPH = '<div style="height:550px;display:flex;align-items:center;justify-content:center;color:#666;font-size:16px;background:#1a1a2e;border-radius:8px;">질문하면 관련 업체의 그래프가 여기에 표시됩니다.</div>'
@@ -125,4 +126,5 @@ with gr.Blocks(title="웨딩 스드메 추천 챗봇") as demo:
     send_btn.click(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_display])
 
 if __name__ == "__main__":
+    print("단독 실행 모드. FastAPI와 함께 쓰려면: uvicorn main:app --reload --port 8000 → http://localhost:8000/ui")
     demo.launch()
