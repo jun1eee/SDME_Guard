@@ -1,13 +1,73 @@
 """스드메 Tool 함수 + 유틸"""
 import json
 import re
-import mysql.connector
+import requests as http_requests
 
 from deps import get_driver
 from config import settings
 from sdm.graphrag import get_rag_cypher, create_vector_rag
 
-NO_RESULT_PHRASES = ["찾지 못했습니다", "없습니다", "검색 결과가 없"]
+def _extract_location(query):
+    """쿼리에서 위치 키워드 추출. '가좌역 근처 스튜디오' → '가좌역'"""
+    # 패턴: ~역, ~동, ~구, ~시 등 위치 관련 단어 추출
+    m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|빌딩|아파트))", query)
+    if m:
+        return m.group(1)
+    # 패턴: "근처", "가까운" 앞의 단어
+    m = re.search(r"(\S+)\s*(?:근처|가까운|주변|쪽|부근|인근)", query)
+    if m:
+        return m.group(1)
+    return None
+
+
+def geocode_query(query):
+    """사용자 입력에서 위치를 추출 후 카카오맵으로 지오코딩. (lat, lng, place_name) 반환."""
+    if not settings.kakao_api_key:
+        return None, None, None
+    location = _extract_location(query)
+    if not location:
+        return None, None, None
+    try:
+        resp = http_requests.get(
+            "https://dapi.kakao.com/v2/local/search/keyword.json",
+            params={"query": location, "size": 1},
+            headers={"Authorization": f"KakaoAK {settings.kakao_api_key}"},
+            timeout=3,
+        )
+        if resp.status_code == 200:
+            docs = resp.json().get("documents", [])
+            if docs:
+                return float(docs[0]["y"]), float(docs[0]["x"]), docs[0].get("place_name", location)
+    except Exception:
+        pass
+    return None, None, None
+
+
+def search_nearest_vendors(category, lat, lng, limit=5):
+    """좌표 기반 가장 가까운 업체 검색 (Neo4j point.distance)"""
+    driver = get_driver()
+    with driver.session() as session:
+        records = session.run("""
+            MATCH (v:Vendor {category: $cat})
+            WHERE v.location IS NOT NULL
+            WITH v, point.distance(v.location, point({latitude: $lat, longitude: $lng})) AS dist
+            ORDER BY dist ASC
+            LIMIT $limit
+            OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)
+            WITH v, dist, collect(DISTINCT t.name) AS tags
+            RETURN v.name AS name, v.category AS category,
+                   v.salePrice AS price, v.rating AS rating,
+                   v.address AS address, v.profileUrl AS url,
+                   round(dist) AS distanceMeters, tags
+        """, cat=category, lat=lat, lng=lng, limit=limit).data()
+    return records
+
+
+NO_RESULT_PHRASES = [
+    "찾지 못했습니다", "없습니다", "검색 결과가 없",
+    "포함되어 있지 않습니다", "정보가 없", "찾을 수 없",
+    "데이터에 포함", "제공되지 않", "존재하지 않",
+]
 
 
 # ── 유틸 ──
@@ -87,10 +147,30 @@ def tool_search_structured(query, category, **kwargs):
     if not vendors:
         vendors = extract_vendors_from_answer(answer)
     if answer and any(p in answer for p in NO_RESULT_PHRASES):
+        cat_kr = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}
+        # 거리 기반 fallback: 사용자 입력에서 위치 추출 → 지오코딩 → 가까운 업체 검색
+        lat, lng, place = geocode_query(query)
+        if lat and lng:
+            records = search_nearest_vendors(category, lat, lng, limit=5)
+            if records:
+                # 거리 정보를 포함한 안내 메시지 추가
+                for r in records:
+                    dist_m = r.get("distanceMeters", 0)
+                    if dist_m >= 1000:
+                        r["distanceText"] = f"{dist_m / 1000:.1f}km"
+                    else:
+                        r["distanceText"] = f"{int(dist_m)}m"
+                data = json.dumps(records, ensure_ascii=False, default=str)
+                vendors = [r["name"] for r in records]
+                return "raw", data, vendors
+        # 지오코딩 실패 시 일반 벡터 검색 fallback
+        fallback_query = f"{cat_kr.get(category, '')} 추천"
         vec_rag, _ = create_vector_rag(category=category)
-        result = vec_rag.search(query_text=query)
+        result = vec_rag.search(query_text=fallback_query)
         vendors = extract_vendors_from_retriever(result)
-        answer = result.answer
+        if not vendors:
+            vendors = extract_vendors_from_answer(result.answer)
+        answer = f"해당 지역에 등록된 업체가 없어 가까운 업체를 추천드립니다.\n\n{result.answer}"
     return "graphrag", answer, vendors
 
 

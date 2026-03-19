@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import asyncio
+import aiohttp
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from openai import OpenAI
@@ -15,6 +17,7 @@ NEO4J_PW = os.environ["NEO4J_PW"]
 openai_client = OpenAI()
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
+KAKAO_API_KEY = os.environ.get("KAKAO_API_KEY", "")
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 # ai/ 루트 기준 경로 (scripts/ 에서 한 단계 위)
@@ -86,6 +89,123 @@ def setup(session):
     ]:
         session.run(c)
     print("제약조건 생성 완료")
+
+
+# ──────────────────────────────────────────
+# 카카오맵 지오코딩 (주소 → 좌표, 병렬 처리)
+# ──────────────────────────────────────────
+KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
+
+
+def _clean_address(addr):
+    """주소에서 층수, 빌딩명 등 제거하여 지오코딩 성공률 향상."""
+    if not addr:
+        return ""
+    addr = re.split(r"\d+층", addr)[0]
+    addr = re.split(r":\s", addr)[0]
+    addr = re.sub(r"\([^)]*\)", "", addr)
+    addr = re.sub(r"\s+\d+F\b", "", addr, flags=re.IGNORECASE)
+    addr = re.sub(r"\s*B\d+\b", "", addr)
+    addr = re.sub(r"\s+", " ", addr).strip().rstrip(",").strip()
+    return addr
+
+
+async def _geocode_one(sem, http_session, address, retries=2):
+    """주소 1건 지오코딩 (키워드 검색). 429 시 대기 후 재시도."""
+    if not address or not KAKAO_API_KEY:
+        return address, None, None
+    clean = _clean_address(address)
+    if not clean:
+        return address, None, None
+    async with sem:
+        for attempt in range(retries + 1):
+            try:
+                async with http_session.get(
+                    KAKAO_KEYWORD_URL,
+                    params={"query": clean, "size": 1},
+                    headers={"Authorization": f"KakaoAK {KAKAO_API_KEY}"},
+                ) as resp:
+                    if resp.status == 429:
+                        await asyncio.sleep(1 + attempt)
+                        continue
+                    if resp.status != 200:
+                        return address, None, None
+                    data = await resp.json()
+                    docs = data.get("documents", [])
+                    if docs:
+                        return address, float(docs[0]["y"]), float(docs[0]["x"])
+                    return address, None, None
+            except Exception:
+                return address, None, None
+    return address, None, None
+
+
+async def geocode_addresses(addresses, concurrency=10):
+    """주소 리스트를 병렬로 지오코딩 (동시 10건, 429 방지)."""
+    sem = asyncio.Semaphore(concurrency)
+    async with aiohttp.ClientSession() as http_session:
+        tasks = [_geocode_one(sem, http_session, addr) for addr in addresses]
+        return await asyncio.gather(*tasks)
+
+
+def geocode_vendors(session, items, category):
+    """Vendor 노드에 lat, lng 속성 추가 (카카오맵 지오코딩)."""
+    if not KAKAO_API_KEY:
+        print(f"  [{category}] KAKAO_API_KEY 미설정 — 지오코딩 건너뜀")
+        return
+
+    # 중복 주소 제거하여 API 호출 최소화
+    addr_to_pids = {}
+    for item in items:
+        addr = item.get("address", "")
+        pid = item.get("partnerId", 0)
+        addr_to_pids.setdefault(addr, []).append(pid)
+
+    unique_addrs = [a for a in addr_to_pids if a]
+    print(f"  [{category}] 지오코딩 중... (업체 {len(items)}개, 고유 주소 {len(unique_addrs)}개)")
+    results = asyncio.run(geocode_addresses(unique_addrs, concurrency=10))
+
+    coord_map = {}
+    for addr, lat, lng in results:
+        if lat is not None:
+            coord_map[addr] = (lat, lng)
+
+    batch = []
+    for addr, pids in addr_to_pids.items():
+        if addr in coord_map:
+            lat, lng = coord_map[addr]
+            for pid in pids:
+                batch.append({"partnerId": pid, "lat": lat, "lng": lng})
+
+    for i in range(0, len(batch), 100):
+        chunk = batch[i:i+100]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: $cat})
+            SET v.lat = row.lat, v.lng = row.lng
+        """, batch=chunk, cat=category)
+
+    print(f"  → [{category}] 지오코딩 완료: {len(coord_map)}/{len(unique_addrs)}건 성공 → {len(batch)}개 Vendor 업데이트")
+
+
+def create_point_index(session):
+    """Vendor 좌표 기반 포인트 인덱스 생성"""
+    try:
+        session.run("""
+            CREATE POINT INDEX vendor_location_index IF NOT EXISTS
+            FOR (v:Vendor) ON (v.location)
+        """)
+    except Exception:
+        pass
+    # lat, lng → Neo4j point 속성 변환
+    session.run("""
+        MATCH (v:Vendor) WHERE v.lat IS NOT NULL AND v.lng IS NOT NULL
+        SET v.location = point({latitude: v.lat, longitude: v.lng})
+    """)
+    cnt = session.run("""
+        MATCH (v:Vendor) WHERE v.location IS NOT NULL RETURN count(v) AS cnt
+    """).single()["cnt"]
+    print(f"  → 좌표 인덱스 생성 완료: {cnt}개 Vendor에 location 설정")
 
 
 # ──────────────────────────────────────────
@@ -511,6 +631,13 @@ def main():
         # Tag 동시출현 관계
         for category in VENDOR_FILES:
             create_tag_co_occurs(session, category)
+
+        # 스드메 지오코딩 (주소 → 좌표)
+        print("\n[geocoding] 지오코딩 시작...")
+        for category, path in VENDOR_FILES.items():
+            items = load_json(path)
+            geocode_vendors(session, items, category)
+        create_point_index(session)
 
         # 스드메 임베딩 생성 + 벡터 인덱스
         print("\n[embedding] 임베딩 생성 시작...")

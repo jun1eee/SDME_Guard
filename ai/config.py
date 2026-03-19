@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     neo4j_pw: str = ""
     openai_api_key: str = ""
 
+    # 카카오맵 API (지오코딩)
+    kakao_api_key: str = ""
+
     # Spring Boot API (프로덕션에서 사용)
     spring_url: str = "http://localhost:8080"
 
