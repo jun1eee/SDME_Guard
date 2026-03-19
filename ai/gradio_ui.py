@@ -1,127 +1,32 @@
-"""Gradio 채팅 UI + 디버그 패널 + Neo4j 그래프 시각화 (plotly)"""
+"""Gradio 채팅 UI + 디버그 패널 + Neo4j 그래프 시각화 (vis.js iframe)"""
 import json
+import time
 import uuid
 import requests
 import gradio as gr
-import networkx as nx
-import plotly.graph_objects as go
 
 API_URL = "http://localhost:8000/api/chat/sdm"
 GRAPH_URL = "http://localhost:8000/api/chat/sdm/graph"
+GRAPH_VIEW_URL = "http://localhost:8000/api/chat/sdm/graph/view"
 session_id = str(uuid.uuid4())
 
-COLOR_MAP = {
-    "vendor": "#e74c3c", "region": "#3498db", "district": "#00bcd4",
-    "tag": "#2ecc71", "style": "#9b59b6", "review": "#f39c12", "package": "#1abc9c",
-}
-LABEL_MAP = {
-    "vendor": "업체", "region": "지역", "district": "동",
-    "tag": "태그", "style": "스타일", "review": "리뷰", "package": "패키지",
-}
+EMPTY_GRAPH = '<div style="height:550px;display:flex;align-items:center;justify-content:center;color:#666;font-size:16px;background:#1a1a2e;border-radius:8px;">질문하면 관련 업체의 그래프가 여기에 표시됩니다.</div>'
 
 
-def build_empty_figure():
-    fig = go.Figure()
-    fig.update_layout(
-        xaxis=dict(visible=False), yaxis=dict(visible=False),
-        plot_bgcolor="#1a1a2e", paper_bgcolor="#1a1a2e", height=550,
-        annotations=[dict(text="질문하면 관련 업체의 그래프가 여기에 표시됩니다.",
-                          xref="paper", yref="paper", x=0.5, y=0.5,
-                          showarrow=False, font=dict(size=16, color="#666"))],
-    )
-    return fig
-
-
-def build_graph_figure(graph_data):
-    nodes = graph_data.get("nodes", [])
-    edges = graph_data.get("edges", [])
-    matched = set(graph_data.get("matched_keywords", []))
-
-    if not nodes:
-        return build_empty_figure()
-
-    G = nx.Graph()
-    for n in nodes:
-        G.add_node(n["id"], label=n["label"], group=n.get("group", "tag"),
-                   title=n.get("title", ""), matched=n["label"] in matched)
-    for e in edges:
-        G.add_edge(e["from"], e["to"], label=e.get("label", ""))
-
-    pos = nx.spring_layout(G, k=2.5, iterations=60, seed=42)
-    fig = go.Figure()
-
-    # 엣지
-    for e in edges:
-        if e["from"] not in pos or e["to"] not in pos:
-            continue
-        x0, y0 = pos[e["from"]]
-        x1, y1 = pos[e["to"]]
-        dash = "dash" if e.get("dashes") else "solid"
-        fig.add_trace(go.Scatter(
-            x=[x0, x1, None], y=[y0, y1, None], mode="lines",
-            line=dict(width=1, color="rgba(255,255,255,0.15)", dash=dash),
-            hoverinfo="none", showlegend=False,
-        ))
-        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-        fig.add_annotation(x=mx, y=my, text=e.get("label", ""),
-                           showarrow=False, font=dict(size=7, color="rgba(255,255,255,0.3)"))
-
-    # 노드 (그룹별)
-    groups = {}
-    for n in nodes:
-        g = n.get("group", "tag")
-        groups.setdefault(g, []).append(n)
-
-    for group, group_nodes in groups.items():
-        x_vals, y_vals, texts, hovers, sizes, borders = [], [], [], [], [], []
-        for n in group_nodes:
-            if n["id"] not in pos:
-                continue
-            x, y = pos[n["id"]]
-            is_matched = n["label"] in matched
-            x_vals.append(x)
-            y_vals.append(y)
-            label = n["label"]
-            if is_matched:
-                label = f"★ {label}"
-            texts.append(label)
-            hovers.append(n.get("title", n["label"]))
-            sizes.append(30 if group == "vendor" else (18 if is_matched else 10))
-            borders.append(3 if is_matched else (2 if group == "vendor" else 0.5))
-
-        fig.add_trace(go.Scatter(
-            x=x_vals, y=y_vals, mode="markers+text",
-            marker=dict(
-                size=sizes, color=COLOR_MAP.get(group, "#95a5a6"),
-                line=dict(width=borders, color="white" if group == "vendor" else COLOR_MAP.get(group, "#95a5a6")),
-            ),
-            text=texts, textposition="top center",
-            textfont=dict(size=12 if group == "vendor" else 9, color="white"),
-            hovertext=hovers, hoverinfo="text",
-            name=LABEL_MAP.get(group, group),
-        ))
-
-    fig.update_layout(
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
-                    font=dict(color="white")),
-        xaxis=dict(visible=False), yaxis=dict(visible=False),
-        plot_bgcolor="#1a1a2e", paper_bgcolor="#1a1a2e",
-        height=550, margin=dict(l=10, r=10, t=40, b=10),
-        hoverlabel=dict(bgcolor="#16213e", font_size=12, font_color="white",
-                        bordercolor="#e94560"),
-    )
-    return fig
+def make_graph_iframe():
+    """vis.js 그래프를 iframe으로 표시 (캐시 방지용 timestamp)"""
+    ts = int(time.time() * 1000)
+    return f'<iframe src="{GRAPH_VIEW_URL}?t={ts}" style="width:100%;height:550px;border:none;border-radius:8px;"></iframe>'
 
 
 def response_fn(message, chat_history, debug_log):
     chat_history = chat_history or []
     msg = message.strip()
     if not msg:
-        return "", chat_history, debug_log, build_empty_figure()
+        return "", chat_history, debug_log, EMPTY_GRAPH
 
     log_lines = [f"[입력] {msg}"]
-    graph_fig = build_empty_figure()
+    graph_html = EMPTY_GRAPH
 
     try:
         resp = requests.post(API_URL, json={
@@ -134,14 +39,14 @@ def response_fn(message, chat_history, debug_log):
         chat_history.append({"role": "assistant", "content": "서버 연결 실패."})
         new_log = "\n".join(log_lines)
         full_log = f"{debug_log}\n{'─'*40}\n{new_log}" if debug_log else new_log
-        return "", chat_history, full_log, graph_fig
+        return "", chat_history, full_log, graph_html
     except Exception as e:
         log_lines.append(f"[오류] {e}")
         chat_history.append({"role": "user", "content": msg})
         chat_history.append({"role": "assistant", "content": f"오류: {e}"})
         new_log = "\n".join(log_lines)
         full_log = f"{debug_log}\n{'─'*40}\n{new_log}" if debug_log else new_log
-        return "", chat_history, full_log, graph_fig
+        return "", chat_history, full_log, graph_html
 
     if resp.status_code == 200 and data.get("success"):
         answer = data["answer"]
@@ -167,14 +72,14 @@ def response_fn(message, chat_history, debug_log):
 
         log_lines.append(f"[답변 길이] {len(answer)}자")
 
-        # 그래프
+        # 그래프 데이터 전송 → vis.js iframe 로드
         if vendors:
             try:
                 graph_resp = requests.post(GRAPH_URL, json={
                     "vendor_names": vendors[:6], "query": msg,
                 }, timeout=10)
                 graph_data = graph_resp.json()
-                graph_fig = build_graph_figure(graph_data)
+                graph_html = make_graph_iframe()
                 log_lines.append(f"[그래프] 노드 {len(graph_data.get('nodes', []))}개, "
                                  f"엣지 {len(graph_data.get('edges', []))}개, "
                                  f"매칭: {graph_data.get('matched_keywords', [])}")
@@ -189,10 +94,10 @@ def response_fn(message, chat_history, debug_log):
 
     new_log = "\n".join(log_lines)
     full_log = f"{debug_log}\n{'─'*40}\n{new_log}" if debug_log else new_log
-    return "", chat_history, full_log, graph_fig
+    return "", chat_history, full_log, graph_html
 
 
-with gr.Blocks(title="웨딩 스드메 추천 챗봇", theme=gr.themes.Base(primary_hue="red")) as demo:
+with gr.Blocks(title="웨딩 스드메 추천 챗봇") as demo:
     gr.Markdown("# 웨딩 스드메 추천 챗봇\n스튜디오 / 드레스 / 메이크업 추천 + Neo4j 그래프 시각화")
 
     with gr.Row():
@@ -213,20 +118,11 @@ with gr.Blocks(title="웨딩 스드메 추천 챗봇", theme=gr.themes.Base(prim
                 gr.Button("메이크업 추천").click(lambda: "메이크업 추천해줘", outputs=[msg])
                 gr.Button("야외씬 잘 찍는곳").click(lambda: "야외씬 잘 찍는곳 추천해줘", outputs=[msg])
 
-    with gr.Row():
-        gr.Markdown("### Neo4j 그래프 — ★: 쿼리 매칭 노드")
-        graph_btn = gr.Button("인터랙티브 그래프 열기 (새 탭)", size="sm", scale=0)
+    gr.Markdown("### Neo4j 그래프 — 호버: 연결 강조 | 클릭: 상세정보 | ★: 쿼리 매칭")
+    graph_display = gr.HTML(value=EMPTY_GRAPH)
 
-    graph_plot = gr.Plot(value=build_empty_figure())
-
-    # 새 탭으로 vis.js 그래프 열기 (호버 하이라이트 + 클릭 상세정보)
-    graph_btn.click(
-        fn=None,
-        js="() => { window.open('http://localhost:8000/api/chat/sdm/graph/view', '_blank'); }",
-    )
-
-    msg.submit(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_plot])
-    send_btn.click(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_plot])
+    msg.submit(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_display])
+    send_btn.click(response_fn, [msg, chatbot, debug_box], [msg, chatbot, debug_box, graph_display])
 
 if __name__ == "__main__":
     demo.launch()

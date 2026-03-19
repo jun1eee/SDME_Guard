@@ -14,6 +14,77 @@ router = APIRouter(tags=["sdm"])
 # 최신 그래프 데이터 저장 (vis.js HTML 서빙용)
 _latest_graph = {"nodes": [], "edges": [], "query": "", "matched_keywords": []}
 
+_GRAPH_HTML_TEMPLATE = """<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Neo4j Graph - __QUERY__</title>
+<script src="/static/vis-network.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }
+  #graph { width:100%; height:calc(100vh - 50px); }
+  #bar {
+    height:50px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px; background:#16213e; border-bottom:1px solid #333;
+  }
+  #bar .q { color:#e94560; font-weight:bold; }
+  #bar .legend span { margin:0 6px; font-size:12px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; vertical-align:middle; }
+  #detail {
+    display:none; position:fixed; right:0; top:50px; width:320px; height:calc(100vh - 50px);
+    background:rgba(22,33,62,0.97); border-left:2px solid #e94560;
+    padding:20px; overflow-y:auto; z-index:200;
+  }
+  #detail .close { position:absolute; top:10px; right:14px; cursor:pointer; font-size:20px; color:#888; }
+  #detail .close:hover { color:#e94560; }
+  #detail h2 { color:#e94560; font-size:18px; margin-bottom:12px; }
+  #detail .group-badge {
+    display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px;
+    margin-bottom:10px; color:#fff;
+  }
+  #detail .info-row { margin:6px 0; font-size:13px; }
+  #detail .connections { margin-top:14px; }
+  #detail .connections h3 { font-size:14px; color:#aaa; margin-bottom:8px; }
+  #detail .conn-item {
+    padding:4px 8px; margin:3px 0; border-radius:4px; font-size:12px;
+    background:rgba(255,255,255,0.05); cursor:pointer;
+  }
+  #detail .conn-item:hover { background:rgba(233,69,96,0.2); }
+</style>
+</head><body>
+<div id="bar">
+  <div><span class="q">Query: __QUERY__</span></div>
+  <div class="legend">
+    <span><span class="dot" style="background:#e94560"></span>업체</span>
+    <span><span class="dot" style="background:#3498db"></span>지역</span>
+    <span><span class="dot" style="background:#00bcd4"></span>동</span>
+    <span><span class="dot" style="background:#2ecc71"></span>태그</span>
+    <span><span class="dot" style="background:#9b59b6"></span>스타일</span>
+    <span><span class="dot" style="background:#f39c12"></span>리뷰</span>
+    <span><span class="dot" style="background:#1abc9c"></span>패키지</span>
+    <span style="color:#ff6b6b">&#9733; 쿼리매칭</span>
+    <span style="color:#888;margin-left:16px">호버: 연결 강조 | 클릭: 상세정보</span>
+  </div>
+</div>
+<div id="graph"></div>
+<div id="detail"><span class="close" onclick="closeDetail()">&times;</span><div id="detail-body"></div></div>
+
+<script>
+fetch('/api/chat/sdm/graph/data')
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var el = document.createElement('script');
+    el.type = 'application/json';
+    el.id = 'graph-data';
+    el.textContent = JSON.stringify(data);
+    document.body.appendChild(el);
+    var s = document.createElement('script');
+    s.src = '/static/graph.js';
+    document.body.appendChild(s);
+  });
+</script>
+</body></html>"""
+
 
 @router.post("/sdm", response_model=ChatResponse)
 async def chat_sdm(req: ChatRequest):
@@ -135,9 +206,10 @@ async def get_vendor_graph(req: dict):
         rev_cnt = rec.get("reviewCount", 0)
         if rev_cnt > 0:
             rev_id = f"rv_{vendor}"
-            nodes.append({"id": rev_id, "label": f"리뷰 {rev_cnt}건", "group": "review"})
-            seen_nodes.add(rev_id)
-            edges.append({"from": vendor, "to": rev_id, "label": "HAS_REVIEW"})
+            if rev_id not in seen_nodes:
+                nodes.append({"id": rev_id, "label": f"리뷰 {rev_cnt}건", "group": "review"})
+                seen_nodes.add(rev_id)
+                edges.append({"from": vendor, "to": rev_id, "label": "HAS_REVIEW"})
 
         # Package
         for pkg in rec.get("packages", []):
@@ -147,7 +219,7 @@ async def get_vendor_graph(req: dict):
             if pkg_id not in seen_nodes:
                 nodes.append({"id": pkg_id, "label": pkg["title"][:15], "group": "package"})
                 seen_nodes.add(pkg_id)
-            edges.append({"from": vendor, "to": pkg_id, "label": "HAS_PACKAGE"})
+                edges.append({"from": vendor, "to": pkg_id, "label": "HAS_PACKAGE"})
 
         # Tag CO_OCCURS
         for co in rec.get("cooccurs", []):
@@ -185,188 +257,22 @@ async def get_vendor_graph(req: dict):
     return result
 
 
-@router.get("/sdm/graph/view", response_class=HTMLResponse)
-async def graph_view():
-    """vis.js 그래프 시각화 HTML 페이지"""
-    # JSON을 script 태그에 안전하게 삽입 (f-string 충돌 방지)
-    graph_json = json.dumps({
+@router.get("/sdm/graph/data")
+async def graph_data():
+    """최신 그래프 데이터 반환 (JS에서 fetch)"""
+    return {
         "nodes": _latest_graph.get("nodes", []),
         "edges": _latest_graph.get("edges", []),
         "matched": _latest_graph.get("matched_keywords", []),
-    }, ensure_ascii=False).replace("</", "<\\/")  # script 태그 injection 방지
-    query = _latest_graph.get("query", "")
+        "query": _latest_graph.get("query", ""),
+    }
 
-    return f"""<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<title>Neo4j Graph - {query}</title>
-<script src="/static/vis-network.min.js"></script>
-<style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }}
-  #graph {{ width:100%; height:calc(100vh - 50px); }}
-  #bar {{
-    height:50px; display:flex; align-items:center; justify-content:space-between;
-    padding:0 20px; background:#16213e; border-bottom:1px solid #333;
-  }}
-  #bar .q {{ color:#e94560; font-weight:bold; }}
-  #bar .legend span {{ margin:0 6px; font-size:12px; }}
-  .dot {{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; vertical-align:middle; }}
-  /* 상세 패널 */
-  #detail {{
-    display:none; position:fixed; right:0; top:50px; width:320px; height:calc(100vh - 50px);
-    background:rgba(22,33,62,0.97); border-left:2px solid #e94560;
-    padding:20px; overflow-y:auto; z-index:200;
-  }}
-  #detail .close {{ position:absolute; top:10px; right:14px; cursor:pointer; font-size:20px; color:#888; }}
-  #detail .close:hover {{ color:#e94560; }}
-  #detail h2 {{ color:#e94560; font-size:18px; margin-bottom:12px; }}
-  #detail .group-badge {{
-    display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px;
-    margin-bottom:10px; color:#fff;
-  }}
-  #detail .info-row {{ margin:6px 0; font-size:13px; }}
-  #detail .info-row .label {{ color:#888; }}
-  #detail .connections {{ margin-top:14px; }}
-  #detail .connections h3 {{ font-size:14px; color:#aaa; margin-bottom:8px; }}
-  #detail .conn-item {{
-    padding:4px 8px; margin:3px 0; border-radius:4px; font-size:12px;
-    background:rgba(255,255,255,0.05); cursor:pointer;
-  }}
-  #detail .conn-item:hover {{ background:rgba(233,69,96,0.2); }}
-</style>
-</head><body>
-<div id="bar">
-  <div><span class="q">Query: {query or "-"}</span></div>
-  <div class="legend">
-    <span><span class="dot" style="background:#e94560"></span>업체</span>
-    <span><span class="dot" style="background:#3498db"></span>지역</span>
-    <span><span class="dot" style="background:#00bcd4"></span>동</span>
-    <span><span class="dot" style="background:#2ecc71"></span>태그</span>
-    <span><span class="dot" style="background:#9b59b6"></span>스타일</span>
-    <span><span class="dot" style="background:#f39c12"></span>리뷰</span>
-    <span><span class="dot" style="background:#1abc9c"></span>패키지</span>
-    <span style="color:#ff6b6b">&#9733; 쿼리매칭</span>
-    <span style="color:#888;margin-left:16px">호버: 연결 강조 | 클릭: 상세정보</span>
-  </div>
-</div>
-<div id="graph"></div>
-<div id="detail"><span class="close" onclick="closeDetail()">&times;</span><div id="detail-body"></div></div>
-<script type="application/json" id="graph-data">{graph_json}</script>
 
-<script>
-var _d = JSON.parse(document.getElementById('graph-data').textContent);
-var matched = _d.matched || [];
-var rawN = _d.nodes || [], rawE = _d.edges || [];
-var cMap = {{vendor:'#e94560',region:'#3498db',district:'#00bcd4',tag:'#2ecc71',style:'#9b59b6',review:'#f39c12','package':'#1abc9c'}};
-var sMap = {{vendor:'dot',region:'diamond',district:'diamond',tag:'dot',style:'triangle',review:'square','package':'star'}};
-var gLabel = {{vendor:'업체',region:'지역',district:'동',tag:'태그',style:'스타일',review:'리뷰','package':'패키지'}};
-
-function isM(l){{ for(var i=0;i<matched.length;i++) if(l.indexOf(matched[i])>=0) return true; return false; }}
-
-var vn=rawN.map(function(n){{
-  var g=n.group||'tag',m=isM(n.label),sz=g==='vendor'?35:(m?20:13);
-  return {{id:n.id,label:n.label,group:g,
-    color:{{background:cMap[g]||'#95a5a6',border:m?'#ff6b6b':(cMap[g]||'#95a5a6'),
-      highlight:{{background:'#ff6b6b',border:'#ff0000'}},hover:{{background:cMap[g]||'#95a5a6',border:'#fff'}}}},
-    shape:sMap[g]||'dot',size:sz,borderWidth:m?4:(g==='vendor'?3:1),
-    font:{{size:g==='vendor'?16:(m?14:11),color:'#eee',strokeWidth:3,strokeColor:'#1a1a2e'}},
-    shadow:m?{{enabled:true,color:'#ff6b6b',size:15,x:0,y:0}}:false,
-    title:n.title||n.label,_g:g,_m:m}};
-}});
-
-var ve=rawE.map(function(e){{
-  return {{from:e.from,to:e.to,label:e.label||'',dashes:e.dashes||false,
-    font:{{size:9,color:'#555',strokeWidth:0}},
-    arrows:{{to:{{enabled:true,scaleFactor:0.5}}}},
-    color:{{color:'#333',highlight:'#e94560',hover:'#666'}},
-    smooth:{{type:'continuous'}}}};
-}});
-
-var nodes=new vis.DataSet(vn),edges=new vis.DataSet(ve);
-var net=new vis.Network(document.getElementById('graph'),{{nodes:nodes,edges:edges}},{{
-  physics:{{solver:'forceAtlas2Based',forceAtlas2Based:{{gravitationalConstant:-50,centralGravity:0.008,springLength:140}},stabilization:{{iterations:150}}}},
-  interaction:{{hover:true,tooltipDelay:100,zoomView:true,dragView:true,hideEdgesOnDrag:true,hideEdgesOnZoom:true}},
-  layout:{{improvedLayout:true}}
-}});
-
-var allN=nodes.getIds(),allE=edges.getIds();
-
-// 호버: 연결 하이라이트
-net.on('hoverNode',function(p){{
-  var h=p.node,cn=net.getConnectedNodes(h),ce=net.getConnectedEdges(h);
-  cn.push(h);
-  var nu=[];
-  allN.forEach(function(id){{
-    if(cn.indexOf(id)===-1) nu.push({{id:id,opacity:0.1,font:{{color:'rgba(255,255,255,0.05)'}}}});
-    else {{ var n=nodes.get(id); nu.push({{id:id,opacity:1,font:{{color:'#eee',size:n._g==='vendor'?16:13,strokeWidth:3,strokeColor:'#1a1a2e'}}}}); }}
-  }});
-  nodes.update(nu);
-  var eu=[];
-  allE.forEach(function(id){{
-    if(ce.indexOf(id)===-1) eu.push({{id:id,color:{{color:'rgba(50,50,50,0.05)'}},font:{{color:'transparent'}}}});
-    else eu.push({{id:id,color:{{color:'#e94560'}},font:{{color:'#e94560',size:11}},width:2.5}});
-  }});
-  edges.update(eu);
-}});
-
-net.on('blurNode',function(){{
-  var nu=[];allN.forEach(function(id){{var n=nodes.get(id);nu.push({{id:id,opacity:1,font:{{color:'#eee',size:n._g==='vendor'?16:(n._m?14:11),strokeWidth:3,strokeColor:'#1a1a2e'}}}});}});
-  nodes.update(nu);
-  var eu=[];allE.forEach(function(id){{eu.push({{id:id,color:{{color:'#333'}},font:{{color:'#555',size:9}},width:1}});}});
-  edges.update(eu);
-}});
-
-// 클릭: 상세 패널
-net.on('click',function(p){{
-  if(p.nodes.length===0){{ closeDetail(); return; }}
-  var id=p.nodes[0], n=nodes.get(id);
-  if(!n) return;
-
-  // 연결된 노드/엣지 정보
-  var connNodes=net.getConnectedNodes(id);
-  var connEdges=net.getConnectedEdges(id);
-
-  // 상세 패널 구성
-  var html='';
-  var badge='<span class="group-badge" style="background:'+cMap[n._g]+'">'+gLabel[n._g]+'</span>';
-  if(n._m) badge+=' <span style="color:#ff6b6b;font-size:14px">&#9733; 쿼리 매칭</span>';
-  html+= badge;
-  html+='<h2>'+n.label+'</h2>';
-  if(n.title && n.title!==n.label) html+='<div class="info-row">'+n.title+'</div>';
-
-  // 연결 정보
-  html+='<div class="connections"><h3>연결 ('+connNodes.length+'개)</h3>';
-  var grouped={{}};
-  connEdges.forEach(function(eid){{
-    var e=edges.get(eid);
-    var otherId=(e.from===id)?e.to:e.from;
-    var other=nodes.get(otherId);
-    if(!other) return;
-    var rel=e.label||'CONNECTED';
-    if(!grouped[rel]) grouped[rel]=[];
-    grouped[rel].push(other);
-  }});
-
-  for(var rel in grouped) {{
-    html+='<div style="margin-top:8px;color:#888;font-size:11px">'+rel+'</div>';
-    grouped[rel].forEach(function(other){{
-      var c=cMap[other._g]||'#888';
-      html+='<div class="conn-item" onclick="focusNode(\''+other.id+'\')">'
-        +'<span class="dot" style="background:'+c+'"></span> '+other.label+'</div>';
-    }});
-  }}
-  html+='</div>';
-
-  document.getElementById('detail-body').innerHTML=html;
-  document.getElementById('detail').style.display='block';
-  net.focus(id,{{scale:1.2,animation:true}});
-}});
-
-function closeDetail(){{ document.getElementById('detail').style.display='none'; }}
-function focusNode(id){{ net.focus(id,{{scale:1.5,animation:true}}); net.selectNodes([id]); }}
-</script>
-</body></html>"""
+@router.get("/sdm/graph/view", response_class=HTMLResponse)
+async def graph_view():
+    """vis.js 그래프 시각화 HTML 페이지"""
+    query = _latest_graph.get("query", "") or "-"
+    return _GRAPH_HTML_TEMPLATE.replace("__QUERY__", query)
 
 
 @router.post("/sdm/reset")
