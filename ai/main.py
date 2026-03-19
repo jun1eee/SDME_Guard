@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -49,6 +50,17 @@ async def log_requests(request: Request, call_next):
     elapsed = time.time() - start
     logger.info(f"{request.method} {request.url.path} → {response.status_code} ({elapsed:.1f}초)")
     return response
+
+
+# 요청 검증 에러 (빈 메시지, 잘못된 타입 등)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    msg = errors[0].get("msg", "요청 형식 오류") if errors else "요청 형식 오류"
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "error_code": "VALIDATION_ERROR", "message": msg},
+    )
 
 
 # 전역 에러 핸들러
