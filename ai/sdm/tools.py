@@ -33,18 +33,19 @@ def extract_vendors_from_retriever(result):
 
 
 def extract_vendors_from_answer(answer):
+    """답변 텍스트에서 업체명 추출 — **볼드** 텍스트 기반"""
+    # 답변에서 **볼드** 텍스트 전부 추출
+    bold_names = re.findall(r"\*\*([^*]{2,30})\*\*", answer)
+
+    # 필드 라벨 제외 (가격, 평점, 특징 등)
+    skip = {"가격", "평점", "특징", "주소", "웹사이트", "링크", "리뷰", "참고"}
     vendors = []
-    lines = answer.split("\n")
-    for i, line in enumerate(lines):
-        line = line.strip()
-        if not line:
+    for name in bold_names:
+        name = name.strip()
+        if name in skip or any(s in name for s in skip):
             continue
-        if i + 1 < len(lines):
-            next_line = lines[i + 1].strip()
-            if next_line.startswith("가격:") or next_line.startswith("가격 :"):
-                name = re.sub(r"^\d+[\.\)]\s*", "", line).strip("*").strip()
-                if 2 <= len(name) <= 30 and name not in vendors:
-                    vendors.append(name)
+        if 2 <= len(name) <= 30 and name not in vendors:
+            vendors.append(name)
     return vendors
 
 
@@ -99,6 +100,8 @@ def tool_search_semantic(query, category, region=None, max_price=None, min_price
     )
     result = vec_rag.search(query_text=query)
     vendors = extract_vendors_from_retriever(result)
+    if not vendors:
+        vendors = extract_vendors_from_answer(result.answer)
     return "graphrag", result.answer, vendors
 
 

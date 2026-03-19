@@ -5,9 +5,24 @@ sdm/hall 모두 이 파이프라인을 통해 대화를 처리.
 도메인별 차이(prompts, tools)는 파라미터로 주입.
 """
 import json
+import re
 import time
 
 from deps import get_openai
+
+
+def _extract_vendors_from_bold(answer: str) -> list:
+    """답변의 **볼드** 텍스트에서 업체명 추출 (pipeline-level fallback)"""
+    bold_names = re.findall(r"\*\*([^*]{2,30})\*\*", answer)
+    skip = {"가격", "평점", "특징", "주소", "웹사이트", "링크", "리뷰", "참고"}
+    vendors = []
+    for name in bold_names:
+        name = name.strip()
+        if name in skip or any(s in name for s in skip):
+            continue
+        if 2 <= len(name) <= 30 and name not in vendors:
+            vendors.append(name)
+    return vendors
 
 
 def build_dynamic_system_prompt(base_prompt: str, session: dict) -> str:
@@ -68,6 +83,15 @@ async def run_pipeline(
     for m in chat_history[-6:]:
         messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": message})
+
+    # 디버그: 세션 상태 기록
+    debug["session_state"] = {
+        "category": session.get("category"),
+        "vendors": session.get("vendors", [])[:5],
+        "last_mentioned": session.get("last_mentioned", [])[:5],
+        "chat_history_count": len(chat_history),
+        "turn": session.get("turn", 0),
+    }
 
     # -- 2단계: GPT tool 선택 --
     try:
@@ -134,6 +158,10 @@ async def run_pipeline(
                 t0 = time.time()
                 result_type, data, vendors = tool_fn(**tool_args)
                 debug[f"tool_{tool_name}_time"] = round(time.time() - t0, 1)
+                debug[f"tool_{tool_name}_vendors"] = vendors[:5] if vendors else []
+                # 답변 텍스트 앞부분 기록 (vendor 추출 디버깅)
+                if result_type == "graphrag" and not vendors:
+                    debug[f"tool_{tool_name}_answer_preview"] = data[:300] if isinstance(data, str) else ""
 
                 if vendors:
                     all_vendors.extend(vendors)
@@ -184,12 +212,19 @@ async def run_pipeline(
         answer = choice.message.content or "웨딩 스드메 관련 질문을 해주세요."
 
     # -- 4단계: session_state 업데이트 --
+    # fallback 1: tool args에서 vendor_names 추출
     if not all_vendors and choice.message.tool_calls:
         for tc in choice.message.tool_calls:
             args = json.loads(tc.function.arguments)
             if "vendor_names" in args:
                 all_vendors = args["vendor_names"]
                 break
+
+    # fallback 2: 답변 텍스트의 **볼드** 업체명 추출
+    if not all_vendors and answer:
+        all_vendors = _extract_vendors_from_bold(answer)
+        if all_vendors:
+            debug["vendors_from_bold"] = all_vendors[:5]
 
     # 중복 제거
     seen = set()
