@@ -1,0 +1,15 @@
+# FastAPI
+fastapi>=0.115.0
+uvicorn>=0.30.0
+pydantic-settings>=2.0.0
+
+# AI / GraphRAG
+neo4j-graphrag>=1.13.0
+neo4j>=5.0.0
+openai>=1.0.0
+
+# DB
+mysql-connector-python>=8.0.0
+
+# Utils
+python-dotenv>=1.0.0
