@@ -1,3 +1,4 @@
+"""통합 웨딩 챗봇 서비스"""
 import json
 import re
 from typing import Any
@@ -6,7 +7,7 @@ from config import Settings
 from schemas.chat import ChatPayload, ChatRequest, RecommendationCard
 from sdm.graphrag import SdmGraphRagEngine
 from sdm.prompts import CATEGORY_LABELS, SYSTEM_PROMPT
-from sdm.tools import TOOLS_SCHEMA, SdmToolRegistry
+from sdm.tools import TOOLS_SCHEMA, ToolRegistry
 from session_store import InMemorySessionStore, SessionState
 
 
@@ -18,7 +19,7 @@ class SdmChatService:
         self.settings = settings
         self.engine = engine
         self.session_store = session_store
-        self.tools = SdmToolRegistry(engine, hall_engine=hall_engine)
+        self.tools = ToolRegistry(engine, hall_engine=hall_engine)
 
     def chat(self, request: ChatRequest, trace_id: str) -> ChatPayload:
         session = self.session_store.get_or_create(request.session_id)
@@ -36,7 +37,7 @@ class SdmChatService:
             self._append_turns(session, message, answer)
             return ChatPayload(
                 session_id=session.session_id, answer=answer,
-                route_used="sdm:error", trace_id=trace_id,
+                route_used="error", trace_id=trace_id,
                 debug_log="\n".join(log_lines) if request.debug else None,
             )
 
@@ -45,11 +46,11 @@ class SdmChatService:
             log_lines.append(f"[tokens] prompt={response.usage.prompt_tokens}, completion={response.usage.completion_tokens}")
 
         all_vendors: list[str] = []
-        route_used = "sdm:direct"
+        route_used = "direct"
         requested_count = self._extract_requested_count(message)
 
         if choice.message.tool_calls:
-            route_used = "sdm:tool"
+            route_used = "tool"
             messages_for_followup = list(messages)
             messages_for_followup.append({
                 "role": "assistant", "content": choice.message.content or "",
@@ -66,35 +67,22 @@ class SdmChatService:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments)
 
-                # search_structured는 원문 강제
-                if tool_name == "search_structured" and "query" in tool_args:
+                # search는 원문 강제
+                if tool_name == "search" and "query" in tool_args:
                     tool_args["query"] = message
 
                 # category 보완
                 if "category" in tool_args and not tool_args.get("category") and session.category:
                     tool_args["category"] = session.category
 
-                # 카테고리 키워드 교정 (ai-dc)
+                # 카테고리 키워드 교정
                 if "category" in tool_args:
                     corrected = self._correct_category(message, tool_args.get("category"))
                     if corrected and corrected != tool_args.get("category"):
                         log_lines.append(f"[category_corrected] {tool_args.get('category')} -> {corrected}")
                         tool_args["category"] = corrected
 
-                # "어울리는/맞는" + 다른 카테고리 → search_related 강제 교정
-                if tool_name in ("search_structured", "search_semantic"):
-                    related_pattern = any(kw in message for kw in ["어울리는", "에 맞는", "잘맞는", "과 맞는", "이랑 맞는"])
-                    if related_pattern and "category" in tool_args:
-                        target_cat = tool_args["category"]
-                        # 이전 세션 카테고리와 다른 카테고리를 요청 중이면 cross-category
-                        if session.category and target_cat != session.category:
-                            log_lines.append(f"[tool_corrected] {tool_name} -> search_related")
-                            tool_name = "search_related"
-                            tool_args = {
-                                "target_category": target_cat,
-                                "source_vendor": session.last_mentioned[0] if session.last_mentioned else "",
-                                "source_style": "",
-                            }
+                if tool_name in ("search", "search_style", "search_nearby"):
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
@@ -112,14 +100,12 @@ class SdmChatService:
 
             answer = self._build_answer_from_tools(messages_for_followup, tool_results, log_lines)
 
-            # vendor fallback: tool args에서
+            # vendor fallback
             if not all_vendors:
                 for _, tool_args, _ in tool_results:
-                    if "vendor_names" in tool_args:
-                        all_vendors = tool_args["vendor_names"]
+                    if "names" in tool_args:
+                        all_vendors = tool_args["names"]
                         break
-
-            # vendor fallback: 볼드 텍스트에서 (ai-dc)
             if not all_vendors and answer:
                 all_vendors = self.engine._extract_vendors_from_bold(answer)
 
@@ -128,7 +114,7 @@ class SdmChatService:
                 all_vendors=all_vendors, is_new_search=is_new_search,
             )
         else:
-            answer = choice.message.content or "스드메 관련 질문을 해주세요."
+            answer = choice.message.content or "웨딩 관련 질문을 해주세요."
 
         recommendations = self._build_recommendations(all_vendors, limit=requested_count)
         self._append_turns(session, message, answer)
@@ -141,11 +127,12 @@ class SdmChatService:
             debug_log="\n".join(log_lines) if request.debug else None,
         )
 
-    # ── 카테고리 키워드 교정 (ai-dc) ──
+    # ── 카테고리 교정 ──
 
     @staticmethod
     def _correct_category(message: str, current: str | None) -> str | None:
         kw_map = {
+            "hall": ["웨딩홀", "예식장", "하객", "식대", "뷔페", "채플", "호텔웨딩", "컨벤션"],
             "dress": ["드레스", "드레스샵", "벌"],
             "makeup": ["메이크업", "메이크업샵", "헤어"],
             "studio": ["스튜디오", "촬영"],
@@ -202,7 +189,7 @@ class SdmChatService:
         if is_new_search:
             session.vendors = unique
         for _, tool_args, _ in tool_results:
-            cat = tool_args.get("category")
+            cat = tool_args.get("category") or tool_args.get("target_category")
             if cat:
                 session.category = cat
                 session.vendor_history[cat] = unique
@@ -219,7 +206,7 @@ class SdmChatService:
 
     @staticmethod
     def _extract_requested_count(message: str) -> int | None:
-        match = re.search(r"(\d{1,2})\s*개", message)
+        match = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", message)
         return max(1, min(int(match.group(1)), 20)) if match else None
 
     def _build_recommendations(self, vendor_names, limit=None) -> list[RecommendationCard]:
@@ -232,7 +219,7 @@ class SdmChatService:
         return [
             RecommendationCard(
                 id=str(r.get("sourceId") or r.get("name")),
-                source="sdm",
+                source="wedding",
                 category=self._map_category(r.get("category")),
                 title=r.get("name") or "추천 업체",
                 subtitle=r.get("region"),
