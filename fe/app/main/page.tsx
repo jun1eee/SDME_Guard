@@ -65,6 +65,48 @@ export default function ChatPage() {
   const [coupleConnected, setCoupleConnected] = useState(false)
   const [myInviteCode, setMyInviteCode] = useState("")
 
+  // 찜 변경 직후 폴링 무시용 타임스탬프
+  const favChangedAt = useRef(0)
+
+  // 찜 데이터 로드 함수 (폴링 + 변경 후 재조회 공용)
+  const reloadFavorites = useCallback((myId?: number, role?: "groom" | "bride", isPolling = false) => {
+    // 폴링인데 최근 5초 내 수동 변경이 있었으면 건너뜀
+    if (isPolling && Date.now() - favChangedAt.current < 5000) return
+    const id = myId ?? userId
+    const r = role ?? userRole
+    if (!id) return
+    getAllCoupleFavorites()
+      .then((favRes) => {
+        const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
+          STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+          studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+        }
+        const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+        const favs: VendorShare[] = favRes.data
+          .filter((f: any) => f.name && f.category)
+          .map((f: any) => {
+            const cat = CATEGORY_MAP[f.category] ?? "studio"
+            const isMe = f.userId === id
+            return {
+              id: `fav-${f.id}`,
+              vendorId: f.vendorId.toString(),
+              name: f.name,
+              category: cat,
+              categoryLabel: CAT_LABEL[cat] || "",
+              price: f.price ? `${f.price.toLocaleString()}원` : "",
+              rating: f.rating || 0,
+              address: "",
+              tags: [],
+              description: f.description || "",
+              coverUrl: f.imageUrl || undefined,
+              sharedBy: isMe ? r : (r === "groom" ? "bride" : "groom"),
+            }
+          })
+        setFavoriteVendors(favs)
+      })
+      .catch(() => {})
+  }, [userId, userRole])
+
   // 뒤로가기 시 URL 기반 뷰 복원
   useEffect(() => {
     const handlePopState = () => {
@@ -186,44 +228,9 @@ export default function ChatPage() {
           }
         }
 
-        // DB에서 커플 전체 찜 데이터 로드
-        const loadFavorites = () => {
-          if (!res.data.coupleId) return
-          getAllCoupleFavorites()
-            .then((favRes) => {
-              const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
-                STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
-                studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
-              }
-              const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
-              const myId = res.data.id
-              const favs: VendorShare[] = favRes.data
-                .filter((f: any) => f.name && f.category)
-                .map((f: any) => {
-                  const cat = CATEGORY_MAP[f.category] ?? "studio"
-                  const isMe = f.userId === myId
-                  return {
-                    id: `fav-${f.id}`,
-                    vendorId: f.vendorId.toString(),
-                    name: f.name,
-                    category: cat,
-                    categoryLabel: CAT_LABEL[cat] || "",
-                    price: f.price ? `${f.price.toLocaleString()}원` : "",
-                    rating: f.rating || 0,
-                    address: "",
-                    tags: [],
-                    description: f.description || "",
-                    coverUrl: f.imageUrl || undefined,
-                    sharedBy: isMe ? r : (r === "groom" ? "bride" : "groom"),
-                  }
-                })
-              setFavoriteVendors(favs)
-            })
-            .catch(() => {})
-        }
-        loadFavorites()
-        // 30초마다 찜 데이터 폴링
-        const favInterval = setInterval(loadFavorites, 30000)
+        // 초기 찜 로드 + 폴링
+        reloadFavorites(res.data.id, r)
+        const favInterval = setInterval(() => reloadFavorites(res.data.id, r, true), 30000)
         ;(window as any).__favInterval = favInterval
 
         setAuthChecked(true)
@@ -257,7 +264,20 @@ export default function ChatPage() {
   })
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([])
   const [sharedVendors, setSharedVendors] = useState<VendorShare[]>([])
-  const [favoriteVendors, setFavoriteVendors] = useState<VendorShare[]>([])
+  const [favoriteVendors, _setFavoriteVendors] = useState<VendorShare[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const cached = localStorage.getItem("cachedFavs")
+      return cached ? JSON.parse(cached) : []
+    } catch { return [] }
+  })
+  const setFavoriteVendors = useCallback((update: VendorShare[] | ((prev: VendorShare[]) => VendorShare[])) => {
+    _setFavoriteVendors((prev) => {
+      const next = typeof update === "function" ? update(prev) : update
+      try { localStorage.setItem("cachedFavs", JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
   const [pendingVoteItems, setPendingVoteItems] = useState<VendorItem[]>([])
   const [voteBadge, setVoteBadge] = useState(0)
   const [coupleChatBadge, setCoupleChatBadge] = useState(0)
@@ -599,6 +619,7 @@ export default function ChatPage() {
   }
 
   const handleFavoriteChange = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, isFavorite: boolean) => {
+    favChangedAt.current = Date.now()
     if (isFavorite) {
       const fav: VendorShare = {
         id: `fav-${Date.now()}-${vendor.id}`,
@@ -615,13 +636,17 @@ export default function ChatPage() {
         sharedBy: userRole,
       }
       setFavoriteVendors((prev) => [...prev, fav])
-      addFavorite(Number(vendor.id)).catch(() => {})
+      addFavorite(Number(vendor.id))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
       toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
     } else {
       setFavoriteVendors((prev) =>
         prev.filter((v) => !(v.vendorId === vendor.id && v.sharedBy === userRole))
       )
-      removeFavorite(Number(vendor.id)).catch(() => {})
+      removeFavorite(Number(vendor.id))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
       toast.success("찜목록에서 제거됐어요", { description: vendor.name, duration: 2000 })
     }
   }
@@ -632,9 +657,12 @@ export default function ChatPage() {
       (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
     )
     if (!alreadyFav) {
+      favChangedAt.current = Date.now()
       const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
       setFavoriteVendors((prev) => [...prev, fav])
-      addFavorite(Number(vendor.vendorId)).catch(() => {})
+      addFavorite(Number(vendor.vendorId))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
       toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
     }
   }
@@ -783,10 +811,11 @@ export default function ChatPage() {
             }}
             onFavoriteVendor={handleFavoriteVendorFromChat}
             onUnfavoriteVendor={(vendorId) => {
-              setFavoriteVendors((prev) =>
-                prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole))
-              )
-              removeFavorite(Number(vendorId)).catch(() => {})
+              favChangedAt.current = Date.now()
+              setFavoriteVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
+              removeFavorite(Number(vendorId))
+                .then(() => reloadFavorites())
+                .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
@@ -856,10 +885,11 @@ export default function ChatPage() {
             onOpenVendor={() => addPanelTab("vendors", "right")}
             onOpenSchedule={() => addPanelTab("schedule", "right")}
             onUnfavorite={(vendorId) => {
-              setFavoriteVendors((prev) =>
-                prev.filter((v) => v.vendorId !== vendorId)
-              )
-              removeFavorite(Number(vendorId)).catch(() => {})
+              favChangedAt.current = Date.now()
+              setFavoriteVendors((prev) => prev.filter((v) => v.vendorId !== vendorId))
+              removeFavorite(Number(vendorId))
+                .then(() => reloadFavorites())
+                .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             onShareVendor={(vendor) => {
@@ -881,9 +911,12 @@ export default function ChatPage() {
                 (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
               )
               if (!alreadyFav) {
+                favChangedAt.current = Date.now()
                 const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
                 setFavoriteVendors((prev) => [...prev, fav])
-                addFavorite(Number(vendor.vendorId)).catch(() => {})
+                addFavorite(Number(vendor.vendorId))
+                  .then(() => reloadFavorites())
+                  .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
                 toast.success("나도 찜했어요!", { description: vendor.name, duration: 2000 })
               } else {
                 toast.info("이미 찜한 업체예요", { duration: 2000 })

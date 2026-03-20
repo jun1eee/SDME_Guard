@@ -87,7 +87,6 @@ public class FavoriteService {
         Map<Long, Vendor> vendorMap = vendorRepository.findAllById(vendorIds)
                 .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
 
-        log.info("[Favorite] 커플 전체 찜 조회 - userId: {}, coupleId: {}, count: {}", userId, user.getCoupleId(), favorites.size());
         return favorites.stream()
                 .map(f -> FavoriteResponse.of(f, vendorMap.get(f.getVendorId())))
                 .toList();
