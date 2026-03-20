@@ -3,6 +3,7 @@ package com.ssafy.sdme.chat.service;
 import com.ssafy.sdme.chat.dto.AiChatRequest;
 import com.ssafy.sdme.chat.dto.AiChatResponse;
 import com.ssafy.sdme.chat.dto.AiRecommendation;
+import com.ssafy.sdme.vendor.application.VendorIdConverter;
 import com.ssafy.sdme.vendor.domain.Vendor;
 import com.ssafy.sdme.vendor.repository.VendorRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +23,18 @@ public class AiChatService {
     private final RestTemplate restTemplate;
     private final String aiServerUrl;
     private final VendorRepository vendorRepository;
+    private final VendorIdConverter idConverter;
 
     public AiChatService(
             RestTemplate restTemplate,
             @Value("${ai.server-url:http://localhost:8000}") String aiServerUrl,
-            VendorRepository vendorRepository
+            VendorRepository vendorRepository,
+            VendorIdConverter idConverter
     ) {
         this.restTemplate = restTemplate;
         this.aiServerUrl = aiServerUrl;
         this.vendorRepository = vendorRepository;
+        this.idConverter = idConverter;
     }
 
     public AiChatResponse chat(AiChatRequest request) {
@@ -100,20 +104,22 @@ public class AiChatService {
             return Collections.emptyList();
         }
 
-        // AI가 보낸 ID 수집
+        // AI가 보낸 ID → MySQL sourceId 변환
         List<Long> sourceIds = new ArrayList<>();
         Map<String, Map<String, Object>> recMap = new LinkedHashMap<>();
         for (Map<String, Object> rec : aiRecs) {
             String id = String.valueOf(rec.getOrDefault("id", ""));
+            String category = (String) rec.getOrDefault("category", "studio");
             recMap.put(id, rec);
             try {
-                sourceIds.add(Long.parseLong(id));
+                long partnerId = Long.parseLong(id);
+                sourceIds.add(idConverter.toSourceId(partnerId, category));
             } catch (NumberFormatException e) {
-                // ID가 숫자가 아닌 경우 (이름으로 된 경우)
+                // ID가 숫자가 아닌 경우
             }
         }
 
-        // MySQL에서 상세 조회
+        // MySQL에서 상세 조회 (sourceId 기준)
         Map<Long, Vendor> vendorMap = new HashMap<>();
         if (!sourceIds.isEmpty()) {
             List<Vendor> vendors = vendorRepository.findBySourceIdIn(sourceIds);
@@ -131,18 +137,19 @@ public class AiChatService {
             String source = (String) rec.getOrDefault("source", "sdm");
             String category = (String) rec.getOrDefault("category", "studio");
 
-            Long sourceId = null;
+            Long mysqlSourceId = null;
             try {
-                sourceId = Long.parseLong(entry.getKey());
+                long partnerId = Long.parseLong(entry.getKey());
+                mysqlSourceId = idConverter.toSourceId(partnerId, category);
             } catch (NumberFormatException e) {
                 // ignore
             }
 
-            Vendor vendor = sourceId != null ? vendorMap.get(sourceId) : null;
+            Vendor vendor = mysqlSourceId != null ? vendorMap.get(mysqlSourceId) : null;
 
             if (vendor != null) {
                 enriched.add(AiRecommendation.builder()
-                        .id(vendor.getSourceId())
+                        .id(vendor.getSourceId())  // sourceId 반환 (PK 노출 방지)
                         .source(source)
                         .category(vendor.getCategory())
                         .name(vendor.getName())
@@ -157,7 +164,7 @@ public class AiChatService {
             } else {
                 // MySQL에 없는 경우 (웨딩홀 등) — AI 데이터만으로 구성
                 enriched.add(AiRecommendation.builder()
-                        .id(sourceId)
+                        .id(mysqlSourceId)
                         .source(source)
                         .category(category)
                         .name(title)
