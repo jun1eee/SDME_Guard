@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import sys
 import asyncio
 import aiohttp
 from dotenv import load_dotenv
@@ -22,6 +23,8 @@ KAKAO_API_KEY = os.environ.get("KAKAO_API_KEY", "")
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 # ai/ 루트 기준 경로 (scripts/ 에서 한 단계 위)
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+GEOCODE_CACHE_PATH = os.path.join(_BASE, "data", "geocode_cache.json")
 
 
 def pick_existing_path(*candidates):
@@ -45,9 +48,9 @@ HALL_DETAIL_PATH = pick_existing_path(
 )
 
 
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 # 공통 유틸
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 def load_json(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -59,10 +62,33 @@ def load_json(path):
     raise ValueError(f"JSON 구조를 알 수 없음: {path}")
 
 
+def _load_geocode_cache():
+    """지오코딩 캐시 파일 로드. 없으면 빈 dict 반환."""
+    if os.path.exists(GEOCODE_CACHE_PATH):
+        with open(GEOCODE_CACHE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_geocode_cache(cache):
+    """지오코딩 캐시 파일 저장."""
+    os.makedirs(os.path.dirname(GEOCODE_CACHE_PATH), exist_ok=True)
+    with open(GEOCODE_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+
+
+# --────────────────────────────────────────
+# setup / setup_constraints
+# --────────────────────────────────────────
 def setup(session):
+    """전체 삭제 + 제약조건 생성 (--clean 전용)."""
     session.run("MATCH (n) DETACH DELETE n")
     print("기존 데이터 전체 삭제 완료")
+    setup_constraints(session)
 
+
+def setup_constraints(session):
+    """제약조건만 생성 (기본 모드). 충돌 제약조건 제거 포함."""
     # 챗봇 노트북에서 생성된 충돌 제약조건을 이름으로 조회 후 삭제
     try:
         constraints = session.run("SHOW CONSTRAINTS").data()
@@ -91,9 +117,9 @@ def setup(session):
     print("제약조건 생성 완료")
 
 
-# ──────────────────────────────────────────
-# 카카오맵 지오코딩 (주소 → 좌표, 병렬 처리)
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
+# 카카오맵 지오코딩 (주소 -> 좌표, 병렬 처리)
+# --────────────────────────────────────────
 KAKAO_KEYWORD_URL = "https://dapi.kakao.com/v2/local/search/keyword.json"
 
 
@@ -148,10 +174,34 @@ async def geocode_addresses(addresses, concurrency=10):
         return await asyncio.gather(*tasks)
 
 
-def geocode_vendors(session, items, category):
-    """Vendor 노드에 lat, lng 속성 추가 (카카오맵 지오코딩)."""
+def _geocode_with_cache(unique_addrs, cache):
+    """캐시를 활용한 지오코딩. 캐시 미스만 API 호출."""
+    cached_results = {}
+    uncached_addrs = []
+
+    for addr in unique_addrs:
+        if addr in cache:
+            cached_results[addr] = tuple(cache[addr])
+        else:
+            uncached_addrs.append(addr)
+
+    print(f"    캐시 히트: {len(cached_results)}건, API 호출 필요: {len(uncached_addrs)}건")
+
+    # 캐시 미스 주소만 API 호출
+    if uncached_addrs and KAKAO_API_KEY:
+        api_results = asyncio.run(geocode_addresses(uncached_addrs, concurrency=10))
+        for addr, lat, lng in api_results:
+            if lat is not None:
+                cached_results[addr] = (lat, lng)
+                cache[addr] = [lat, lng]
+
+    return cached_results
+
+
+def geocode_vendors(session, items, category, cache):
+    """Vendor 노드에 lat, lng 속성 추가 (카카오맵 지오코딩 + 캐시)."""
     if not KAKAO_API_KEY:
-        print(f"  [{category}] KAKAO_API_KEY 미설정 — 지오코딩 건너뜀")
+        print(f"  [{category}] KAKAO_API_KEY 미설정 -- 지오코딩 건너뜀")
         return
 
     # 중복 주소 제거하여 API 호출 최소화
@@ -163,12 +213,7 @@ def geocode_vendors(session, items, category):
 
     unique_addrs = [a for a in addr_to_pids if a]
     print(f"  [{category}] 지오코딩 중... (업체 {len(items)}개, 고유 주소 {len(unique_addrs)}개)")
-    results = asyncio.run(geocode_addresses(unique_addrs, concurrency=10))
-
-    coord_map = {}
-    for addr, lat, lng in results:
-        if lat is not None:
-            coord_map[addr] = (lat, lng)
+    coord_map = _geocode_with_cache(unique_addrs, cache)
 
     batch = []
     for addr, pids in addr_to_pids.items():
@@ -185,7 +230,43 @@ def geocode_vendors(session, items, category):
             SET v.lat = row.lat, v.lng = row.lng
         """, batch=chunk, cat=category)
 
-    print(f"  → [{category}] 지오코딩 완료: {len(coord_map)}/{len(unique_addrs)}건 성공 → {len(batch)}개 Vendor 업데이트")
+    print(f"  -> [{category}] 지오코딩 완료: {len(coord_map)}/{len(unique_addrs)}건 성공 -> {len(batch)}개 Vendor 업데이트")
+
+
+def geocode_halls(session, list_items, cache):
+    """Hall 노드에 lat, lng 속성 추가 (카카오맵 지오코딩 + 캐시)."""
+    if not KAKAO_API_KEY:
+        print("  [hall] KAKAO_API_KEY 미설정 -- 지오코딩 건너뜀")
+        return
+
+    addr_to_pids = {}
+    for item in list_items:
+        # detail에 address가 있으면 우선, 없으면 list에서 추출
+        addr = item.get("address", "")
+        pid = item.get("partnerId")
+        if addr and pid is not None:
+            addr_to_pids.setdefault(addr, []).append(int(pid))
+
+    unique_addrs = [a for a in addr_to_pids if a]
+    print(f"  [hall] 지오코딩 중... (홀 {len(list_items)}개, 고유 주소 {len(unique_addrs)}개)")
+    coord_map = _geocode_with_cache(unique_addrs, cache)
+
+    batch = []
+    for addr, pids in addr_to_pids.items():
+        if addr in coord_map:
+            lat, lng = coord_map[addr]
+            for pid in pids:
+                batch.append({"partnerId": pid, "lat": lat, "lng": lng})
+
+    for i in range(0, len(batch), 100):
+        chunk = batch[i:i+100]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (h:Hall {partnerId: row.partnerId})
+            SET h.lat = row.lat, h.lng = row.lng
+        """, batch=chunk)
+
+    print(f"  -> [hall] 지오코딩 완료: {len(coord_map)}/{len(unique_addrs)}건 성공 -> {len(batch)}개 Hall 업데이트")
 
 
 def create_point_index(session):
@@ -197,7 +278,7 @@ def create_point_index(session):
         """)
     except Exception:
         pass
-    # lat, lng → Neo4j point 속성 변환
+    # lat, lng -> Neo4j point 속성 변환
     session.run("""
         MATCH (v:Vendor) WHERE v.lat IS NOT NULL AND v.lng IS NOT NULL
         SET v.location = point({latitude: v.lat, longitude: v.lng})
@@ -205,34 +286,51 @@ def create_point_index(session):
     cnt = session.run("""
         MATCH (v:Vendor) WHERE v.location IS NOT NULL RETURN count(v) AS cnt
     """).single()["cnt"]
-    print(f"  → 좌표 인덱스 생성 완료: {cnt}개 Vendor에 location 설정")
+    print(f"  -> 좌표 인덱스 생성 완료: {cnt}개 Vendor에 location 설정")
+
+    # Hall에도 point 속성 변환
+    try:
+        session.run("""
+            CREATE POINT INDEX hall_location_index IF NOT EXISTS
+            FOR (h:Hall) ON (h.location)
+        """)
+    except Exception:
+        pass
+    session.run("""
+        MATCH (h:Hall) WHERE h.lat IS NOT NULL AND h.lng IS NOT NULL
+        SET h.location = point({latitude: h.lat, longitude: h.lng})
+    """)
+    hall_cnt = session.run("""
+        MATCH (h:Hall) WHERE h.location IS NOT NULL RETURN count(h) AS cnt
+    """).single()["cnt"]
+    print(f"  -> 좌표 인덱스 생성 완료: {hall_cnt}개 Hall에 location 설정")
 
 
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 # 주소에서 동(洞) 이름 추출
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 def extract_dong(address):
     """주소 문자열에서 동(洞) 이름 추출. 없으면 None 반환."""
     if not address:
         return None
-    # 1순위: 괄호 안의 동 — (청담동), (논현동 101-3), (성수동2가)
+    # 1순위: 괄호 안의 동 -- (청담동), (논현동 101-3), (성수동2가)
     m = re.search(r"\((\S+동\d*가?)\b", address)
     if m:
         return m.group(1)
-    # 2순위: 구 뒤의 지번 동 — 강남구 신사동 (도로명 "동로/동길" 제외)
+    # 2순위: 구 뒤의 지번 동 -- 강남구 신사동 (도로명 "동로/동길" 제외)
     m = re.search(r"[시군구]\s+(\S+동\d*가?)(?!\s*로|길)\b", address)
     if m:
         return m.group(1)
-    # 3순위: 주소가 동으로 시작 — 청담동2-10
+    # 3순위: 주소가 동으로 시작 -- 청담동2-10
     m = re.match(r"(\S+동\d*가?)(?!\s*로|길)\b", address)
     if m:
         return m.group(1)
     return None
 
 
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 # 스드메 (Vendor 노드)
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 def insert_vendors(session, items, category, batch_size=100):
     for i in range(0, len(items), batch_size):
         batch = [
@@ -331,7 +429,13 @@ def insert_vendors(session, items, category, batch_size=100):
             MERGE (v)-[:HAS_STYLE]->(sf)
         """, batch=batch)
 
-        # Review 노드
+        # Review 노드 -- 기존 Review 삭제 후 재생성 (Vendor 단위)
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})-[r:HAS_REVIEW]->(rv:Review)
+            DETACH DELETE rv
+        """, batch=batch)
+
         session.run("""
             UNWIND $batch AS row
             MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
@@ -341,7 +445,13 @@ def insert_vendors(session, items, category, batch_size=100):
             CREATE (v)-[:HAS_REVIEW]->(rv)
         """, batch=batch)
 
-        # Package 노드
+        # Package 노드 -- 기존 Package 삭제 후 재생성 (Vendor 단위)
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})-[r:HAS_PACKAGE]->(p:Package)
+            DETACH DELETE p
+        """, batch=batch)
+
         session.run("""
             UNWIND $batch AS row
             MATCH (v:Vendor {partnerId: row.partnerId, category: row.category})
@@ -355,7 +465,7 @@ def insert_vendors(session, items, category, batch_size=100):
     cnt = session.run(
         "MATCH (v:Vendor {category: $cat}) RETURN count(v) AS cnt", cat=category
     ).single()["cnt"]
-    print(f"  → [{category}] Vendor 노드 {cnt}개 완료\n")
+    print(f"  -> [{category}] Vendor 노드 {cnt}개 완료\n")
 
 
 def create_tag_co_occurs(session, category):
@@ -373,12 +483,12 @@ def create_tag_co_occurs(session, category):
         MATCH (:Tag {category: $cat})-[r:CO_OCCURS]->(:Tag {category: $cat})
         RETURN count(r) AS cnt
     """, cat=category).single()["cnt"]
-    print(f"  → [{category}] CO_OCCURS 관계 {co_cnt}개 생성\n")
+    print(f"  -> [{category}] CO_OCCURS 관계 {co_cnt}개 생성\n")
 
 
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 # 스드메 임베딩 생성
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 CATEGORY_KR = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}
 
 
@@ -445,7 +555,7 @@ def create_vendor_embeddings(session, items, category):
             SET v.embedding = row.embedding
         """, batch=batch, cat=category)
 
-    print(f"  → [{category}] 임베딩 {len(embeddings)}개 저장 완료")
+    print(f"  -> [{category}] 임베딩 {len(embeddings)}개 저장 완료")
 
 
 def create_vector_index(session):
@@ -464,12 +574,12 @@ def create_vector_index(session):
             `vector.similarity_function`: 'COSINE'
         }}
     """, dim=EMBEDDING_DIM)
-    print(f"  → vendor_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
+    print(f"  -> vendor_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
 
 
-# ──────────────────────────────────────────
-# 웨딩홀 (Hall 노드) — DB.py 로직 그대로
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
+# 웨딩홀 (Hall 노드) -- DB.py 로직 그대로
+# --────────────────────────────────────────
 def _upsert_hall(tx, list_item, detail_item):
     partnerId    = list_item.get("partnerId")
     partnerUuid  = list_item.get("partnerUuid")
@@ -609,17 +719,24 @@ def insert_halls(session, list_items, detail_items):
         if idx % 50 == 0 or idx == total:
             print(f"  [hall] {idx}/{total}")
     cnt = session.run("MATCH (h:Hall) RETURN count(h) AS cnt").single()["cnt"]
-    print(f"  → [hall] Hall 노드 {cnt}개 완료\n")
+    print(f"  -> [hall] Hall 노드 {cnt}개 완료\n")
 
 
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 # 메인
-# ──────────────────────────────────────────
+# --────────────────────────────────────────
 def main():
+    clean = "--clean" in sys.argv
+
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PW))
 
     with driver.session() as session:
-        setup(session)
+        if clean:
+            print("[mode] --clean: 전체 삭제 후 재적재")
+            setup(session)
+        else:
+            print("[mode] upsert: 기존 데이터 유지, 신규/변경분만 MERGE")
+            setup_constraints(session)
 
         # 스드메
         for category, path in VENDOR_FILES.items():
@@ -632,19 +749,14 @@ def main():
         for category in VENDOR_FILES:
             create_tag_co_occurs(session, category)
 
-        # 스드메 지오코딩 (주소 → 좌표)
+        # 지오코딩 (캐시 활용)
         print("\n[geocoding] 지오코딩 시작...")
-        for category, path in VENDOR_FILES.items():
-            items = load_json(path)
-            geocode_vendors(session, items, category)
-        create_point_index(session)
+        geocode_cache = _load_geocode_cache()
+        print(f"  캐시 로드: {len(geocode_cache)}건")
 
-        # 스드메 임베딩 생성 + 벡터 인덱스
-        print("\n[embedding] 임베딩 생성 시작...")
         for category, path in VENDOR_FILES.items():
             items = load_json(path)
-            create_vendor_embeddings(session, items, category)
-        create_vector_index(session)
+            geocode_vendors(session, items, category, geocode_cache)
 
         # 웨딩홀
         print("[hall] 로딩 시작...")
@@ -654,6 +766,31 @@ def main():
         print(f"  hall detail source: {HALL_DETAIL_PATH}")
         print(f"  list {len(list_items)}개 / detail {len(detail_items)}개 로드됨")
         insert_halls(session, list_items, detail_items)
+
+        # 웨딩홀 지오코딩
+        # detail에서 address 정보를 모아서 geocode
+        detail_map = {int(x["partnerId"]): x for x in detail_items if "partnerId" in x}
+        hall_addr_items = []
+        for li in list_items:
+            pid = int(li.get("partnerId")) if li.get("partnerId") is not None else None
+            di = detail_map.get(pid) if pid is not None else None
+            addr = (di.get("address") if di else None) or ""
+            if addr and pid is not None:
+                hall_addr_items.append({"address": addr, "partnerId": pid})
+        geocode_halls(session, hall_addr_items, geocode_cache)
+
+        # 캐시 저장
+        _save_geocode_cache(geocode_cache)
+        print(f"  캐시 저장 완료: {len(geocode_cache)}건")
+
+        create_point_index(session)
+
+        # 스드메 임베딩 생성 + 벡터 인덱스
+        print("\n[embedding] 임베딩 생성 시작...")
+        for category, path in VENDOR_FILES.items():
+            items = load_json(path)
+            create_vendor_embeddings(session, items, category)
+        create_vector_index(session)
 
         # 최종 통계
         total_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
