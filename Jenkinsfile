@@ -4,7 +4,14 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([
+                      $class: 'GitSCM',
+                      branches: [[name: env.gitlabSourceBranch ?: 'dev']],
+                      userRemoteConfigs: [[
+                          url: 'https://lab.ssafy.com/s14-fintech-finance-sub1/S14P21A105.git',
+                          credentialsId: 'gitlab-credentials'
+                      ]]
+                  ])
             }
         }
 
