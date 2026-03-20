@@ -50,6 +50,7 @@ interface Message {
   id: string
   role: "assistant" | "user"
   content: string
+  recommendations?: import("@/lib/api").AiRecommendation[]
 }
 
 export default function ChatPage() {
@@ -446,6 +447,7 @@ export default function ChatPage() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: res.data.answer,
+        recommendations: res.data.recommendations || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -502,6 +504,7 @@ export default function ChatPage() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: res.data.answer,
+        recommendations: res.data.recommendations || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -1438,7 +1441,18 @@ function ChatPanelWithDrop({
       <div className="flex-1 overflow-y-auto bg-background">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
           {messages.map((message) => (
-            <ChatMessage key={message.id} role={message.role} content={message.content} />
+            <ChatMessage
+              key={message.id}
+              role={message.role}
+              content={message.content}
+              recommendations={message.recommendations}
+              onCardClick={(rec) => {
+                // 카드 클릭 → 우측 상세 패널
+                if (rec.id) {
+                  addPanelTab("vendors", "right")
+                }
+              }}
+            />
           ))}
           {isTyping && <ChatMessage role="assistant" content="" isTyping />}
           <div ref={messagesEndRef} />

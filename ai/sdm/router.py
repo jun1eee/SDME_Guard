@@ -107,17 +107,6 @@ async def chat_sdm(
     request: Request,
     service: SdmChatService = Depends(get_sdm_service),
 ):
-    domain = _detect_domain(payload.message)
-    if domain == "unknown":
-        domain = _last_domain["value"]
-    _last_domain["value"] = domain
-
-    if domain == "hall":
-        from deps import get_hall_service
-        hall_service = get_hall_service(request)
-        result = hall_service.chat(payload, trace_id=request.state.trace_id)
-        return ApiResponse(data=result)
-
     result = service.chat(payload, trace_id=request.state.trace_id)
     return ApiResponse(data=result)
 
