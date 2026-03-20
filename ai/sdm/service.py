@@ -128,7 +128,12 @@ class SdmChatService:
                 all_vendors=all_vendors, is_new_search=is_new_search,
             )
         else:
-            answer = choice.message.content or "스드메 관련 질문을 해주세요."
+            # GPT가 tool을 안 골랐지만, 웨딩 관련 질문이면 강제 tool 호출
+            forced = self._force_tool_if_needed(message, session, couple_id, log_lines)
+            if forced:
+                answer, all_vendors, route_used = forced
+            else:
+                answer = choice.message.content or "웨딩 관련 질문을 해주세요."
 
         recommendations = self._build_recommendations(all_vendors, limit=requested_count)
         self._append_turns(session, message, answer)
@@ -140,6 +145,58 @@ class SdmChatService:
             recommendations=recommendations,
             debug_log="\n".join(log_lines) if request.debug else None,
         )
+
+    def _force_tool_if_needed(self, message: str, session, couple_id: int, log_lines: list):
+        """GPT가 tool을 안 골랐을 때, 메시지 분석으로 강제 tool 호출."""
+        msg = message.lower()
+
+        # 웨딩홀 키워드 → search_halls 강제
+        hall_kw = ["웨딩홀", "예식장", "하객", "식대", "뷔페", "채플", "호텔웨딩", "컨벤션"]
+        if any(kw in msg for kw in hall_kw):
+            log_lines.append("[force_tool] search_halls")
+            from sdm.tools import _extract_count
+            result = self.tools.search_halls(query=message, couple_id=couple_id, count=_extract_count(message))
+            if result.vendors:
+                # raw → GPT에게 답변 생성 요청
+                messages = [
+                    {"role": "system", "content": "웨딩홀 검색 결과를 바탕으로 사용자에게 친절하게 답변하세요. 연락처와 링크를 포함하세요."},
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": "", "tool_calls": [
+                        {"id": "forced", "type": "function", "function": {"name": "search_halls", "arguments": "{}"}}
+                    ]},
+                    {"role": "tool", "tool_call_id": "forced", "content": result.data},
+                ]
+                try:
+                    final = self.engine.run_chat_completion(messages=messages, temperature=0)
+                    return final.choices[0].message.content, result.vendors, "sdm:forced_hall"
+                except Exception:
+                    return result.data, result.vendors, "sdm:forced_hall"
+            return None
+
+        # 스드메 키워드 → search_structured 강제
+        sdm_kw = ["스튜디오", "드레스", "메이크업", "촬영", "헤어"]
+        if any(kw in msg for kw in sdm_kw):
+            cat = self._correct_category(message, session.category) or "studio"
+            log_lines.append(f"[force_tool] search_structured ({cat})")
+            result = self.tools.search_structured(query=message, category=cat, couple_id=couple_id)
+            if result.vendors:
+                return result.data, result.vendors, "sdm:forced_search"
+            return None
+
+        # "어울리는" + 이전 vendors → search_related 강제
+        related_kw = ["어울리는", "에 맞는", "잘맞는", "과 맞는"]
+        if any(kw in msg for kw in related_kw) and session.last_mentioned:
+            cat = self._correct_category(message, None)
+            if cat:
+                log_lines.append(f"[force_tool] search_related → {cat}")
+                result = self.tools.search_related(
+                    target_category=cat, couple_id=couple_id,
+                    source_vendor=session.last_mentioned[0],
+                )
+                if result.vendors:
+                    return result.data, result.vendors, "sdm:forced_related"
+
+        return None
 
     # ── 카테고리 키워드 교정 (ai-dc) ──
 
