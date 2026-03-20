@@ -56,6 +56,7 @@ public class VendorQueryService {
 
     public VendorDetailResponse getVendorDetail(Long id) {
         Vendor representative = vendorRepository.findById(id)
+            .or(() -> vendorRepository.findBySourceId(id))
             .orElseThrow(() -> new NotFoundException("업체를 찾을 수 없습니다."));
         return buildVendorDetail(representative);
     }
