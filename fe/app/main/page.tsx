@@ -806,6 +806,10 @@ export default function ChatPage() {
             onVendorDrop={handleVendorDrop}
             onRemoveVendor={handleRemoveVendor}
             onOpenTab={(type) => addPanelTab(type as PanelTabType, "right")}
+            onCardVendorClick={(vendorId) => {
+              addPanelTab("vendors", "right")
+              setOpenVendorId(vendorId)
+            }}
           />
         )
 
@@ -1386,6 +1390,7 @@ function ChatPanelWithDrop({
   onVendorDrop,
   onRemoveVendor,
   onOpenTab,
+  onCardVendorClick,
 }: {
   messages: Message[]
   isTyping: boolean
@@ -1395,6 +1400,7 @@ function ChatPanelWithDrop({
   onVendorDrop: (vendor: DroppedVendor) => void
   onRemoveVendor: (id: string) => void
   onOpenTab: (type: string) => void
+  onCardVendorClick?: (vendorId: string) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
 
@@ -1447,9 +1453,8 @@ function ChatPanelWithDrop({
               content={message.content}
               recommendations={message.recommendations}
               onCardClick={(rec) => {
-                // 카드 클릭 → 우측 상세 패널
                 if (rec.id) {
-                  addPanelTab("vendors", "right")
+                  onCardVendorClick?.(String(rec.id))
                 }
               }}
             />
