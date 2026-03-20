@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
     app.state.session_store = session_store
     app.state.sdm_service = SdmChatService(
         settings=settings, engine=sdm_engine, session_store=session_store,
+        hall_engine=hall_engine,
     )
     app.state.hall_service = HallChatService(
         settings=settings, session_store=session_store, engine=hall_engine,
