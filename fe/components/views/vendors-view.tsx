@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import {createReservation, getAccessToken, getBookedTimes} from "@/lib/api"
+import {createReservation, getAccessToken, getBookedTimes, getCards, requestPayment, reportVendor} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -125,11 +125,10 @@ interface Vendor {
 // ─── Constants ────────────────────────────────────────────────────────────
 
 const PAYMENT_STEPS = [
-  { step: 1, label: "상담중" },
-  { step: 2, label: "계약금 10% 납입 완료" },
-  { step: 3, label: "서비스 진행중" },
-  { step: 4, label: "잔금 90% 납입 완료" },
-  { step: 5, label: "서비스 완료" },
+  { step: 1, label: "계약금 10% 납입 완료" },
+  { step: 2, label: "서비스 진행중" },
+  { step: 3, label: "잔금 90% 납입 완료" },
+  { step: 4, label: "서비스 완료" },
 ]
 
 const CATEGORIES = [
@@ -923,7 +922,46 @@ export function VendorDetailView({
   const [addrCopied, setAddrCopied] = useState(false)
   const [reviewPage, setReviewPage] = useState(5)
   const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
+  const [currentPaymentStep, setCurrentPaymentStep] = useState(vendor.paymentStep)
+  const [reservationDate, setReservationDate] = useState<string | null>(null)
+  const [hasUsedBefore, setHasUsedBefore] = useState(false)
   const vendorId = vendor.id
+
+  // 업체의 결제 진행상태 + 예약 정보 조회
+  useEffect(() => {
+    import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
+      getVendorPayments(Number(vendorId))
+        .then((res) => {
+          const payments = res.data
+          const hasDeposit = payments.some((p: any) => p.type === "DEPOSIT" && p.status === "DONE")
+          const hasBalance = payments.some((p: any) => p.type === "BALANCE" && p.status === "DONE")
+          if (hasBalance) {
+            // 잔금까지 결제 완료 → 이용완료 처리
+            setCurrentPaymentStep(1)
+            setHasUsedBefore(true)
+          } else if (hasDeposit) {
+            setCurrentPaymentStep(2) // 서비스 진행중
+          } else {
+            setCurrentPaymentStep(1)
+          }
+        })
+        .catch(() => {})
+
+      // 예약일 조회 (잔금 결제 가능 여부 판단용)
+      getReservations()
+        .then((res) => {
+          const vid = Number(vendorId)
+          const existing = res.data.find((r: any) =>
+            Number(r.vendorId) === vid && r.status !== "CANCELLED"
+          )
+          if (existing) {
+            const d = (existing.reservationDate || existing.serviceDate || "").substring(0, 10)
+            if (d) setReservationDate(d)
+          }
+        })
+        .catch(() => {})
+    })
+  }, [vendorId])
 
   // vendor prop이 바뀔 때(fetchVendorDetail 완료 후) reviews 동기화
   useEffect(() => {
@@ -1004,9 +1042,16 @@ export function VendorDetailView({
                   />
                 </button>
               </div>
+              <div className="flex items-center gap-2">
+                {hasUsedBefore && (
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    이용 완료
+                  </span>
+                )}
               <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5">
                 <Star className="size-4 fill-yellow-400 text-yellow-400" />
                 <span className="text-sm font-semibold">{vendor.rating}</span>
+              </div>
               </div>
             </div>
 
@@ -1021,13 +1066,21 @@ export function VendorDetailView({
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{vendor.description}</p>
           </div>
 
-          {/* Payment progress */}
+          {/* Payment progress - 계약금 결제 후에만 표시 */}
+          {(currentPaymentStep >= 2 && !hasUsedBefore) && (
           <div className="mt-5 rounded-2xl bg-card p-5">
-            <h2 className="mb-4 text-sm font-semibold text-foreground">결제 진행 상태</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground">결제 진행 상태</h2>
+              {hasUsedBefore && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  이용 완료
+                </span>
+              )}
+            </div>
             <div className="flex flex-col">
               {PAYMENT_STEPS.map((s, idx) => {
-                const done = s.step < vendor.paymentStep
-                const current = s.step === vendor.paymentStep
+                const done = s.step < currentPaymentStep
+                const current = s.step === currentPaymentStep
                 const last = idx === PAYMENT_STEPS.length - 1
                 return (
                   <div key={s.step} className="flex gap-4">
@@ -1059,40 +1112,65 @@ export function VendorDetailView({
               })}
             </div>
 
-            {/* Action buttons */}
-            <div className="mt-3 flex gap-2">
+            {/* 잔금 결제 버튼 - 계약금 결제 후 & 이용완료 아닐 때만 */}
+            {currentPaymentStep >= 2 && !hasUsedBefore && (() => {
+              const today = new Date().toISOString().substring(0, 10)
+              const canPayBalance = reservationDate && today >= reservationDate
+              return (
+                <div className="mt-3">
+                  {canPayBalance ? (
+                    <Button
+                      onClick={() => setShowReservation(true)}
+                      className="w-full bg-foreground text-background hover:bg-foreground/90"
+                    >
+                      잔금 결제
+                    </Button>
+                  ) : (
+                    <Button disabled className="w-full opacity-50 cursor-not-allowed">
+                      잔금 결제 ({reservationDate ? (() => { const [,m,d] = reservationDate.split("-"); return `${Number(m)}월 ${Number(d)}일` })() : "예약일"} 이후 가능)
+                    </Button>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-5 flex gap-2">
+            {(currentPaymentStep < 2 || hasUsedBefore) && (
               <Button
                 onClick={() => setShowReservation(true)}
                 className="flex-1 bg-foreground text-background hover:bg-foreground/90"
               >
                 예약 및 계약금 결제
               </Button>
-              {onAddToVote && (
-                <button
-                  onClick={() => {
-                    if (!voteAdded) {
-                      onAddToVote(vendor)
-                      setVoteAdded(true)
-                    }
-                  }}
-                  className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm transition-colors ${
-                    voteAdded
-                      ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Lock className="size-4" />
-                  {voteAdded ? "투표 추가됨" : "투표에 올리기"}
-                </button>
-              )}
+            )}
+            {onAddToVote && (
               <button
-                onClick={() => onShareVendor?.(vendor)}
-                className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+                onClick={() => {
+                  if (!voteAdded) {
+                    onAddToVote(vendor)
+                    setVoteAdded(true)
+                  }
+                }}
+                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm transition-colors ${
+                  voteAdded
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
               >
-                <Share2 className="size-4" />
-                공유
+                <Lock className="size-4" />
+                {voteAdded ? "투표 추가됨" : "투표에 올리기"}
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => onShareVendor?.(vendor)}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+            >
+              <Share2 className="size-4" />
+              공유
+            </button>
           </div>
 
           {/* Packages */}
@@ -1538,7 +1616,16 @@ export function VendorDetailView({
 
       {/* Modals */}
       {showReservation && (
-        <ReservationModal vendorId={vendor.id} vendorName={vendor.name} vendorCategory={vendor.category} vendorScheduleSlots={vendor.scheduleSlots} vendorClosedDays={vendor.closedDays} packages={vendor.packages} addons={vendor.addons} halls={vendor.halls} onClose={() => setShowReservation(false)} />
+        <ReservationModal vendorId={vendor.id} vendorName={vendor.name} vendorCategory={vendor.category} vendorScheduleSlots={vendor.scheduleSlots} vendorClosedDays={vendor.closedDays} packages={vendor.packages} addons={vendor.addons} halls={vendor.halls} paymentStep={currentPaymentStep} onClose={() => setShowReservation(false)} onPaymentComplete={(step, paymentDate) => {
+          if (paymentDate) setReservationDate(paymentDate)
+          if (step >= 4) {
+            setCurrentPaymentStep(1)
+            setHasUsedBefore(true)
+          } else {
+            setCurrentPaymentStep(step)
+            setHasUsedBefore(false)
+          }
+        }} />
       )}
 {showReview && (
         <ReviewModal
@@ -1570,22 +1657,28 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
 
 // ─── Reservation Modal ────────────────────────────────────────────────────
 
-function ReservationModal({ vendorId, vendorName, vendorCategory, vendorScheduleSlots, vendorClosedDays, packages, addons, halls, onClose }: {
+function ReservationModal({ vendorId, vendorName, vendorCategory, vendorScheduleSlots, vendorClosedDays, packages, addons, halls, paymentStep, onClose, onPaymentComplete }: {
   vendorId: string; vendorName: string; vendorCategory?: string
   vendorScheduleSlots?: string[]; vendorClosedDays?: string
-  packages?: VendorPackage[]; addons?: VendorAddon[]; halls?: VendorHall[]; onClose: () => void
+  packages?: VendorPackage[]; addons?: VendorAddon[]; halls?: VendorHall[]
+  paymentStep?: number; onClose: () => void; onPaymentComplete?: (step: number, date?: string) => void
 }) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [time, setTime] = useState("")
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [step, setStep] = useState<"schedule" | "package" | "payment" | "done">("schedule")
+  const [step, setStep] = useState<"schedule" | "package" | "payment" | "done">((paymentStep ?? 1) >= 2 ? "payment" : "schedule")
   const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null)
   const [selectedHallId, setSelectedHallId] = useState<number | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<string[]>([])
   const [selectedMethod, setSelectedMethod] = useState("")
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null)
+  const [cards, setCards] = useState<{ id: number; cardBrand: string; cardLast4: string }[]>([])
+  const [loadingCards, setLoadingCards] = useState(false)
   const [bookedTimes, setBookedTimes] = useState<string[]>([])
   const [loadingTimes, setLoadingTimes] = useState(false)
+  const [reservationId, setReservationId] = useState<number | null>(null)
+  const [paidDepositAmount, setPaidDepositAmount] = useState(0)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -1636,9 +1729,51 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   }
 
   const isVenue = vendorCategory === "venue"
+  const isBalancePayment = (paymentStep ?? 1) >= 2
   const hasMultipleChoices = isVenue
     ? (halls && halls.length > 1)
     : (packages && packages.length > 1)
+
+  // 잔금 결제면 바로 카드 로드 + 기존 예약/결제 정보 조회
+  useEffect(() => {
+    if (isBalancePayment) {
+      loadCards()
+      import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
+        // 기존 계약금 금액 조회
+        getVendorPayments(Number(vendorId))
+          .then((res) => {
+            const deposit = res.data.find((p: any) => p.type === "DEPOSIT" && p.status === "DONE")
+            if (deposit) setPaidDepositAmount(deposit.amount)
+          })
+          .catch(() => {})
+        // 기존 예약 정보 조회 (날짜, 시간)
+        getReservations()
+          .then((res) => {
+            const existing = res.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
+            if (existing) {
+              if (existing.reservationDate) {
+                const [y, m, d] = existing.reservationDate.split("-").map(Number)
+                setSelectedDate(new Date(y, m - 1, d))
+              }
+              if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
+              if (existing.memo) setNotes(existing.memo)
+            }
+          })
+          .catch(() => {})
+      })
+    }
+  }, [])
+
+  // 카드 목록 불러오기
+  const loadCards = async () => {
+    setLoadingCards(true)
+    try {
+      const res = await getCards()
+      setCards(res.data)
+      if (res.data.length > 0) setSelectedCardId(res.data[0].id)
+    } catch {}
+    setLoadingCards(false)
+  }
 
   // 계약금 결제 버튼 클릭 → 선택 또는 결제 화면으로
   const handleDepositClick = () => {
@@ -1648,6 +1783,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
     } else {
       if (isVenue && halls && halls.length === 1) setSelectedHallId(halls[0].id)
       if (!isVenue && packages && packages.length === 1) setSelectedPkgId(packages[0].id)
+      loadCards()
       setStep("payment")
     }
   }
@@ -1656,24 +1792,49 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   const handlePackageNext = () => {
     if (isVenue && !selectedHallId) return
     if (!isVenue && !selectedPkgId) return
+    loadCards()
     setStep("payment")
   }
 
-  // 최종 결제 (예약 생성 + 결제 완료)
+  // 최종 결제 (계약금: 예약 생성 → 결제 / 잔금: 기존 예약으로 결제)
   const handlePayment = async () => {
-    if (!date || !time || !selectedMethod || isSubmitting) return
+    if (!selectedCardId || isSubmitting) return
+    if (!isBalancePayment && (!date || !time)) return
     setIsSubmitting(true)
     try {
-      await createReservation(Number(vendorId), {
-        reservationDate: date,
-        serviceDate: date,
-        reservationTime: time,
-        memo: notes || undefined,
+      let targetReservationId: number
+
+      if (isBalancePayment) {
+        // 잔금 결제: 기존 예약 조회
+        const { getReservations } = await import("@/lib/api")
+        const resAll = await getReservations()
+        const existing = resAll.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
+        if (!existing) throw new Error("예약 정보를 찾을 수 없습니다.")
+        targetReservationId = existing.id
+      } else {
+        // 계약금 결제: 새 예약 생성
+        const resReservation = await createReservation(Number(vendorId), {
+          reservationDate: date,
+          serviceDate: date,
+          reservationTime: time,
+          memo: notes || undefined,
+        })
+        targetReservationId = resReservation.data?.id ?? resReservation.data
+      }
+
+      // 결제 요청
+      await requestPayment({
+        reservationId: targetReservationId,
+        cardId: selectedCardId,
+        type: isBalancePayment ? "BALANCE" : "DEPOSIT",
+        amount: isBalancePayment ? balanceAmount : depositAmount,
       })
+
+      onPaymentComplete?.(isBalancePayment ? 4 : 2, date || undefined)
       setStep("done")
       setTimeout(onClose, 2000)
     } catch (err: any) {
-      alert(err.message || "예약 생성에 실패했습니다.")
+      alert(err.message || "결제에 실패했습니다.")
     } finally {
       setIsSubmitting(false)
     }
@@ -1694,6 +1855,10 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
 
   const totalPrice = basePrice + addonsTotal
   const depositAmount = Math.round(totalPrice * 0.1)
+  // 잔금: 기존 계약금에서 총액 역산 (계약금 = 총액 * 10%)
+  const balanceAmount = isBalancePayment && paidDepositAmount > 0
+    ? paidDepositAmount * 9  // 계약금의 9배 = 잔금(90%)
+    : Math.round(totalPrice * 0.9)
 
   const toggleAddon = (id: string) => {
     setSelectedAddons(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
@@ -1703,7 +1868,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
     <ModalShell onClose={onClose}>
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-lg font-bold text-foreground">
-          {step === "payment" ? "계약금 결제" : step === "package" ? (isVenue ? "홀 선택" : "패키지 선택") : "예약 생성"}
+          {step === "payment" ? (isBalancePayment ? "잔금 결제" : "계약금 결제") : step === "package" ? (isVenue ? "홀 선택" : "패키지 선택") : "예약 생성"}
         </h2>
         <button onClick={onClose}><X className="size-5 text-muted-foreground" /></button>
       </div>
@@ -1712,28 +1877,35 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
       {step === "done" ? (
         <div className="py-8 text-center">
           <CalendarCheck className="mx-auto size-12 text-primary mb-3" />
-          <p className="text-lg font-semibold text-foreground">예약 및 결제가 완료되었습니다!</p>
+          <p className="text-lg font-semibold text-foreground">
+            {isBalancePayment ? "잔금 결제가 완료되었습니다!" : "예약 및 결제가 완료되었습니다!"}
+          </p>
           <p className="mt-2 text-sm text-muted-foreground">{date} {time}</p>
-          {(selectedPkg || selectedHall) && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isVenue ? selectedHall?.name : selectedPkg?.name} · 계약금 {formatPrice(depositAmount)}
-            </p>
-          )}
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isBalancePayment
+              ? `잔금 ${formatPrice(balanceAmount)}`
+              : (selectedPkg || selectedHall)
+                ? `${isVenue ? selectedHall?.name : selectedPkg?.name} · 계약금 ${formatPrice(depositAmount)}`
+                : ""
+            }
+          </p>
         </div>
       ) : step === "payment" ? (
         <>
           <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
-            {/* 선택된 패키지/홀 */}
-            <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">{isVenue ? "선택 홀" : "선택 패키지"}</p>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+            {/* 선택된 패키지/홀 - 계약금 결제일 때만 */}
+            {!isBalancePayment && (
+              <div>
+                <p className="mb-2 text-sm font-semibold text-foreground">{isVenue ? "선택 홀" : "선택 패키지"}</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                  <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* 추가상품 */}
-            {addons && addons.length > 0 && (
+            {/* 추가상품 - 계약금 결제일 때만 */}
+            {!isBalancePayment && addons && addons.length > 0 && (
               <div>
                 <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
                 <div className="space-y-2">
@@ -1786,49 +1958,78 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
 
             {/* 결제 금액 요약 */}
             <div className="rounded-xl bg-muted p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "홀") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
-              </div>
-              {selectedAddons.map(id => {
-                const addon = addons?.find(a => a.id === id)
-                if (!addon) return null
-                return (
-                  <div key={id} className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{addon.name}</span>
-                    <span className="font-medium">{formatPrice(addon.price)}</span>
+              {isBalancePayment ? (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">총 금액</span>
+                    <span className="font-medium">{paidDepositAmount > 0 ? formatPrice(paidDepositAmount * 10) : "—"}</span>
                   </div>
-                )
-              })}
-              <div className="border-t border-border pt-2 mt-1" />
-              <div className="flex justify-between text-sm">
-                <span className="font-semibold text-foreground">총 금액</span>
-                <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">계약금 (10%)</span>
-                <span className="text-lg font-bold text-foreground">{formatPrice(depositAmount)}</span>
-              </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">납입 계약금 (10%)</span>
+                    <span className="font-medium text-emerald-600">-{formatPrice(paidDepositAmount)}</span>
+                  </div>
+                  <div className="border-t border-border pt-2 mt-1" />
+                  <div className="flex justify-between text-sm">
+                    <span className="font-semibold text-foreground">잔금 (90%)</span>
+                    <span className="text-lg font-bold text-foreground">{formatPrice(balanceAmount)}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "홀") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                    <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+                  </div>
+                  {selectedAddons.map(id => {
+                    const addon = addons?.find(a => a.id === id)
+                    if (!addon) return null
+                    return (
+                      <div key={id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{addon.name}</span>
+                        <span className="font-medium">{formatPrice(addon.price)}</span>
+                      </div>
+                    )
+                  })}
+                  <div className="border-t border-border pt-2 mt-1" />
+                  <div className="flex justify-between text-sm">
+                    <span className="font-semibold text-foreground">총 금액</span>
+                    <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">계약금 (10%)</span>
+                    <span className="text-lg font-bold text-foreground">{formatPrice(depositAmount)}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* 결제 수단 */}
             <div>
               <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
-              <div className="space-y-2">
-                {["신용카드", "계좌이체", "카카오페이"].map((method) => (
-                  <button
-                    key={method}
-                    onClick={() => setSelectedMethod(method)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                      selectedMethod === method
-                        ? "border-primary bg-primary/5 text-foreground"
-                        : "border-border text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
+              {loadingCards ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">카드 정보 불러오는 중...</p>
+              ) : cards.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">등록된 카드가 없습니다</p>
+                  <p className="text-xs text-muted-foreground">마이페이지에서 카드를 먼저 등록해주세요</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cards.map((card) => (
+                    <button
+                      key={card.id}
+                      onClick={() => setSelectedCardId(card.id)}
+                      className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                        selectedCardId === card.id
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-border text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {card.cardBrand || "카드"} •••• {card.cardLast4}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1840,9 +2041,9 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
             <Button
               className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
               onClick={handlePayment}
-              disabled={!selectedMethod || isSubmitting}
+              disabled={!selectedCardId || cards.length === 0 || isSubmitting}
             >
-              {isSubmitting ? "결제 중..." : `${formatPrice(depositAmount)} 결제하기`}
+              {isSubmitting ? "결제 중..." : `${formatPrice(isBalancePayment ? balanceAmount : depositAmount)} 결제하기`}
             </Button>
           </div>
         </>
@@ -1986,215 +2187,6 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
           </div>
         </>
       )}
-    </ModalShell>
-  )
-}
-
-// ─── Payment Modal ────────────────────────────────────────────────────────
-
-function PaymentModal({
-  vendorName,
-  paymentStep,
-  price,
-  packageOptions,
-  addons,
-  onClose,
-}: {
-  vendorName: string
-  paymentStep: number
-  price: number
-  packageOptions?: VendorPackageOption[]
-  addons?: VendorAddon[]
-  onClose: () => void
-}) {
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
-  const [selectedAddons, setSelectedAddons] = useState<string[]>([])
-  const [selectedMethod, setSelectedMethod] = useState("")
-
-  const isDeposit = paymentStep <= 1
-
-  const optionsTotal = selectedOptions.reduce((sum, name) => {
-    const opt = packageOptions?.find(o => o.name === name)
-    return sum + (opt?.price ?? 0)
-  }, 0)
-
-  const addonsTotal = selectedAddons.reduce((sum, id) => {
-    const addon = addons?.find(a => a.id === id)
-    return sum + (addon?.price ?? 0)
-  }, 0)
-
-  const totalPrice = price + optionsTotal + addonsTotal
-  const amount = isDeposit ? Math.round(totalPrice * 0.1) : Math.round(totalPrice * 0.9)
-
-  const toggleOption = (name: string) => {
-    setSelectedOptions(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
-    )
-  }
-
-  const toggleAddon = (id: string) => {
-    setSelectedAddons(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    )
-  }
-
-  return (
-    <ModalShell onClose={onClose}>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">{isDeposit ? "계약금 결제" : "잔금 결제"}</h2>
-        <button onClick={onClose}><X className="size-5 text-muted-foreground" /></button>
-      </div>
-      <p className="mb-4 text-sm text-muted-foreground">{vendorName}</p>
-
-      <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
-        {/* 기본 패키지 */}
-        <div>
-          <p className="mb-2 text-sm font-semibold text-foreground">기본 패키지</p>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">기본 금액</span>
-            <span className="font-medium">{formatPrice(price)}</span>
-          </div>
-        </div>
-
-        {/* 야외씬 촬영 옵션 */}
-        {packageOptions && packageOptions.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-semibold text-foreground">야외씬 촬영 옵션</p>
-            <div className="space-y-2">
-              {packageOptions.map((opt) => {
-                const checked = selectedOptions.includes(opt.name)
-                return (
-                  <button
-                    key={opt.name}
-                    className="flex w-full items-center gap-3 text-left"
-                    onClick={() => toggleOption(opt.name)}
-                  >
-                    <div
-                      className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                        checked
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border"
-                      }`}
-                    >
-                      {checked && <Check className="size-3" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-foreground">{opt.name}</span>
-                      {opt.note && (
-                        <p className="text-xs text-muted-foreground">{opt.note}</p>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-foreground shrink-0">
-                      {formatPrice(opt.price)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 추가상품 */}
-        {addons && addons.length > 0 && (
-          <div>
-            <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
-            <div className="space-y-2">
-              {addons.map((addon) => {
-                const checked = selectedAddons.includes(addon.id)
-                return (
-                  <button
-                    key={addon.id}
-                    className="flex w-full items-center gap-3 text-left"
-                    onClick={() => toggleAddon(addon.id)}
-                  >
-                    <div
-                      className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                        checked
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border"
-                      }`}
-                    >
-                      {checked && <Check className="size-3" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-foreground">{addon.name}</span>
-                      {addon.description && (
-                        <p className="text-xs text-muted-foreground">{addon.description}</p>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-foreground shrink-0">
-                      {formatPrice(addon.price)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 결제 금액 요약 */}
-        <div className="rounded-xl bg-muted p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">기본 패키지</span>
-            <span className="font-medium">{formatPrice(price)}</span>
-          </div>
-          {selectedOptions.map(name => {
-            const opt = packageOptions?.find(o => o.name === name)
-            if (!opt) return null
-            return (
-              <div key={name} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{opt.name}</span>
-                <span className="font-medium">{formatPrice(opt.price)}</span>
-              </div>
-            )
-          })}
-          {selectedAddons.map(id => {
-            const addon = addons?.find(a => a.id === id)
-            if (!addon) return null
-            return (
-              <div key={id} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{addon.name}</span>
-                <span className="font-medium">{formatPrice(addon.price)}</span>
-              </div>
-            )
-          })}
-          <div className="border-t border-border pt-2 mt-1" />
-          <div className="flex justify-between text-sm">
-            <span className="font-semibold text-foreground">총 금액</span>
-            <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{isDeposit ? "계약금 (10%)" : "잔금 (90%)"}</span>
-            <span className="text-lg font-bold text-foreground">{formatPrice(amount)}</span>
-          </div>
-        </div>
-
-        {/* 결제 수단 */}
-        <div>
-          <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
-          <div className="space-y-2">
-            {["신용카드", "계좌이체", "카카오페이"].map((method) => (
-              <button
-                key={method}
-                onClick={() => setSelectedMethod(method)}
-                className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  selectedMethod === method
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border text-foreground hover:bg-muted"
-                }`}
-              >
-                {method}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5">
-        <Button className="w-full bg-foreground text-background hover:bg-foreground/90" onClick={onClose}>
-          {formatPrice(amount)} 결제하기
-        </Button>
-      </div>
     </ModalShell>
   )
 }
