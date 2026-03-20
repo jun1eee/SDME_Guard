@@ -1,8 +1,15 @@
 import os
+import shutil
 import time
 import logging
 from contextlib import asynccontextmanager
 from uuid import uuid4
+
+# 서버 시작 시 __pycache__ 삭제 (이전 코드 캐시 방지)
+for _root, _dirs, _ in os.walk(os.path.dirname(__file__)):
+    for _d in _dirs:
+        if _d == "__pycache__":
+            shutil.rmtree(os.path.join(_root, _d), ignore_errors=True)
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -39,6 +46,7 @@ async def lifespan(app: FastAPI):
     app.state.session_store = session_store
     app.state.sdm_service = SdmChatService(
         settings=settings, engine=sdm_engine, session_store=session_store,
+        hall_engine=hall_engine,
     )
     app.state.hall_service = HallChatService(
         settings=settings, session_store=session_store, engine=hall_engine,

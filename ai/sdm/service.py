@@ -13,12 +13,12 @@ from session_store import InMemorySessionStore, SessionState
 class SdmChatService:
     def __init__(
         self, settings: Settings, engine: SdmGraphRagEngine,
-        session_store: InMemorySessionStore,
+        session_store: InMemorySessionStore, hall_engine=None,
     ) -> None:
         self.settings = settings
         self.engine = engine
         self.session_store = session_store
-        self.tools = SdmToolRegistry(engine)
+        self.tools = SdmToolRegistry(engine, hall_engine=hall_engine)
 
     def chat(self, request: ChatRequest, trace_id: str) -> ChatPayload:
         session = self.session_store.get_or_create(request.session_id)

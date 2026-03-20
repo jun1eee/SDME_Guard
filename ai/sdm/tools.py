@@ -161,6 +161,22 @@ TOOLS_SCHEMA = [
         }, "required": ["target_category"]},
     }},
     {"type": "function", "function": {
+        "name": "search_halls",
+        "description": "웨딩홀/예식장 검색. 웨딩홀, 홀, 예식장, 하객, 식대, 뷔페, 채플 등 웨딩홀 관련 질문에 반드시 사용.",
+        "parameters": {"type": "object", "properties": {
+            "query": {"type": "string", "description": "사용자 원문 그대로"},
+            "region": {"type": "string", "description": "지역 (선택)"},
+            "count": {"type": "integer", "description": "추천 갯수 (기본 5)"},
+        }, "required": ["query"]},
+    }},
+    {"type": "function", "function": {
+        "name": "get_hall_detail",
+        "description": "특정 웨딩홀 상세 정보 조회.",
+        "parameters": {"type": "object", "properties": {
+            "hall_name": {"type": "string"},
+        }, "required": ["hall_name"]},
+    }},
+    {"type": "function", "function": {
         "name": "get_user_preference",
         "description": "사용자 선호도를 조회합니다.",
         "parameters": {"type": "object", "properties": {}},
@@ -176,12 +192,15 @@ TOOLS_SCHEMA = [
 # ── Tool Registry ──
 
 class SdmToolRegistry:
-    def __init__(self, engine: SdmGraphRagEngine) -> None:
+    def __init__(self, engine: SdmGraphRagEngine, hall_engine=None) -> None:
         self.engine = engine
+        self.hall_engine = hall_engine
         self.tool_map = {
             "search_structured": self.search_structured,
             "search_semantic": self.search_semantic,
             "search_related": self.search_related,
+            "search_halls": self.search_halls,
+            "get_hall_detail": self.get_hall_detail,
             "compare_vendors": self.compare_vendors,
             "filter_previous": self.filter_previous,
             "get_vendor_detail": self.get_vendor_detail,
@@ -237,6 +256,57 @@ class SdmToolRegistry:
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
+
+    def search_halls(self, query: str, couple_id: int, region: str = "", count: int = 5, **_) -> ToolResult:
+        """웨딩홀 검색"""
+        if not self.hall_engine or not self.hall_engine.driver:
+            return ToolResult(result_type="direct", data="웨딩홀 검색 서비스가 준비되지 않았습니다.", vendors=[])
+        from hall.graphrag import HallCriteria
+        criteria = HallCriteria()
+        if region:
+            criteria.regions = [region]
+        count = min(count, 20)
+        halls = self.hall_engine.search(query=query, criteria=criteria, limit=count)
+        if not halls:
+            return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
+        records = []
+        for h in halls:
+            records.append({
+                "name": h.name, "region": h.region, "subRegion": h.sub_region,
+                "address": h.address, "addressHint": h.address_hint,
+                "tel": h.tel, "rating": h.rating, "reviewCnt": h.review_count,
+                "minMealPrice": h.min_meal_price, "maxMealPrice": h.max_meal_price,
+                "minTotalPrice": h.min_total_price, "maxTotalPrice": h.max_total_price,
+                "tags": h.tags, "styles": h.style_filters, "benefits": h.benefits[:3],
+                "stations": h.stations, "walkMinutes": h.walk_minutes,
+                "profileUrl": h.profile_url, "coverUrl": h.cover_url,
+            })
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(records, ensure_ascii=False, default=str),
+            vendors=[h.name for h in halls],
+        )
+
+    def get_hall_detail(self, hall_name: str, couple_id: int, **_) -> ToolResult:
+        """웨딩홀 상세 정보"""
+        if not self.hall_engine:
+            return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
+        hall = self.hall_engine.get_hall_details(hall_name)
+        if not hall:
+            return ToolResult(result_type="direct", data=f"'{hall_name}' 웨딩홀을 찾지 못했습니다.", vendors=[])
+        record = {
+            "name": hall.name, "region": hall.region, "address": hall.address,
+            "tel": hall.tel, "rating": hall.rating, "reviewCnt": hall.review_count,
+            "minMealPrice": hall.min_meal_price, "maxMealPrice": hall.max_meal_price,
+            "tags": hall.tags, "styles": hall.style_filters,
+            "benefits": hall.benefits, "stations": hall.stations,
+            "profileUrl": hall.profile_url, "memo": hall.memo,
+        }
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(record, ensure_ascii=False, default=str),
+            vendors=[hall.name],
+        )
 
     def compare_vendors(self, vendor_names: list[str], couple_id: int, criteria=None, **_) -> ToolResult:
         records = self.engine.query_vendors_by_names(vendor_names)
