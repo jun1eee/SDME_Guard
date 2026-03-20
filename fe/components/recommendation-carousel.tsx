@@ -68,12 +68,18 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                 className="w-[80%] flex-shrink-0 px-1.5"
               >
                 <div
-                  onClick={() => onCardClick?.(rec)}
+                  onClick={() => {
+                    if (idx !== currentIndex) {
+                      setCurrentIndex(idx)
+                    } else {
+                      onCardClick?.(rec)
+                    }
+                  }}
                   className={cn(
                     "cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-all duration-200",
                     "hover:shadow-lg hover:border-primary/40 hover:-translate-y-1 hover:bg-primary/5",
                     "active:scale-[0.98] active:shadow-sm",
-                    idx === currentIndex ? "opacity-100 scale-100" : "opacity-60 scale-95"
+                    idx === currentIndex ? "opacity-100 scale-100 border-primary/20" : "opacity-60 scale-95"
                   )}
                 >
                   {/* 이미지 */}
