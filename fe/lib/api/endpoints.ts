@@ -1,4 +1,4 @@
-﻿const VENDOR_API_BASE = "/api"
+﻿const VENDOR_API_BASE = `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api`
 
 export function buildVendorListEndpoint(params?: {
   cursor?: string
@@ -30,7 +30,7 @@ export function buildVendorDetailEndpoint(vendorId: string | number) {
 }
 
 export const API_ENDPOINTS = {
-  vendors: "/api/vendors",
+  vendors: `${VENDOR_API_BASE}/vendors`,
   buildVendorListEndpoint,
   buildVendorDetailEndpoint,
 } as const
