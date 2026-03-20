@@ -1,6 +1,7 @@
 package com.ssafy.sdme.couple.dto.response;
 
 import com.ssafy.sdme.couple.domain.Couple;
+import com.ssafy.sdme.user.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 
@@ -14,12 +15,6 @@ public class CoupleResponse {
     @Schema(description = "커플 ID", example = "1")
     private final Long coupleId;
 
-    @Schema(description = "신랑 ID", example = "1")
-    private final Long groomId;
-
-    @Schema(description = "신부 ID", example = "2")
-    private final Long brideId;
-
     @Schema(description = "결혼 예정일", example = "2026-06-15")
     private final LocalDate weddingDate;
 
@@ -32,21 +27,38 @@ public class CoupleResponse {
     @Schema(description = "상태", example = "MATCHED")
     private final String status;
 
-    @Schema(description = "상대방 닉네임", example = "웨딩걸")
-    private final String partnerNickname;
+    @Schema(description = "신랑 정보")
+    private final MemberInfo groom;
 
-    private CoupleResponse(Couple couple, String partnerNickname) {
+    @Schema(description = "신부 정보")
+    private final MemberInfo bride;
+
+    @Getter
+    public static class MemberInfo {
+        private final Long id;
+        private final String name;
+        private final String nickname;
+        private final String profileImage;
+
+        public MemberInfo(User user) {
+            this.id = user.getId();
+            this.name = user.getName();
+            this.nickname = user.getNickname();
+            this.profileImage = user.getProfileImage();
+        }
+    }
+
+    private CoupleResponse(Couple couple, User groom, User bride) {
         this.coupleId = couple.getId();
-        this.groomId = couple.getGroomId();
-        this.brideId = couple.getBrideId();
         this.weddingDate = couple.getWeddingDate();
         this.totalBudget = couple.getTotalBudget();
         this.connectedAt = couple.getConnectedAt();
         this.status = couple.getStatus().name();
-        this.partnerNickname = partnerNickname;
+        this.groom = groom != null ? new MemberInfo(groom) : null;
+        this.bride = bride != null ? new MemberInfo(bride) : null;
     }
 
-    public static CoupleResponse of(Couple couple, String partnerNickname) {
-        return new CoupleResponse(couple, partnerNickname);
+    public static CoupleResponse of(Couple couple, User groom, User bride) {
+        return new CoupleResponse(couple, groom, bride);
     }
 }

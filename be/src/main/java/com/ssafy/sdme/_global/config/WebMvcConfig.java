@@ -39,6 +39,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         ApiPath.PATH + "/auth/kakao",
                         ApiPath.PATH + "/auth/reissue",
+                        ApiPath.PATH + "/auth/test-login/**",
+                        ApiPath.PATH + "/vendors",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/error"

@@ -46,8 +46,29 @@ public class UserPreferenceResponse {
     @Schema(description = "선호 지역 목록")
     private List<PreferredRegion> preferredRegions;
 
+    @Schema(description = "웨딩 스타일")
+    private List<String> styles;
+
+    @Schema(description = "컬러 테마")
+    private List<String> colors;
+
+    @Schema(description = "분위기")
+    private List<String> moods;
+
+    @Schema(description = "식사 선호")
+    private List<String> foods;
+
     @Schema(description = "수정일시")
     private LocalDateTime updatedAt;
+
+    public static UserPreferenceResponse empty() {
+        UserPreferenceResponse response = new UserPreferenceResponse();
+        response.styles = List.of();
+        response.colors = List.of();
+        response.moods = List.of();
+        response.foods = List.of();
+        return response;
+    }
 
     public static UserPreferenceResponse from(UserPreference preference) {
         UserPreferenceResponse response = new UserPreferenceResponse();
@@ -61,6 +82,10 @@ public class UserPreferenceResponse {
         response.hallStyle = preference.getHallStyle();
         response.guestCount = preference.getGuestCount();
         response.preferredRegions = preference.getPreferredRegions();
+        response.styles = preference.getStyles();
+        response.colors = preference.getColors();
+        response.moods = preference.getMoods();
+        response.foods = preference.getFoods();
         response.updatedAt = preference.getUpdatedAt();
         return response;
     }

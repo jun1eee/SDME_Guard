@@ -212,10 +212,8 @@ class SdmToolRegistry:
     def search_related(self, target_category: str, couple_id: int,
                        source_vendor: str = "", source_style: str = "", **_) -> ToolResult:
         """업체명 또는 스타일 기준으로 다른 카테고리 업체 추천"""
-        # 1. 기준 태그 수집
         query_text = ""
         if source_vendor:
-            # 업체명으로 태그 조회
             records = self.engine.query_vendors_by_names([source_vendor])
             if records:
                 tags = records[0].get("tags", [])
@@ -224,11 +222,8 @@ class SdmToolRegistry:
                 query_text = source_vendor
         elif source_style:
             query_text = source_style
-
         if not query_text:
             return ToolResult(result_type="direct", data="기준 업체 또는 스타일을 알려주세요.", vendors=[])
-
-        # 2. 대상 카테고리로 벡터 검색
         answer, vendors = self.engine.search_semantic(query=query_text, category=target_category)
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)

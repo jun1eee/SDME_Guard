@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getAccessToken, tryReissue, logout, clearAccessToken, createInviteCode } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -57,14 +57,90 @@ export default function ChatPage() {
 
   // 인증 상태
   const [authChecked, setAuthChecked] = useState(false)
+  const [userId, setUserId] = useState<number | null>(null)
+  const [coupleId, setCoupleId] = useState<number | null>(null)
+  const [userName, setUserName] = useState("")
   const [userNickname, setUserNickname] = useState("")
   const [userRole, setUserRole] = useState<"groom" | "bride">("groom")
   const [coupleConnected, setCoupleConnected] = useState(false)
   const [myInviteCode, setMyInviteCode] = useState("")
 
+  // 찜 변경 직후 폴링 무시용 타임스탬프
+  const favChangedAt = useRef(0)
+
+  // 찜 데이터 로드 함수 (폴링 + 변경 후 재조회 공용)
+  const reloadFavorites = useCallback((myId?: number, role?: "groom" | "bride", isPolling = false) => {
+    // 폴링인데 최근 5초 내 수동 변경이 있었으면 건너뜀
+    if (isPolling && Date.now() - favChangedAt.current < 5000) return
+    const id = myId ?? userId
+    const r = role ?? userRole
+    if (!id) return
+    getAllCoupleFavorites()
+      .then((favRes) => {
+        const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
+          STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+          studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+        }
+        const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+        const favs: VendorShare[] = favRes.data
+          .filter((f: any) => f.name && f.category)
+          .map((f: any) => {
+            const cat = CATEGORY_MAP[f.category] ?? "studio"
+            const isMe = f.userId === id
+            return {
+              id: `fav-${f.id}`,
+              vendorId: f.vendorId.toString(),
+              name: f.name,
+              category: cat,
+              categoryLabel: CAT_LABEL[cat] || "",
+              price: f.price ? `${f.price.toLocaleString()}원` : "",
+              rating: f.rating || 0,
+              address: "",
+              tags: [],
+              description: f.description || "",
+              coverUrl: f.imageUrl || undefined,
+              sharedBy: isMe ? r : (r === "groom" ? "bride" : "groom"),
+            }
+          })
+        setFavoriteVendors(favs)
+      })
+      .catch(() => {})
+  }, [userId, userRole])
+
+  // 뒤로가기 시 URL 기반 뷰 복원
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname
+      const pathMap: Record<string, ViewType> = {
+        "/reservation": "reservation",
+        "/wishlist": "wishlist",
+        "/vote": "vote",
+        "/reviews": "reviews",
+        "/mypage": "my-page",
+        "/couple-chat": "couple-chat",
+      }
+      setCurrentView(pathMap[path] || null)
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
   // 로그인 체크: 미인증이면 /login, 미가입이면 /signup으로 리다이렉트
   useEffect(() => {
     const init = async () => {
+      // 브라우저 닫으면 sessionStorage가 사라지므로 로그인 페이지로
+      if (!sessionStorage.getItem("loggedIn")) {
+        clearAccessToken()
+        router.replace("/login")
+        return
+      }
+
+      // 테스트 로그인 토큰 복원
+      const testToken = sessionStorage.getItem("testAccessToken")
+      if (testToken && !getAccessToken()) {
+        setAccessToken(testToken)
+      }
+
       if (!getAccessToken()) {
         const ok = await tryReissue()
         if (!ok) {
@@ -75,25 +151,88 @@ export default function ChatPage() {
       try {
         const res = await getMyInfo()
         if (!res.data.role) {
-          router.replace("/signup") // 카카오 로그인은 됐지만 가입 미완료
+          router.replace("/signup")
           return
         }
         const r = res.data.role === "g" ? "groom" : "bride"
+        setUserId(res.data.id)
+        setCoupleId(res.data.coupleId)
+        setUserName(res.data.name || "")
         setUserNickname(res.data.nickname || "")
         setUserRole(r)
-        setCoupleConnected(res.data.partnerNickname != null)
-        setWeddingConfig((prev) => ({
-          ...prev,
-          groomName: r === "groom" ? (res.data.name || "") : prev.groomName,
-          brideName: r === "bride" ? (res.data.name || "") : prev.brideName,
-          groomNickname: r === "groom" ? (res.data.nickname || "") : prev.groomNickname,
-          brideNickname: r === "bride" ? (res.data.nickname || "") : prev.brideNickname,
-        }))
-        if (res.data.coupleId == null) {
+
+        // 커플 프로필 조회
+        if (res.data.coupleId) {
+          try {
+            const coupleRes = await getCoupleProfile()
+            const g = coupleRes.data.groom
+            const b = coupleRes.data.bride
+            setCoupleConnected(coupleRes.data.status === "MATCHED" && g != null && b != null)
+            setWeddingConfig((prev) => ({
+              ...prev,
+              groomName: g?.name || "",
+              brideName: b?.name || "",
+              groomNickname: g?.nickname || "",
+              brideNickname: b?.nickname || "",
+              groomPhoto: g?.profileImage || "",
+              bridePhoto: b?.profileImage || "",
+            }))
+            if (coupleRes.data.status !== "MATCHED" || !g || !b) {
+              createInviteCode()
+                .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+                .catch(() => {})
+            }
+          } catch {
+            // 커플 정보 없음 → 본인 정보만 세팅
+            setWeddingConfig((prev) => ({
+              ...prev,
+              groomName: r === "groom" ? (res.data.name || "") : "",
+              brideName: r === "bride" ? (res.data.name || "") : "",
+              groomNickname: r === "groom" ? (res.data.nickname || "") : "",
+              brideNickname: r === "bride" ? (res.data.nickname || "") : "",
+              groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
+              bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+            }))
+            createInviteCode()
+              .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+              .catch(() => {})
+          }
+        } else {
+          // coupleId 없음 → 본인 정보만 세팅
+          setWeddingConfig((prev) => ({
+            ...prev,
+            groomName: r === "groom" ? (res.data.name || "") : "",
+            brideName: r === "bride" ? (res.data.name || "") : "",
+            groomNickname: r === "groom" ? (res.data.nickname || "") : "",
+            brideNickname: r === "bride" ? (res.data.nickname || "") : "",
+            groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
+            bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+          }))
           createInviteCode()
             .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
             .catch(() => {})
         }
+        // /mypage에서 리다이렉트된 경우 마이페이지 뷰 활성화
+        const pendingView = sessionStorage.getItem("pendingView")
+        if (pendingView) {
+          sessionStorage.removeItem("pendingView")
+          // 패널 뷰는 authChecked 후에 처리하기 위해 저장
+          if (!(pendingView in PANEL_VIEWS)) {
+            setCurrentView(pendingView as ViewType)
+          }
+          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+          window.history.replaceState(null, "", urlMap[pendingView] || "/main")
+          // 패널 뷰를 위해 임시 저장
+          if (pendingView in PANEL_VIEWS) {
+            sessionStorage.setItem("pendingPanel", pendingView)
+          }
+        }
+
+        // 초기 찜 로드 + 폴링
+        reloadFavorites(res.data.id, r)
+        const favInterval = setInterval(() => reloadFavorites(res.data.id, r, true), 30000)
+        ;(window as any).__favInterval = favInterval
+
         setAuthChecked(true)
       } catch {
         clearAccessToken()
@@ -101,6 +240,9 @@ export default function ChatPage() {
       }
     }
     init()
+    return () => {
+      if ((window as any).__favInterval) clearInterval((window as any).__favInterval)
+    }
   }, [router])
 
   const [messages, setMessages] = useState<Message[]>([])
@@ -108,10 +250,34 @@ export default function ChatPage() {
   const [attachedVendors, setAttachedVendors] = useState<DroppedVendor[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
-  const [currentView, setCurrentView] = useState<ViewType | null>(null) // null = 패널 모드
+  const [currentView, setCurrentView] = useState<ViewType | null>(() => {
+    if (typeof window === "undefined") return null
+    const path = window.location.pathname
+    const pathMap: Record<string, ViewType> = {
+      "/reservation": "reservation",
+      "/wishlist": "wishlist",
+      "/vote": "vote",
+      "/mypage": "my-page",
+      "/couple-chat": "couple-chat",
+    }
+    return pathMap[path] || null
+  })
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([])
   const [sharedVendors, setSharedVendors] = useState<VendorShare[]>([])
-  const [favoriteVendors, setFavoriteVendors] = useState<VendorShare[]>([])
+  const [favoriteVendors, _setFavoriteVendors] = useState<VendorShare[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const cached = localStorage.getItem("cachedFavs")
+      return cached ? JSON.parse(cached) : []
+    } catch { return [] }
+  })
+  const setFavoriteVendors = useCallback((update: VendorShare[] | ((prev: VendorShare[]) => VendorShare[])) => {
+    _setFavoriteVendors((prev) => {
+      const next = typeof update === "function" ? update(prev) : update
+      try { localStorage.setItem("cachedFavs", JSON.stringify(next)) } catch {}
+      return next
+    })
+  }, [])
   const [pendingVoteItems, setPendingVoteItems] = useState<VendorItem[]>([])
   const [voteBadge, setVoteBadge] = useState(0)
   const [coupleChatBadge, setCoupleChatBadge] = useState(0)
@@ -122,12 +288,38 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // ── 패널 상태 ──────────────────────────────
-  const [panelState, setPanelState] = useState<PanelState>({
-    left: [],
-    right: [],
-    activeLeftId: null,
-    activeRightId: null,
-    splitRatio: 0.5,
+  const [panelState, setPanelState] = useState<PanelState>(() => {
+    // sessionStorage에서 패널 복원
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("openPanels")
+      if (saved) {
+        try {
+          const panels = JSON.parse(saved) as { type: string; side: string }[]
+          const leftTabs: PanelTab[] = []
+          const rightTabs: PanelTab[] = []
+          panels.forEach((p) => {
+            const isChatType = p.type === "chat" || p.type === "couple-chat"
+            const tab: PanelTab = {
+              id: `${p.type}-restore-${Math.random()}`,
+              type: p.type as PanelTabType,
+              title: TAB_LABELS[p.type as PanelTabType] || p.type,
+            }
+            if (isChatType) leftTabs.push(tab)
+            else rightTabs.push(tab)
+          })
+          if (leftTabs.length > 0 || rightTabs.length > 0) {
+            return {
+              left: leftTabs,
+              right: rightTabs,
+              activeLeftId: leftTabs[0]?.id || null,
+              activeRightId: rightTabs[0]?.id || null,
+              splitRatio: 0.5,
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    return { left: [], right: [], activeLeftId: null, activeRightId: null, splitRatio: 0.5 }
   })
   const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false)
 
@@ -183,6 +375,52 @@ export default function ChatPage() {
     // 풀페이지 뷰 해제
     setCurrentView(null)
   }
+
+  // 투표 알림 WebSocket 구독
+  useEffect(() => {
+    if (!authChecked || !coupleId || !userId) return
+    const SockJS = require("sockjs-client")
+    const { Client } = require("@stomp/stompjs")
+    const client = new Client({
+      webSocketFactory: () => new SockJS(window.location.hostname !== "localhost" ? `${window.location.origin}/ws` : "http://localhost:8080/ws"),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/vote/${coupleId}`, (message: any) => {
+          const data = JSON.parse(message.body)
+          if (data.senderId !== userId) {
+            setVoteBadge((prev) => prev + 1)
+          }
+        })
+      },
+    })
+    client.activate()
+    return () => { client.deactivate() }
+  }, [authChecked, coupleId, userId])
+
+  // panelState 변경 시 sessionStorage에 저장
+  useEffect(() => {
+    const panels = [
+      ...panelState.left.map((t) => ({ type: t.type, side: "left" })),
+      ...panelState.right.map((t) => ({ type: t.type, side: "right" })),
+    ]
+    if (panels.length > 0) {
+      sessionStorage.setItem("openPanels", JSON.stringify(panels))
+    } else {
+      sessionStorage.removeItem("openPanels")
+    }
+  }, [panelState])
+
+  // pendingPanel 처리 (리다이렉트로 돌아온 경우)
+  useEffect(() => {
+    if (!authChecked) return
+    const pendingPanel = sessionStorage.getItem("pendingPanel")
+    if (pendingPanel) {
+      sessionStorage.removeItem("pendingPanel")
+      if (pendingPanel in PANEL_VIEWS) {
+        addPanelTab(PANEL_VIEWS[pendingPanel], "left")
+      }
+    }
+  }, [authChecked])
 
   // ── 기존 핸들러 ──────────────────────────────
   const handleStartChat = (content: string) => {
@@ -317,18 +555,27 @@ export default function ChatPage() {
 
       addPanelTab(panelType, "left")
       if (view === "vote") setVoteBadge(0)
+      // couple-chat URL은 유지, 다른 패널 추가 시 URL 안 바꿈
+      if (view === "couple-chat") {
+        window.history.pushState(null, "", "/couple-chat")
+      }
       return
     }
 
     // 풀페이지 뷰
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
+    // URL 업데이트 (페이지 이동 없이)
+    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+    window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
   const handleAccountNavigate = (view: string) => {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
+      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+      window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
 
@@ -356,12 +603,23 @@ export default function ChatPage() {
       imageBg: VOTE_BG_MAP[vendor.category] ?? "bg-rose-100",
       partnerVoted: false,
     }
-    setPendingVoteItems((prev) => [...prev, newItem])
-    setVoteBadge((prev) => prev + 1)
+    // DB에 투표 항목 생성
+    createVoteItem({
+      vendorId: Number(vendor.id),
+      sourceType: source === "my-wish" ? "my_wish" : "partner_share",
+    }).then((res) => {
+      // DB id로 아이템 추가
+      newItem.id = res.data.id.toString()
+      setPendingVoteItems((prev) => [...prev, newItem])
+      setVoteBadge((prev) => prev + 1)
+    }).catch((err) => {
+      toast.error(err.message || "투표 항목 추가에 실패했습니다.")
+    })
     toast.success("비밀 투표에 추가됐어요", { description: vendor.name, duration: 3000 })
   }
 
   const handleFavoriteChange = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, isFavorite: boolean) => {
+    favChangedAt.current = Date.now()
     if (isFavorite) {
       const fav: VendorShare = {
         id: `fav-${Date.now()}-${vendor.id}`,
@@ -378,11 +636,17 @@ export default function ChatPage() {
         sharedBy: userRole,
       }
       setFavoriteVendors((prev) => [...prev, fav])
+      addFavorite(Number(vendor.id))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
       toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
     } else {
       setFavoriteVendors((prev) =>
         prev.filter((v) => !(v.vendorId === vendor.id && v.sharedBy === userRole))
       )
+      removeFavorite(Number(vendor.id))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
       toast.success("찜목록에서 제거됐어요", { description: vendor.name, duration: 2000 })
     }
   }
@@ -393,8 +657,12 @@ export default function ChatPage() {
       (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
     )
     if (!alreadyFav) {
+      favChangedAt.current = Date.now()
       const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
       setFavoriteVendors((prev) => [...prev, fav])
+      addFavorite(Number(vendor.vendorId))
+        .then(() => reloadFavorites())
+        .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
       toast.success("찜목록에 추가됐어요", { description: vendor.name, duration: 2000 })
     }
   }
@@ -405,26 +673,43 @@ export default function ChatPage() {
   }
 
   const confirmShareVendor = () => {
-    if (!shareModalVendor) return
-    const share: VendorShare = {
-      id: Date.now().toString(),
+    if (!shareModalVendor || !coupleId || !userId) return
+    console.log("[공유] coverUrl:", shareModalVendor.coverUrl)
+    // 업체 공유를 채팅 메시지로 전송 (vendor_share 타입)
+    const vendorData = JSON.stringify({
       vendorId: shareModalVendor.id,
       name: shareModalVendor.name,
       category: shareModalVendor.category,
-      categoryLabel: CATEGORY_LABELS[shareModalVendor.category] ?? shareModalVendor.category,
       price: shareModalVendor.price,
       rating: shareModalVendor.rating,
-      address: shareModalVendor.address,
-      tags: shareModalVendor.tags,
-      description: shareModalVendor.description,
       coverUrl: shareModalVendor.coverUrl,
-      sharedBy: userRole,
-      comment: shareModalComment.trim() || undefined,
-    }
-    setSharedVendors((prev) => [...prev, share])
-    const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
-    if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
-    toast.success(`커플 채팅에 공유됐어요`, { description: shareModalVendor.name, duration: 3000 })
+      comment: shareModalComment.trim() || "",
+    })
+
+    // DB에 먼저 저장
+    shareVendor(Number(shareModalVendor.id), shareModalComment.trim() || undefined)
+      .then(() => {
+        // WebSocket으로 채팅 메시지 전송
+        const stompClient = (window as any).__stompClient
+        if (stompClient?.connected) {
+          stompClient.publish({
+            destination: "/app/chat.send",
+            body: JSON.stringify({
+              senderId: userId,
+              coupleId: coupleId,
+              content: vendorData,
+              messageType: "vendor_share",
+              vendorId: Number(shareModalVendor.id),
+            }),
+          })
+        }
+        const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
+        if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
+        toast.success(`커플 채팅에 공유됐어요`, { description: shareModalVendor.name, duration: 3000 })
+      })
+      .catch(() => {
+        toast.error("이미 공유한 업체입니다.")
+      })
     setShareModalVendor(null)
     setShareModalComment("")
   }
@@ -436,6 +721,8 @@ export default function ChatPage() {
       // 서버 에러여도 로그아웃 진행
     }
     clearAccessToken()
+    sessionStorage.removeItem("testAccessToken")
+    sessionStorage.removeItem("loggedIn")
     router.replace("/login")
   }
 
@@ -505,6 +792,8 @@ export default function ChatPage() {
             groomName={weddingConfig.groomName}
             brideName={weddingConfig.brideName}
             currentUser={userRole}
+            coupleId={coupleId}
+            userId={userId}
             sharedVendors={sharedVendors}
             onAddToVote={(v) => handleAddToVote({ ...v, id: v.vendorId }, "partner-share")}
             onOpenTab={(type) => {
@@ -522,9 +811,11 @@ export default function ChatPage() {
             }}
             onFavoriteVendor={handleFavoriteVendorFromChat}
             onUnfavoriteVendor={(vendorId) => {
-              setFavoriteVendors((prev) =>
-                prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole))
-              )
+              favChangedAt.current = Date.now()
+              setFavoriteVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
+              removeFavorite(Number(vendorId))
+                .then(() => reloadFavorites())
+                .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
@@ -539,12 +830,22 @@ export default function ChatPage() {
                 address: vendor.address,
                 tags: vendor.tags,
                 description: vendor.description,
+                coverUrl: (vendor as any).coverUrl,
               })
               setShareModalComment("")
             }}
             onUnshareVendor={(vendorId) => {
               setSharedVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
               setPendingVoteItems((prev) => prev.filter((v) => !v.id.startsWith(`vote-${vendorId}-`)))
+              unshareVendor(Number(vendorId)).catch(() => {})
+              // 상대방 채팅에서도 카드 제거
+              const stompClient = (window as any).__stompClient
+              if (stompClient?.connected && coupleId && userId) {
+                stompClient.publish({
+                  destination: "/app/chat.notify",
+                  body: JSON.stringify({ senderId: userId, coupleId, vendorId: Number(vendorId) }),
+                })
+              }
               toast.success("공유가 취소됐어요", { duration: 2000 })
             }}
           />
@@ -566,7 +867,10 @@ export default function ChatPage() {
         return <ScheduleView />
 
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+          const numId = Number(itemId)
+          if (numId) submitVote(numId, { score, reason }).catch(() => {})
+        }} />
 
       case "budget":
         return <BudgetView totalBudget={weddingConfig.budget} />
@@ -577,12 +881,15 @@ export default function ChatPage() {
             sharedVendors={favoriteVendors}
             groomName={weddingConfig.groomName}
             brideName={weddingConfig.brideName}
+            currentUser={userRole}
             onOpenVendor={() => addPanelTab("vendors", "right")}
             onOpenSchedule={() => addPanelTab("schedule", "right")}
             onUnfavorite={(vendorId) => {
-              setFavoriteVendors((prev) =>
-                prev.filter((v) => v.vendorId !== vendorId)
-              )
+              favChangedAt.current = Date.now()
+              setFavoriteVendors((prev) => prev.filter((v) => v.vendorId !== vendorId))
+              removeFavorite(Number(vendorId))
+                .then(() => reloadFavorites())
+                .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
             onShareVendor={(vendor) => {
@@ -598,6 +905,22 @@ export default function ChatPage() {
                 coverUrl: vendor.coverUrl,
               })
               setShareModalComment("")
+            }}
+            onAlsoFavorite={(vendor) => {
+              const alreadyFav = favoriteVendors.some(
+                (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
+              )
+              if (!alreadyFav) {
+                favChangedAt.current = Date.now()
+                const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
+                setFavoriteVendors((prev) => [...prev, fav])
+                addFavorite(Number(vendor.vendorId))
+                  .then(() => reloadFavorites())
+                  .catch(() => { reloadFavorites(); toast.error("찜 처리에 실패했습니다.") })
+                toast.success("나도 찜했어요!", { description: vendor.name, duration: 2000 })
+              } else {
+                toast.info("이미 찜한 업체예요", { duration: 2000 })
+              }
             }}
           />
         )
@@ -625,13 +948,35 @@ export default function ChatPage() {
             bridePhoto={weddingConfig.bridePhoto}
             coupleConnected={coupleConnected}
             myInviteCode={myInviteCode}
-            onCoupleConnect={() => setCoupleConnected(true)}
+            userRole={userRole}
+            onCoupleConnect={async (inviteCode) => {
+              try {
+                const res = await connectCouple(inviteCode)
+                setCoupleConnected(true)
+                toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
+              } catch {
+                toast.error("연결 실패", { description: "초대코드를 확인해주세요." })
+              }
+            }}
             onUpdateProfile={handleUpdateProfile}
             onDeleteAccount={handleLogout}
           />
         )
       case "wishlist":
-        return <WishlistView />
+        return <WishlistView onShareVendor={(vendor) => {
+          setShareModalVendor({
+            id: vendor.id,
+            name: vendor.name,
+            category: vendor.category as "studio" | "dress" | "makeup" | "venue",
+            price: vendor.price,
+            rating: vendor.rating,
+            address: "",
+            tags: [],
+            description: "",
+            coverUrl: vendor.coverUrl,
+          })
+          setShareModalComment("")
+        }} />
       case "payment":
         return <PaymentView />
       case "reservation":
@@ -639,7 +984,10 @@ export default function ChatPage() {
       case "reviews":
         return <ReviewView />
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} />
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+          const numId = Number(itemId)
+          if (numId) submitVote(numId, { score, reason }).catch(() => {})
+        }} />
       default:
         return null
     }
@@ -686,9 +1034,12 @@ export default function ChatPage() {
         groomPhoto={weddingConfig.groomPhoto}
         bridePhoto={weddingConfig.bridePhoto}
         dDay={weddingConfig.dDay}
+        coupleConnected={coupleConnected}
+        userRole={userRole}
         currentView={currentView ?? "chat"}
         activeSessionId={activeSessionId}
         chatHistory={chatHistory}
+        userName={userName}
         userNickname={userNickname}
         voteBadge={voteBadge}
         coupleChatBadge={coupleChatBadge}

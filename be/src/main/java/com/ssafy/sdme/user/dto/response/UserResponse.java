@@ -28,24 +28,20 @@ public class UserResponse {
     @Schema(description = "커플 ID", example = "1")
     private final Long coupleId;
 
-    @Schema(description = "상대방 닉네임", example = "웨딩걸")
-    private final String partnerNickname;
-
     @Schema(description = "생성일시")
     private final LocalDateTime createdAt;
 
-    private UserResponse(User user, String partnerNickname) {
+    private UserResponse(User user) {
         this.id = user.getId();
         this.name = user.getName();
         this.role = user.getRole() != null ? user.getRole().name() : null;
         this.nickname = user.getNickname();
         this.profileImage = user.getProfileImage();
         this.coupleId = user.getCoupleId();
-        this.partnerNickname = partnerNickname;
         this.createdAt = user.getCreatedAt();
     }
 
-    public static UserResponse of(User user, String partnerNickname) {
-        return new UserResponse(user, partnerNickname);
+    public static UserResponse of(User user) {
+        return new UserResponse(user);
     }
 }

@@ -9,6 +9,11 @@ export default function RootPage() {
 
   useEffect(() => {
     const redirect = async () => {
+      // 브라우저 세션 체크
+      if (!sessionStorage.getItem("loggedIn")) {
+        router.replace("/login")
+        return
+      }
       // 로그인 상태 확인
       if (getAccessToken() || (await tryReissue())) {
         try {

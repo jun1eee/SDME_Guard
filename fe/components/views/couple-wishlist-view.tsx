@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Heart, Star, MapPin, Calendar, Route, Store, Share2, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { VendorShare } from "@/components/views/couple-chat-view"
-import { VendorDetailView, INITIAL_VENDORS, type Vendor } from "@/components/views/vendors-view"
+import { VendorDetailView, type Vendor } from "@/components/views/vendors-view"
+import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 
 type TabId = "final" | "venue" | "studio" | "dress" | "makeup"
 
@@ -20,20 +21,24 @@ interface CoupleWishlistViewProps {
   sharedVendors: VendorShare[]
   groomName: string
   brideName: string
-  onOpenVendor?: () => void
+  currentUser?: "groom" | "bride"
+  onOpenVendor?: (vendorId: string) => void
   onOpenSchedule?: () => void
   onUnfavorite?: (vendorId: string) => void
   onShareVendor?: (vendor: VendorShare) => void
+  onAlsoFavorite?: (vendor: VendorShare) => void
 }
 
 export function CoupleWishlistView({
   sharedVendors,
   groomName,
   brideName,
+  currentUser = "groom",
   onOpenVendor,
   onOpenSchedule,
   onUnfavorite,
   onShareVendor,
+  onAlsoFavorite,
 }: CoupleWishlistViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("final")
   const [modalVendor, setModalVendor] = useState<Vendor | null>(null)
@@ -52,37 +57,52 @@ export function CoupleWishlistView({
     (v, i, arr) => arr.findIndex((x) => x.vendorId === v.vendorId) === i
   )
 
-  const finalVendors = uniqueVendors.filter(
-    (v) => vendorShareMap.get(v.vendorId)?.size === 2
+  const finalVendorIds = new Set(
+    uniqueVendors.filter((v) => vendorShareMap.get(v.vendorId)?.size === 2).map((v) => v.vendorId)
   )
 
-  const vendorsByCategory = (cat: VendorShare["category"]) =>
-    uniqueVendors.filter((v) => v.category === cat)
+  const finalVendors = uniqueVendors.filter((v) => finalVendorIds.has(v.vendorId))
 
   const groomVendorsByCategory = (cat: VendorShare["category"]) =>
     sharedVendors
-      .filter((v) => v.category === cat && v.sharedBy === "groom")
+      .filter((v) => v.category === cat && v.sharedBy === "groom" && !finalVendorIds.has(v.vendorId))
       .filter((v, i, arr) => arr.findIndex((x) => x.vendorId === v.vendorId) === i)
 
   const brideVendorsByCategory = (cat: VendorShare["category"]) =>
     sharedVendors
-      .filter((v) => v.category === cat && v.sharedBy === "bride")
+      .filter((v) => v.category === cat && v.sharedBy === "bride" && !finalVendorIds.has(v.vendorId))
       .filter((v, i, arr) => arr.findIndex((x) => x.vendorId === v.vendorId) === i)
+
+  const categoryCount = (cat: VendorShare["category"]) =>
+    new Set([...groomVendorsByCategory(cat).map((v) => v.vendorId), ...brideVendorsByCategory(cat).map((v) => v.vendorId)]).size
 
   const tabCounts: Record<TabId, number> = {
     final: finalVendors.length,
-    venue: vendorsByCategory("venue").length,
-    studio: vendorsByCategory("studio").length,
-    dress: vendorsByCategory("dress").length,
-    makeup: vendorsByCategory("makeup").length,
+    venue: categoryCount("venue"),
+    studio: categoryCount("studio"),
+    dress: categoryCount("dress"),
+    makeup: categoryCount("makeup"),
   }
 
   const openDetail = (vendorId: string) => {
-    const v = INITIAL_VENDORS.find((x) => x.id === vendorId)
-    if (v) setModalVendor({ ...v, isFavorite: true })
+    const isMine = sharedVendors.some((x) => x.vendorId === vendorId && x.sharedBy === currentUser)
+    fetchVendorDetail(vendorId)
+      .then((vendor) => setModalVendor({ ...vendor, isFavorite: isMine }))
+      .catch(() => {
+        const v = sharedVendors.find((x) => x.vendorId === vendorId)
+        if (v) {
+          setModalVendor({
+            id: v.vendorId, category: v.category, name: v.name,
+            tags: [], description: "", contact: "", address: "",
+            rating: v.rating, reviewCount: 0, paymentStep: 1,
+            price: v.price, isFavorite: isMine, coverUrl: v.coverUrl,
+          })
+        }
+      })
   }
 
-  const cardProps = { onOpenDetail: openDetail, onUnfavorite, onShareVendor }
+  const myCardProps = { onOpenDetail: openDetail, onUnfavorite, onShareVendor }
+  const partnerCardProps = { onOpenDetail: openDetail, onAlsoFavorite }
 
   return (
     <>
@@ -129,15 +149,17 @@ export function CoupleWishlistView({
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {activeTab === "final" ? (
-            <FinalTab vendors={finalVendors} onOpenSchedule={onOpenSchedule} {...cardProps} />
+            <FinalTab vendors={finalVendors} onOpenSchedule={onOpenSchedule} {...myCardProps} />
           ) : (
             <CategoryTab
               groomVendors={groomVendorsByCategory(activeTab as VendorShare["category"])}
               brideVendors={brideVendorsByCategory(activeTab as VendorShare["category"])}
               groomName={groomName}
               brideName={brideName}
+              currentUser={currentUser}
               vendorShareMap={vendorShareMap}
-              {...cardProps}
+              myCardProps={myCardProps}
+              partnerCardProps={partnerCardProps}
             />
           )}
         </div>
@@ -145,20 +167,64 @@ export function CoupleWishlistView({
 
       {/* 상세정보 모달 */}
       {modalVendor && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-end">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setModalVendor(null)} />
-          <div className="relative flex w-full max-w-2xl flex-col rounded-t-2xl bg-background shadow-2xl animate-in slide-in-from-bottom duration-300" style={{ maxHeight: "92%" }}>
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+          <div className="relative flex w-full max-w-2xl flex-col rounded-2xl bg-background shadow-2xl" style={{ maxHeight: "85vh" }}>
+            <div className="flex justify-between items-center px-4 pt-3 pb-1 shrink-0">
+              <div />
+              <button onClick={() => setModalVendor(null)} className="flex size-8 items-center justify-center rounded-full hover:bg-muted">
+                <X className="size-4 text-muted-foreground" />
+              </button>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto [&_.sticky]:hidden">
               <VendorDetailView
                 vendor={modalVendor}
                 onBack={() => setModalVendor(null)}
                 onToggleFavorite={() => {
                   const wasFavorite = modalVendor.isFavorite
                   setModalVendor((p) => p ? { ...p, isFavorite: !p.isFavorite } : null)
-                  if (wasFavorite) onUnfavorite?.(modalVendor.id)
+                  if (wasFavorite) {
+                    onUnfavorite?.(modalVendor.id)
+                  } else {
+                    // 찜 추가
+                    const v = sharedVendors.find((x) => x.vendorId === modalVendor.id)
+                    if (v) {
+                      onAlsoFavorite?.(v)
+                    } else {
+                      onAlsoFavorite?.({
+                        id: `fav-modal-${modalVendor.id}`,
+                        vendorId: modalVendor.id,
+                        name: modalVendor.name,
+                        category: modalVendor.category,
+                        categoryLabel: "",
+                        price: modalVendor.price,
+                        rating: modalVendor.rating,
+                        address: modalVendor.address || "",
+                        tags: modalVendor.tags || [],
+                        description: modalVendor.description || "",
+                        coverUrl: modalVendor.coverUrl,
+                        sharedBy: currentUser,
+                      })
+                    }
+                  }
+                }}
+                onShareVendor={() => {
+                  const v: VendorShare = {
+                    id: modalVendor.id,
+                    vendorId: modalVendor.id,
+                    name: modalVendor.name,
+                    category: modalVendor.category,
+                    categoryLabel: "",
+                    price: modalVendor.price,
+                    rating: modalVendor.rating,
+                    address: modalVendor.address || "",
+                    tags: modalVendor.tags || [],
+                    description: modalVendor.description || "",
+                    coverUrl: modalVendor.coverUrl,
+                    sharedBy: currentUser,
+                  }
+                  onShareVendor?.(v)
+                  setModalVendor(null)
                 }}
                 onAddReview={() => {}}
               />
@@ -179,6 +245,7 @@ function makeDragData(vendor: VendorShare) {
     categoryLabel: vendor.categoryLabel,
     price: vendor.price,
     rating: vendor.rating,
+    coverUrl: vendor.coverUrl,
   })
 }
 
@@ -187,6 +254,7 @@ interface CardActions {
   onOpenDetail: (vendorId: string) => void
   onUnfavorite?: (vendorId: string) => void
   onShareVendor?: (vendor: VendorShare) => void
+  onAlsoFavorite?: (vendor: VendorShare) => void
 }
 
 // ── 최종 탭 ──────────────────────────────────────
@@ -229,17 +297,20 @@ function CategoryTab({
   brideVendors,
   groomName,
   brideName,
+  currentUser,
   vendorShareMap,
-  onOpenDetail,
-  onUnfavorite,
-  onShareVendor,
+  myCardProps,
+  partnerCardProps,
 }: {
   groomVendors: VendorShare[]
   brideVendors: VendorShare[]
   groomName: string
   brideName: string
+  currentUser: "groom" | "bride"
   vendorShareMap: Map<string, Set<string>>
-} & CardActions) {
+  myCardProps: CardActions
+  partnerCardProps: CardActions
+}) {
   const hasAny = groomVendors.length > 0 || brideVendors.length > 0
 
   if (!hasAny) {
@@ -274,9 +345,7 @@ function CategoryTab({
                 key={v.vendorId}
                 vendor={v}
                 bothLiked={vendorShareMap.get(v.vendorId)?.size === 2}
-                onOpenDetail={onOpenDetail}
-                onUnfavorite={onUnfavorite}
-                onShareVendor={onShareVendor}
+                {...(currentUser === "groom" ? myCardProps : partnerCardProps)}
               />
             ))
           )}
@@ -305,9 +374,7 @@ function CategoryTab({
                 key={v.vendorId}
                 vendor={v}
                 bothLiked={vendorShareMap.get(v.vendorId)?.size === 2}
-                onOpenDetail={onOpenDetail}
-                onUnfavorite={onUnfavorite}
-                onShareVendor={onShareVendor}
+                {...(currentUser === "bride" ? myCardProps : partnerCardProps)}
               />
             ))
           )}
@@ -324,12 +391,14 @@ function CompactVendorCard({
   onOpenDetail,
   onUnfavorite,
   onShareVendor,
+  onAlsoFavorite,
 }: {
   vendor: VendorShare
   bothLiked: boolean
   onOpenDetail: (vendorId: string) => void
   onUnfavorite?: (vendorId: string) => void
   onShareVendor?: (vendor: VendorShare) => void
+  onAlsoFavorite?: (vendor: VendorShare) => void
 }) {
   const emoji =
     vendor.category === "studio" ? "📷" :
@@ -370,7 +439,7 @@ function CompactVendorCard({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-2 flex gap-1.5 min-h-[28px]">
           {onShareVendor && (
             <button
               onClick={(e) => { e.stopPropagation(); onShareVendor(vendor) }}
@@ -387,6 +456,15 @@ function CompactVendorCard({
             >
               <Heart className="size-3 fill-red-400 text-red-400" />
               취소
+            </button>
+          )}
+          {onAlsoFavorite && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAlsoFavorite(vendor) }}
+              className="flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              <Heart className="size-3" />
+              나도 찜
             </button>
           )}
         </div>

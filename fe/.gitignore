@@ -36,3 +36,6 @@ package-lock.json
 
 # Vercel
 .vercel.claude/
+
+# .env
+fe/.env
