@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -15,6 +15,8 @@ import {
   Copy,
   Check,
   Link2,
+  CreditCard,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -887,6 +889,117 @@ export function MyPageView({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── 카드 관리 섹션 ──────────────────────────────────────────────────
+
+function CardManagementSection() {
+  const [cards, setCards] = useState<{ id: number; cardBrand: string; cardLast4: string; ownerName: string; createdAt: string }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [registering, setRegistering] = useState(false)
+
+  useEffect(() => {
+    getCards()
+      .then((res) => setCards(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (cardId: number) => {
+    if (!confirm("이 카드를 삭제하시겠습니까?")) return
+    try {
+      await deleteCard(cardId)
+      setCards((prev) => prev.filter((c) => c.id !== cardId))
+    } catch {
+      alert("카드 삭제에 실패했습니다.")
+    }
+  }
+
+  const handleRegister = async () => {
+    setRegistering(true)
+    try {
+      const keyRes = await getTossClientKey()
+      const clientKey = keyRes.data.clientKey
+      const customerKey = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8)
+
+      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk")
+      const toss = await loadTossPayments(clientKey)
+      const payment = toss.payment({ customerKey })
+
+      await payment.requestBillingAuth({
+        method: "CARD",
+        successUrl: window.location.origin + "/cards/success",
+        failUrl: window.location.origin + "/cards/fail",
+      })
+    } catch (err: any) {
+      if (err?.code !== "USER_CANCEL") {
+        alert("카드 등록에 실패했습니다.")
+      }
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const CARD_BRANDS: Record<string, string> = {
+    "3K": "기업BC", "46": "광주", "71": "롯데", "30": "산업", "31": "BC", "51": "삼성",
+    "38": "새마을", "41": "신한", "62": "신협", "36": "씨티", "33": "우리", "W1": "우리",
+    "37": "우체국", "39": "저축", "35": "전북", "42": "제주", "15": "카카오뱅크",
+    "3A": "케이뱅크", "24": "토스뱅크", "21": "하나", "61": "현대", "11": "KB국민",
+    "91": "NH농협", "34": "Sh수협",
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl bg-card p-6 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CreditCard className="size-5 text-primary" />
+          <h2 className="text-lg font-semibold text-foreground">결제 수단</h2>
+        </div>
+        <button
+          onClick={handleRegister}
+          disabled={registering}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Plus className="size-3.5" />
+          {registering ? "등록 중..." : "카드 등록"}
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>
+      ) : cards.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-8 text-center">
+          <CreditCard className="mx-auto mb-2 size-8 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">등록된 카드가 없습니다</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">카드를 등록하면 간편하게 결제할 수 있어요</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {cards.map((card) => (
+            <div key={card.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+              <div className="flex items-center gap-3">
+                <CreditCard className="size-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {CARD_BRANDS[card.cardBrand] || card.cardBrand || "카드"} •••• {card.cardLast4}
+                  </p>
+                  {card.ownerName && (
+                    <p className="text-xs text-muted-foreground">{card.ownerName}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(card.id)}
+                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

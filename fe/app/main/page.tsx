@@ -117,6 +117,7 @@ export default function ChatPage() {
         "/wishlist": "wishlist",
         "/vote": "vote",
         "/reviews": "reviews",
+        "/payment": "payment",
         "/mypage": "my-page",
         "/couple-chat": "couple-chat",
       }
@@ -221,7 +222,7 @@ export default function ChatPage() {
           if (!(pendingView in PANEL_VIEWS)) {
             setCurrentView(pendingView as ViewType)
           }
-          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
           window.history.replaceState(null, "", urlMap[pendingView] || "/main")
           // 패널 뷰를 위해 임시 저장
           if (pendingView in PANEL_VIEWS) {
@@ -589,7 +590,7 @@ export default function ChatPage() {
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
     // URL 업데이트 (페이지 이동 없이)
-    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
     window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
@@ -597,7 +598,7 @@ export default function ChatPage() {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
-      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
       window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
