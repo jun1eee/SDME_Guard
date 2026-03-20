@@ -12,4 +12,5 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
     long countByCategory(String category);
     List<Vendor> findByNameAndCategory(String name, String category);
     List<Vendor> findAllByCategory(String category);
+    List<Vendor> findBySourceIdIn(List<Long> sourceIds);
 }
