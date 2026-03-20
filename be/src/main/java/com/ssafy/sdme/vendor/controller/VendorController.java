@@ -47,4 +47,9 @@ public class VendorController {
     public ApiResponse<VendorDetailResponse> getVendorDetail(@PathVariable("vendorId") Long id) {
         return ApiResponse.ok(vendorQueryService.getVendorDetail(id));
     }
+
+    @GetMapping("/source/{sourceId}")
+    public ApiResponse<VendorDetailResponse> getVendorDetailBySourceId(@PathVariable("sourceId") Long sourceId) {
+        return ApiResponse.ok(vendorQueryService.getVendorDetailBySourceId(sourceId));
+    }
 }

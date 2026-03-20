@@ -48,10 +48,19 @@ public class VendorQueryService {
         return new VendorListResponse(items, nextCursor);
     }
 
+    public VendorDetailResponse getVendorDetailBySourceId(Long sourceId) {
+        Vendor representative = vendorRepository.findBySourceId(sourceId)
+            .orElseThrow(() -> new NotFoundException("업체를 찾을 수 없습니다. (sourceId: " + sourceId + ")"));
+        return buildVendorDetail(representative);
+    }
+
     public VendorDetailResponse getVendorDetail(Long id) {
         Vendor representative = vendorRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("업체를 찾을 수 없습니다."));
+        return buildVendorDetail(representative);
+    }
 
+    private VendorDetailResponse buildVendorDetail(Vendor representative) {
         String category = representative.getCategory().toUpperCase(Locale.ROOT);
         boolean isHall = "HALL".equals(category);
 
@@ -62,7 +71,7 @@ public class VendorQueryService {
                 .toList();
 
         List<VendorHallDetail> hallDetails = isHall
-            ? vendorHallDetailRepository.findByVendorId(id)
+            ? vendorHallDetailRepository.findByVendorId(representative.getId())
             : List.of();
 
         JsonNode detailJson = isHall ? null : vendorDetailStore.findBySourceId(representative.getSourceId());
