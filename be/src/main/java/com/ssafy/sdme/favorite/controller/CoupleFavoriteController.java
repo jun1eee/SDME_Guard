@@ -28,7 +28,6 @@ public class CoupleFavoriteController {
     @GetMapping("/all")
     public ApiResponse<List<FavoriteResponse>> getAllCoupleFavorites(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
-        log.info("[CoupleFavoriteController] 커플 전체 찜 조회 - userId: {}", userId);
         return ApiResponse.ok(favoriteService.getAllCoupleFavorites(userId));
     }
 
