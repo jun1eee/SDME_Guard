@@ -1,8 +1,9 @@
 "use client"
 
+import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function CardFailPage() {
+function FailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const message = searchParams.get("message") || "카드 등록에 실패했습니다."
@@ -23,5 +24,13 @@ export default function CardFailPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function CardFailPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><p className="text-sm text-muted-foreground">로딩 중...</p></div>}>
+      <FailContent />
+    </Suspense>
   )
 }
