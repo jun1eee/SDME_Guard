@@ -97,6 +97,14 @@ def search_nearest_vendors(driver, category: str, lat: float, lng: float, limit:
         """, cat=category, lat=lat, lng=lng, limit=limit).data()
 
 
+def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
+    """쿼리에서 요청 갯수 추출. 없으면 default, 최대 maximum."""
+    m = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", query)
+    if m:
+        return min(int(m.group(1)), maximum)
+    return default
+
+
 # ── Tool Schema ──
 
 TOOLS_SCHEMA = [
@@ -186,11 +194,12 @@ class SdmToolRegistry:
 
     def search_structured(self, query: str, category: str, couple_id: int, **_) -> ToolResult:
         answer, vendors = self.engine.search_structured(query=query, category=category)
-        # 결과 없으면 거리 기반 fallback (ai-dc)
+        # 결과 없으면 거리 기반 fallback
         if answer and any(p in answer for p in NO_RESULT_PHRASES):
             lat, lng, place = geocode_query(query)
+            count = _extract_count(query)
             if lat and lng and self.engine.driver:
-                records = search_nearest_vendors(self.engine.driver, category, lat, lng)
+                records = search_nearest_vendors(self.engine.driver, category, lat, lng, limit=count)
                 if records:
                     for r in records:
                         d = r.get("distanceMeters", 0)

@@ -81,7 +81,20 @@ class SdmChatService:
                         log_lines.append(f"[category_corrected] {tool_args.get('category')} -> {corrected}")
                         tool_args["category"] = corrected
 
+                # "어울리는/맞는" + 다른 카테고리 → search_related 강제 교정
                 if tool_name in ("search_structured", "search_semantic"):
+                    related_pattern = any(kw in message for kw in ["어울리는", "에 맞는", "잘맞는", "과 맞는", "이랑 맞는"])
+                    if related_pattern and "category" in tool_args:
+                        target_cat = tool_args["category"]
+                        # 이전 세션 카테고리와 다른 카테고리를 요청 중이면 cross-category
+                        if session.category and target_cat != session.category:
+                            log_lines.append(f"[tool_corrected] {tool_name} -> search_related")
+                            tool_name = "search_related"
+                            tool_args = {
+                                "target_category": target_cat,
+                                "source_vendor": session.last_mentioned[0] if session.last_mentioned else "",
+                                "source_style": "",
+                            }
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
