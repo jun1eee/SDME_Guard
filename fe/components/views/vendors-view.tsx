@@ -640,10 +640,24 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       if (v) {
         openVendorDetail(v)
       } else {
-        // 목록에 없으면 API로 직접 조회
-        fetchVendorDetail(initialVendorId)
-          .then((detail) => setSelectedVendor(detail))
-          .catch(() => {})
+        // AI 추천 카드에서 온 ID는 sourceId → /source/{sourceId}로 조회
+        const isSourceId = Number(initialVendorId) >= 1_000_000
+        if (isSourceId) {
+          import("@/lib/api/vendor-detail").then(({ fetchVendorDetailBySource }) => {
+            fetchVendorDetailBySource(initialVendorId)
+              .then((detail) => setSelectedVendor(detail))
+              .catch(() => {
+                // sourceId 조회 실패 시 일반 조회 시도
+                fetchVendorDetail(initialVendorId)
+                  .then((detail) => setSelectedVendor(detail))
+                  .catch(() => {})
+              })
+          })
+        } else {
+          fetchVendorDetail(initialVendorId)
+            .then((detail) => setSelectedVendor(detail))
+            .catch(() => {})
+        }
       }
     }
   }, [initialVendorId])

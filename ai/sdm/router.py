@@ -84,6 +84,23 @@ fetch('/api/chat/sdm/graph/data')
 </body></html>"""
 
 
+def _detect_domain(message: str) -> str:
+    """메시지에서 sdm/hall 자동 판별 (마지막 키워드 우선)"""
+    hall_kw = ["웨딩홀", "예식장", "하객", "식대", "뷔페", "채플", "호텔웨딩", "컨벤션"]
+    sdm_kw = ["스튜디오", "드레스", "메이크업", "촬영", "헤어", "본식", "리허설", "벌"]
+    msg = message.lower()
+    last_hall = max((msg.rfind(kw) for kw in hall_kw), default=-1)
+    last_sdm = max((msg.rfind(kw) for kw in sdm_kw), default=-1)
+    if last_hall > last_sdm:
+        return "hall"
+    if last_sdm > last_hall:
+        return "sdm"
+    return "unknown"
+
+
+_last_domain = {"value": "sdm"}
+
+
 @router.post("/sdm", response_model=ApiResponse)
 async def chat_sdm(
     payload: ChatRequest,

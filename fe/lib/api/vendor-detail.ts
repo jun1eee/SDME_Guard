@@ -1,4 +1,5 @@
 ﻿import type { Vendor } from "@/components/views/vendors-view"
+import { buildVendorDetailEndpoint } from "@/lib/api/endpoints"
 
 interface VisitInfo {
   address: string | null
@@ -227,7 +228,7 @@ interface ReviewApiEnvelope {
 
 async function fetchVendorReviews(vendorId: string | number): Promise<Vendor["reviews"]> {
   try {
-    const res = await fetch(`/api/vendors/${vendorId}/reviews`, { credentials: "include" })
+    const res = await fetch(`${buildVendorDetailEndpoint(vendorId)}/reviews`, { credentials: "include" })
     if (!res.ok) return []
     const json = (await res.json()) as ReviewApiEnvelope | ReviewApiItem[]
     const items: ReviewApiItem[] = Array.isArray(json) ? json : (json.data ?? [])
@@ -244,11 +245,20 @@ async function fetchVendorReviews(vendorId: string | number): Promise<Vendor["re
 }
 
 export async function fetchVendorDetail(vendorId: string | number): Promise<Vendor> {
-  const response = await fetch(`/api/vendors/${vendorId}`, { credentials: "include" })
+  const response = await fetch(buildVendorDetailEndpoint(vendorId), { credentials: "include" })
   if (!response.ok) throw new Error(String(response.status))
   const result = normalizeResponse((await response.json()) as VendorDetailApiEnvelope | VendorDetailResponse)
   const vendor = mapDetailToVendor(result)
   vendor.reviews = await fetchVendorReviews(vendorId)
+  return vendor
+}
+
+export async function fetchVendorDetailBySource(sourceId: string | number): Promise<Vendor> {
+  const { buildVendorDetailBySourceEndpoint } = await import("@/lib/api/endpoints")
+  const response = await fetch(buildVendorDetailBySourceEndpoint(sourceId), { credentials: "include" })
+  if (!response.ok) throw new Error(String(response.status))
+  const result = normalizeResponse((await response.json()) as VendorDetailApiEnvelope | VendorDetailResponse)
+  const vendor = mapDetailToVendor(result)
   return vendor
 }
 

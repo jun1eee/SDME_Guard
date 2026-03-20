@@ -26,9 +26,13 @@ pipeline {
             }
         }
 
+        // MR일 때는 여기서 끝 (CI만)
         stage('Deploy') {
+            when {
+                branch 'dev'  // dev 브랜치에 실제 merge됐을 때만 배포
+            }
             steps {
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans' 
+                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
             }
         }
@@ -36,10 +40,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ 배포 성공!'
+            updateGitlabCommitStatus name: 'build', state: 'success'
         }
         failure {
-            echo '❌ 배포 실패!'
+            updateGitlabCommitStatus name: 'build', state: 'failed'
         }
     }
 }

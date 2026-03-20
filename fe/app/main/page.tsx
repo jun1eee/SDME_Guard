@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -50,6 +50,7 @@ interface Message {
   id: string
   role: "assistant" | "user"
   content: string
+  recommendations?: import("@/lib/api").AiRecommendation[]
 }
 
 export default function ChatPage() {
@@ -247,6 +248,7 @@ export default function ChatPage() {
   }, [router])
 
   const [messages, setMessages] = useState<Message[]>([])
+  const [aiSessionId, setAiSessionId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<DroppedVendor[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -424,9 +426,10 @@ export default function ChatPage() {
   }, [authChecked])
 
   // ── 기존 핸들러 ──────────────────────────────
-  const handleStartChat = (content: string) => {
+  const handleStartChat = async (content: string) => {
     setShowWelcome(false)
     setActiveSessionId(null)
+    setAiSessionId(null)
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -438,16 +441,26 @@ export default function ChatPage() {
     setIsTyping(true)
     autoOpenRelatedTab(content)
 
-    setTimeout(() => {
-      setIsTyping(false)
-      const responseText = getInitialAIResponse(content)
+    try {
+      const res = await sendAiChat({ message: content, sessionId: null })
+      setAiSessionId(res.data.sessionId)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: responseText,
+        content: res.data.answer,
+        recommendations: res.data.recommendations || [],
       }
       setMessages((prev) => [...prev, aiResponse])
-    }, 1500)
+    } catch {
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+      }
+      setMessages((prev) => [...prev, errorResponse])
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   // 사용자 메시지 키워드 기반 관련 탭 자동 오픈
@@ -474,7 +487,7 @@ export default function ChatPage() {
     setAttachedVendors((prev) => prev.filter((v) => v.id !== id))
   }
 
-  const handleSend = (content: string) => {
+  const handleSend = async (content: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -485,16 +498,26 @@ export default function ChatPage() {
     setIsTyping(true)
     autoOpenRelatedTab(content)
 
-    setTimeout(() => {
-      setIsTyping(false)
-      const responseText = getAIResponse(content)
+    try {
+      const res = await sendAiChat({ message: content, sessionId: aiSessionId })
+      setAiSessionId(res.data.sessionId)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: responseText,
+        content: res.data.answer,
+        recommendations: res.data.recommendations || [],
       }
       setMessages((prev) => [...prev, aiResponse])
-    }, 1500)
+    } catch {
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+      }
+      setMessages((prev) => [...prev, errorResponse])
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   const handleNewChat = () => {
@@ -784,6 +807,10 @@ export default function ChatPage() {
             onVendorDrop={handleVendorDrop}
             onRemoveVendor={handleRemoveVendor}
             onOpenTab={(type) => addPanelTab(type as PanelTabType, "right")}
+            onCardVendorClick={(vendorId) => {
+              addPanelTab("vendors", "right")
+              setOpenVendorId(vendorId)
+            }}
           />
         )
 
@@ -1364,6 +1391,7 @@ function ChatPanelWithDrop({
   onVendorDrop,
   onRemoveVendor,
   onOpenTab,
+  onCardVendorClick,
 }: {
   messages: Message[]
   isTyping: boolean
@@ -1373,6 +1401,7 @@ function ChatPanelWithDrop({
   onVendorDrop: (vendor: DroppedVendor) => void
   onRemoveVendor: (id: string) => void
   onOpenTab: (type: string) => void
+  onCardVendorClick?: (vendorId: string) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
 
@@ -1419,7 +1448,17 @@ function ChatPanelWithDrop({
       <div className="flex-1 overflow-y-auto bg-background">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
           {messages.map((message) => (
-            <ChatMessage key={message.id} role={message.role} content={message.content} />
+            <ChatMessage
+              key={message.id}
+              role={message.role}
+              content={message.content}
+              recommendations={message.recommendations}
+              onCardClick={(rec) => {
+                if (rec.id) {
+                  onCardVendorClick?.(String(rec.id))
+                }
+              }}
+            />
           ))}
           {isTyping && <ChatMessage role="assistant" content="" isTyping />}
           <div ref={messagesEndRef} />

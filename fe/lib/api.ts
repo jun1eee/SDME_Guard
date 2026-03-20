@@ -1,4 +1,4 @@
-const API_BASE = "/api"
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api`
 
 let accessToken: string | null = null
 
@@ -417,6 +417,38 @@ export async function getChatMessages() {
     vendorId: number | null
     createdAt: string
   }[]>("/chat/couple/messages")
+}
+
+export interface AiRecommendation {
+  id: number | null
+  source: string
+  category: string
+  name: string
+  reason: string | null
+  rating: number | null
+  reviewCount: number | null
+  price: number | null
+  imageUrl: string | null
+  contact: string | null
+  description: string | null
+}
+
+export async function sendAiChat(data: {
+  message: string
+  sessionId?: string | null
+}) {
+  return fetchApi<{
+    answer: string
+    sessionId: string
+    success: boolean
+    recommendations: AiRecommendation[]
+  }>("/chat/ai", {
+    method: "POST",
+    body: JSON.stringify({
+      message: data.message,
+      sessionId: data.sessionId ?? undefined,
+    }),
+  })
 }
 
 // ─── 카드 관리 ──────────────────────────────────────────────────────────
