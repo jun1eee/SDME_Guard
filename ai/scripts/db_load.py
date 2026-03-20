@@ -18,7 +18,37 @@ NEO4J_PW = os.environ["NEO4J_PW"]
 openai_client = OpenAI()
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536
-KAKAO_API_KEY = os.environ.get("KAKAO_API_KEY", "")
+KAKAO_API_KEYS = [
+    k.strip() for k in [
+        os.environ.get("KAKAO_API_KEY", ""),
+        os.environ.get("KAKAO_REST_API_KEY2", ""),
+        os.environ.get("KAKAO_REST_API_KEY3", ""),
+        os.environ.get("KAKAO_REST_API_KEY4", ""),
+        os.environ.get("KAKAO_REST_API_KEY5", ""),
+        os.environ.get("KAKAO_REST_API_KEY6", ""),
+        os.environ.get("KAKAO_REST_API_KEY7", ""),
+    ] if k.strip()
+]
+KAKAO_API_KEY = KAKAO_API_KEYS[0] if KAKAO_API_KEYS else ""
+_kakao_key_index = 0
+_kakao_abort = False  # 한도가 아닌 에러 시 전체 중단
+
+
+def _get_kakao_key():
+    global _kakao_key_index
+    if not KAKAO_API_KEYS or _kakao_abort:
+        return ""
+    return KAKAO_API_KEYS[_kakao_key_index % len(KAKAO_API_KEYS)]
+
+
+def _rotate_kakao_key():
+    global _kakao_key_index
+    _kakao_key_index += 1
+    if _kakao_key_index >= len(KAKAO_API_KEYS):
+        print(f"    모든 키 소진 ({len(KAKAO_API_KEYS)}개)")
+        return ""
+    print(f"    키 로테이션: {_kakao_key_index + 1}/{len(KAKAO_API_KEYS)}")
+    return KAKAO_API_KEYS[_kakao_key_index]
 
 # 스크립트 위치 기준으로 경로 설정 (어느 폴더에서 실행해도 동작)
 # ai/ 루트 기준 경로 (scripts/ 에서 한 단계 위)
@@ -136,42 +166,75 @@ def _clean_address(addr):
     return addr
 
 
-async def _geocode_one(sem, http_session, address, retries=2):
-    """주소 1건 지오코딩 (키워드 검색). 429 시 대기 후 재시도."""
-    if not address or not KAKAO_API_KEY:
-        return address, None, None
-    clean = _clean_address(address)
-    if not clean:
-        return address, None, None
-    async with sem:
-        for attempt in range(retries + 1):
+def _geocode_sync(addresses):
+    """주소 리스트를 순차 지오코딩. 429→다음 키, 403/401→중단."""
+    import requests as req
+    global _kakao_abort
+
+    results = []
+    fail_streak = 0  # 연속 실패 카운트
+
+    for i, addr in enumerate(addresses):
+        if _kakao_abort:
+            results.append((addr, None, None))
+            continue
+
+        clean = _clean_address(addr)
+        if not clean:
+            results.append((addr, None, None))
+            continue
+
+        geocoded = False
+        for _ in range(len(KAKAO_API_KEYS)):
+            key = _get_kakao_key()
+            if not key:
+                break
             try:
-                async with http_session.get(
+                r = req.get(
                     KAKAO_KEYWORD_URL,
                     params={"query": clean, "size": 1},
-                    headers={"Authorization": f"KakaoAK {KAKAO_API_KEY}"},
-                ) as resp:
-                    if resp.status == 429:
-                        await asyncio.sleep(1 + attempt)
-                        continue
-                    if resp.status != 200:
-                        return address, None, None
-                    data = await resp.json()
-                    docs = data.get("documents", [])
+                    headers={"Authorization": f"KakaoAK {key}"},
+                    timeout=3,
+                )
+                if r.status_code == 429:
+                    new_key = _rotate_kakao_key()
+                    if not new_key:
+                        break
+                    continue
+                if r.status_code in (401, 403):
+                    print(f"    키 인증 실패 (status {r.status_code}) — 중단")
+                    _kakao_abort = True
+                    break
+                if r.status_code == 200:
+                    docs = r.json().get("documents", [])
                     if docs:
-                        return address, float(docs[0]["y"]), float(docs[0]["x"])
-                    return address, None, None
+                        results.append((addr, float(docs[0]["y"]), float(docs[0]["x"])))
+                        fail_streak = 0
+                    else:
+                        results.append((addr, None, None))
+                        fail_streak += 1
+                else:
+                    results.append((addr, None, None))
+                    fail_streak += 1
+                geocoded = True
+                break
             except Exception:
-                return address, None, None
-    return address, None, None
+                results.append((addr, None, None))
+                fail_streak += 1
+                geocoded = True
+                break
 
+        if not geocoded:
+            results.append((addr, None, None))
 
-async def geocode_addresses(addresses, concurrency=10):
-    """주소 리스트를 병렬로 지오코딩 (동시 10건, 429 방지)."""
-    sem = asyncio.Semaphore(concurrency)
-    async with aiohttp.ClientSession() as http_session:
-        tasks = [_geocode_one(sem, http_session, addr) for addr in addresses]
-        return await asyncio.gather(*tasks)
+        # 진행 상황 출력 (50건마다)
+        if (i + 1) % 50 == 0:
+            ok = sum(1 for _, lat, _ in results if lat is not None)
+            print(f"    진행: {i+1}/{len(addresses)}, 성공: {ok}")
+
+    ok = sum(1 for _, lat, _ in results if lat is not None)
+    print(f"    완료: {len(addresses)}건 중 {ok}건 성공")
+    return results
 
 
 def _geocode_with_cache(unique_addrs, cache):
@@ -187,9 +250,9 @@ def _geocode_with_cache(unique_addrs, cache):
 
     print(f"    캐시 히트: {len(cached_results)}건, API 호출 필요: {len(uncached_addrs)}건")
 
-    # 캐시 미스 주소만 API 호출
-    if uncached_addrs and KAKAO_API_KEY:
-        api_results = asyncio.run(geocode_addresses(uncached_addrs, concurrency=10))
+    # 캐시 미스 주소만 API 호출 (동기 + 키 로테이션)
+    if uncached_addrs and KAKAO_API_KEYS:
+        api_results = _geocode_sync(uncached_addrs)
         for addr, lat, lng in api_results:
             if lat is not None:
                 cached_results[addr] = (lat, lng)
@@ -200,7 +263,7 @@ def _geocode_with_cache(unique_addrs, cache):
 
 def geocode_vendors(session, items, category, cache):
     """Vendor 노드에 lat, lng 속성 추가 (카카오맵 지오코딩 + 캐시)."""
-    if not KAKAO_API_KEY:
+    if not KAKAO_API_KEYS:
         print(f"  [{category}] KAKAO_API_KEY 미설정 -- 지오코딩 건너뜀")
         return
 
@@ -235,7 +298,7 @@ def geocode_vendors(session, items, category, cache):
 
 def geocode_halls(session, list_items, cache):
     """Hall 노드에 lat, lng 속성 추가 (카카오맵 지오코딩 + 캐시)."""
-    if not KAKAO_API_KEY:
+    if not KAKAO_API_KEYS:
         print("  [hall] KAKAO_API_KEY 미설정 -- 지오코딩 건너뜀")
         return
 

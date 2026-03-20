@@ -145,7 +145,7 @@ TOOLS_SCHEMA = [
     }},
     {"type": "function", "function": {
         "name": "search_related",
-        "description": "특정 업체 또는 스타일과 어울리는 다른 카테고리 업체를 추천합니다. 예: '소에브스튜디오와 어울리는 드레스샵', '야외씬 잘찍는 스튜디오와 어울리는 메이크업'",
+        "description": "업체와 어울리는 다른 카테고리 추천. '~와 어울리는', '~에 맞는', '~와 잘맞는' 표현이 있고 target이 현재 카테고리와 다를 때 반드시 사용. 예: 스튜디오→드레스, 드레스→메이크업",
         "parameters": {"type": "object", "properties": {
             "source_vendor": {"type": "string", "description": "기준 업체명 (없으면 빈 문자열)"},
             "source_style": {"type": "string", "description": "기준 스타일/조건 (업체명 없을 때)"},
