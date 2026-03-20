@@ -418,3 +418,20 @@ export async function getChatMessages() {
     createdAt: string
   }[]>("/chat/couple/messages")
 }
+
+export async function sendAiChat(data: {
+  message: string
+  sessionId?: string | null
+}) {
+  return fetchApi<{
+    answer: string
+    sessionId: string
+    success: boolean
+  }>("/chat/ai", {
+    method: "POST",
+    body: JSON.stringify({
+      message: data.message,
+      sessionId: data.sessionId ?? undefined,
+    }),
+  })
+}
