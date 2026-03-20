@@ -19,59 +19,71 @@ class ToolResult:
 # ── 지오코딩 유틸 ──
 
 def _extract_location(query: str) -> str | None:
-    m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|빌딩|아파트))", query)
+    # 1순위: 역/동/구 등 접미사
+    m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|호텔|건물|집|정류장|빌딩|아파트))", query)
     if m:
         return m.group(1)
-    m = re.search(r"(\S+)\s*(?:근처|가까운|주변|쪽|부근|인근)", query)
+    # 2순위: "~와/과/이랑/에서 가까운/근처" 패턴 (조사 제거)
+    m = re.search(r"(\S+?)(?:와|과|이랑|에서|의|은|는|을|를)?\s*(?:근처|가까운|주변|쪽|부근|인근)", query)
     if m:
         return m.group(1)
     return None
 
 
-_LOCATION_CACHE = {
-    "강남역": (37.4979, 127.0276), "역삼역": (37.5007, 127.0365),
-    "선릉역": (37.5045, 127.0491), "삼성역": (37.5089, 127.0637),
-    "잠실역": (37.5133, 127.1001), "송파역": (37.5048, 127.1127),
-    "가좌역": (37.5687, 126.9148), "홍대입구역": (37.5571, 126.9244),
-    "신촌역": (37.5551, 126.9366), "합정역": (37.5496, 126.9138),
-    "건대입구역": (37.5404, 127.0694), "왕십리역": (37.5614, 127.0380),
-    "청담역": (37.5178, 127.0530), "압구정역": (37.5270, 127.0284),
-    "논현역": (37.5118, 127.0215), "신사역": (37.5163, 127.0199),
-    "강남": (37.4979, 127.0276), "역삼": (37.5007, 127.0365),
-    "잠실": (37.5133, 127.1001), "송파": (37.5048, 127.1127),
-    "청담": (37.5178, 127.0530), "논현": (37.5118, 127.0215),
-    "신사": (37.5163, 127.0199), "홍대": (37.5571, 126.9244),
-    "성수": (37.5445, 127.0564), "가좌": (37.5687, 126.9148),
-    "경복궁역": (37.5759, 126.9738), "기흥역": (37.2755, 127.1170),
-    "수원역": (37.2658, 127.0002), "판교역": (37.3948, 127.1112),
-    "구성역": (37.2996, 127.1073), "수서역": (37.4876, 127.1020),
-}
+# 런타임 캐시 (API 성공 결과 저장 — 하드코딩 아님)
+_geocode_cache: dict[str, tuple[float, float]] = {}
+
+
+def _get_kakao_keys() -> list[str]:
+    """사용 가능한 카카오 API 키 목록"""
+    import os
+    keys = []
+    for name in ["KAKAO_API_KEY", "KAKAO_REST_API_KEY2", "KAKAO_REST_API_KEY3",
+                  "KAKAO_REST_API_KEY4", "KAKAO_REST_API_KEY5",
+                  "KAKAO_REST_API_KEY6", "KAKAO_REST_API_KEY7"]:
+        k = os.environ.get(name, "").strip()
+        if k:
+            keys.append(k)
+    return keys
 
 
 def geocode_query(query: str) -> tuple:
+    """위치 추출 → 카카오 API 지오코딩 (키 로테이션, 런타임 캐시)"""
     location = _extract_location(query)
     if not location:
         return None, None, None
-    if location in _LOCATION_CACHE:
-        lat, lng = _LOCATION_CACHE[location]
+
+    # 1순위: 런타임 캐시
+    if location in _geocode_cache:
+        lat, lng = _geocode_cache[location]
         return lat, lng, location
-    if not settings.kakao_api_key:
+
+    # 2순위: 카카오 API (키 로테이션)
+    keys = _get_kakao_keys()
+    if not keys:
         return None, None, None
-    try:
-        resp = http_requests.get(
-            "https://dapi.kakao.com/v2/local/search/keyword.json",
-            params={"query": location, "size": 1},
-            headers={"Authorization": f"KakaoAK {settings.kakao_api_key}"},
-            timeout=3,
-        )
-        if resp.status_code == 200:
-            docs = resp.json().get("documents", [])
-            if docs:
-                lat, lng = float(docs[0]["y"]), float(docs[0]["x"])
-                _LOCATION_CACHE[location] = (lat, lng)
-                return lat, lng, docs[0].get("place_name", location)
-    except Exception:
-        pass
+
+    for key in keys:
+        try:
+            resp = http_requests.get(
+                "https://dapi.kakao.com/v2/local/search/keyword.json",
+                params={"query": location, "size": 1},
+                headers={"Authorization": f"KakaoAK {key}"},
+                timeout=3,
+            )
+            if resp.status_code == 429:
+                continue  # 다음 키 시도
+            if resp.status_code in (401, 403):
+                continue  # 권한 없는 키 건너뜀
+            if resp.status_code == 200:
+                docs = resp.json().get("documents", [])
+                if docs:
+                    lat, lng = float(docs[0]["y"]), float(docs[0]["x"])
+                    _geocode_cache[location] = (lat, lng)
+                    return lat, lng, docs[0].get("place_name", location)
+                return None, None, None
+        except Exception:
+            continue
     return None, None, None
 
 
@@ -282,22 +294,29 @@ class ToolRegistry:
 
     def search_related(self, source_name: str, target_category: str, couple_id: int, **_) -> ToolResult:
         query_text = ""
+        region_hint = ""
         # Vendor에서 태그 조회
         records = self.engine.query_vendors_by_names([source_name])
         if records:
             tags = records[0].get("tags", [])
+            region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 태그 조회
+        # Hall에서 태그/지역 조회
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
-                query_text = f"{source_name} {' '.join(hall.tags[:5])} {' '.join(hall.style_filters[:3])}"
+                region_hint = hall.region
+                # Hall 태그는 스드메 검색에 부적합할 수 있으므로, 스타일 필터 + 지역 위주
+                style_info = ' '.join(hall.style_filters[:5])
+                query_text = f"{hall.region} {style_info} 웨딩" if style_info else f"{hall.region} 웨딩"
         if not query_text:
             query_text = source_name
 
         if target_category == "hall":
             return self._search_hall(query_text)
-        answer, vendors = self.engine.search_semantic(query=query_text, category=target_category)
+        answer, vendors = self.engine.search_semantic(
+            query=query_text, category=target_category, region=region_hint or None,
+        )
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
