@@ -210,26 +210,32 @@ class SdmChatService:
         return max(1, min(int(match.group(1)), 20)) if match else None
 
     def _build_recommendations(self, vendor_names, limit=None) -> list[RecommendationCard]:
+        """추천 결과 — ID + 요약만 (상세는 백엔드가 MySQL에서 조회)"""
         unique = list(dict.fromkeys(vendor_names))
         if not unique:
             return []
+        # Vendor(스드메) 조회
         records = self.engine.query_vendors_by_names(unique)
+        # Hall(웨딩홀) 조회 — Vendor에서 못 찾은 이름
+        found_names = {r.get("name") for r in records}
+        if self.tools.hall_engine:
+            for name in unique:
+                if name not in found_names:
+                    hall = self.tools.hall_engine.get_hall_details(name)
+                    if hall:
+                        records.append({
+                            "sourceId": hall.partner_id, "name": hall.name,
+                            "category": "hall", "tags": hall.tags[:3],
+                        })
         if limit:
             records = records[:limit]
         return [
             RecommendationCard(
                 id=str(r.get("sourceId") or r.get("name")),
-                source="wedding",
+                source="hall" if r.get("category") == "hall" else "sdm",
                 category=self._map_category(r.get("category")),
                 title=r.get("name") or "추천 업체",
-                subtitle=r.get("region"),
-                description=self._build_description(r),
-                price_label=f"{r['price']:,}원" if r.get("price") else None,
-                rating=r.get("avgReviewScore") or r.get("rating"),
-                review_count=r.get("reviewCount") or r.get("reviewCnt"),
-                address=r.get("address"),
-                image_url=r.get("imageUrl"),
-                tags=list(r.get("tags") or [])[:4],
+                reason=", ".join(list(r.get("tags") or [])[:4]) or None,
             )
             for r in records
         ]
@@ -238,14 +244,3 @@ class SdmChatService:
     def _map_category(cat) -> str:
         return {"studio": "studio", "dress": "dress", "makeup": "makeup",
                 "hall": "venue"}.get(str(cat), "studio")
-
-    @staticmethod
-    def _build_description(record) -> str | None:
-        parts = []
-        tags = list(record.get("tags") or [])[:3]
-        if tags:
-            parts.append(", ".join(tags))
-        pkgs = [p.get("title") for p in (record.get("packages") or []) if p.get("title")]
-        if pkgs:
-            parts.append("패키지 " + ", ".join(pkgs[:2]))
-        return " / ".join(parts) if parts else None
