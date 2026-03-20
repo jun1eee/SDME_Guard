@@ -29,19 +29,12 @@ class ChatRequest(BaseModel):
 # ── 응답 ──
 
 class RecommendationCard(BaseModel):
-    id: str
-    source: str
-    category: str
-    title: str
-    subtitle: str | None = None
-    description: str | None = None
-    price_label: str | None = None
-    rating: float | None = None
-    review_count: int | None = None
-    address: str | None = None
-    image_url: str | None = None
-    link_url: str | None = None
-    tags: list[str] = Field(default_factory=list)
+    """AI 추천 결과 — ID + 요약만. 상세 데이터는 백엔드가 MySQL에서 조회."""
+    id: str                          # 업체/홀 ID (partnerId)
+    source: str                      # "sdm" | "hall"
+    category: str                    # "studio" | "dress" | "makeup" | "venue"
+    title: str                       # 업체/홀 이름
+    reason: str | None = None        # 추천 사유 (태그, 특징 요약)
 
 
 class ChatPayload(BaseModel):
