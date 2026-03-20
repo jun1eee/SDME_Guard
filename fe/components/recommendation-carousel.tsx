@@ -70,7 +70,9 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                 <div
                   onClick={() => onCardClick?.(rec)}
                   className={cn(
-                    "cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30",
+                    "cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-all duration-200",
+                    "hover:shadow-lg hover:border-primary/40 hover:-translate-y-1 hover:bg-primary/5",
+                    "active:scale-[0.98] active:shadow-sm",
                     idx === currentIndex ? "opacity-100 scale-100" : "opacity-60 scale-95"
                   )}
                 >
