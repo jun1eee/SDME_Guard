@@ -29,6 +29,10 @@ export function buildVendorDetailEndpoint(vendorId: string | number) {
   return `${VENDOR_API_BASE}/vendors/${vendorId}`
 }
 
+export function buildVendorDetailBySourceEndpoint(sourceId: string | number) {
+  return `${VENDOR_API_BASE}/vendors/source/${sourceId}`
+}
+
 export const API_ENDPOINTS = {
   vendors: `${VENDOR_API_BASE}/vendors`,
   buildVendorListEndpoint,

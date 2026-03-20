@@ -30,8 +30,8 @@ const progressLabel: Record<string, string> = {
   CONSULTING: "상담중",
   DEPOSIT_PAID: "계약금 납입 완료",
   IN_PROGRESS: "서비스 진행중",
-  BALANCE_PAID: "잔금 납입 완료",
-  COMPLETED: "서비스 완료",
+  BALANCE_PAID: "서비스 이용 완료",
+  COMPLETED: "서비스 이용 완료",
 }
 
 const TIME_SLOTS = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
@@ -53,7 +53,7 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
         const mapped: Reservation[] = res.data.map((r) => {
           let status: "예정" | "완료" | "취소" = "예정"
           if (r.status === "CANCELLED") status = "취소"
-          else if (r.status === "CONFIRMED" && r.progress === "COMPLETED") status = "완료"
+          else if (r.progress === "BALANCE_PAID" || r.progress === "COMPLETED") status = "완료"
 
           return {
             id: r.id.toString(),

@@ -14,7 +14,7 @@ spring:
     enabled: false
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     show-sql: false
     database-platform: org.hibernate.dialect.MySQLDialect
 server:
@@ -30,3 +30,8 @@ kakao:
 
 jwt:
   secret: ${JWT_SECRET}
+
+toss:
+  payments:
+    secret-key: test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R
+    client-key: test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq

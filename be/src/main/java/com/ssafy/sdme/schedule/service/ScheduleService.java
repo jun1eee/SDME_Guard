@@ -2,6 +2,8 @@ package com.ssafy.sdme.schedule.service;
 
 import com.ssafy.sdme._global.exception.ForbiddenException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.reservation.domain.Reservation;
+import com.ssafy.sdme.reservation.repository.ReservationRepository;
 import com.ssafy.sdme.schedule.domain.Schedule;
 import com.ssafy.sdme.schedule.dto.ScheduleRequest;
 import com.ssafy.sdme.schedule.dto.ScheduleResponse;
@@ -14,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +27,7 @@ public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
     private final UserRepository userRepository;
+    private final ReservationRepository reservationRepository;
 
     @Transactional(readOnly = true)
     public List<ScheduleResponse> getSchedules(Long userId) {
@@ -52,9 +57,38 @@ public class ScheduleService {
     }
 
     @Transactional
+    public ScheduleResponse createScheduleWithReservation(Long userId, String title, LocalDate date,
+                                                           LocalTime time, String memo,
+                                                           Schedule.ScheduleCategory category, Long reservationId) {
+        User user = getUser(userId);
+        Schedule schedule = Schedule.builder()
+            .userId(userId)
+            .coupleId(user.getCoupleId())
+            .title(title)
+            .date(date)
+            .time(time)
+            .memo(memo)
+            .category(category)
+            .source(Schedule.ScheduleSource.USER)
+            .reservationId(reservationId)
+            .build();
+        log.info("[Schedule] 예약 연동 일정 생성 - userId: {}, reservationId: {}", userId, reservationId);
+        return ScheduleResponse.from(scheduleRepository.save(schedule));
+    }
+
+    @Transactional
     public ScheduleResponse updateSchedule(Long userId, Long scheduleId, ScheduleRequest request) {
         Schedule schedule = getScheduleWithAuth(userId, scheduleId);
         schedule.update(request.title(), request.date(), request.time(), request.location(), request.memo(), request.category());
+
+        // 연결된 예약이 있으면 날짜/시간도 같이 수정
+        if (schedule.getReservationId() != null) {
+            reservationRepository.findById(schedule.getReservationId()).ifPresent(reservation -> {
+                reservation.update(request.date(), request.date(), request.time(), null);
+                log.info("[Schedule] 연결된 예약 날짜 동기화 - reservationId: {}, date: {}", reservation.getId(), request.date());
+            });
+        }
+
         log.info("[Schedule] 일정 수정 - scheduleId: {}", scheduleId);
         return ScheduleResponse.from(schedule);
     }

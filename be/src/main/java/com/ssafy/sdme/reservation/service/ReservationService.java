@@ -2,10 +2,15 @@ package com.ssafy.sdme.reservation.service;
 
 import com.ssafy.sdme._global.exception.BadRequestException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.payment.domain.Payment;
+import com.ssafy.sdme.payment.repository.PaymentRepository;
 import com.ssafy.sdme.reservation.domain.Reservation;
 import com.ssafy.sdme.reservation.dto.ReservationRequest;
 import com.ssafy.sdme.reservation.dto.ReservationResponse;
 import com.ssafy.sdme.reservation.repository.ReservationRepository;
+import com.ssafy.sdme.schedule.domain.Schedule;
+import com.ssafy.sdme.schedule.dto.ScheduleRequest;
+import com.ssafy.sdme.schedule.service.ScheduleService;
 import com.ssafy.sdme.user.domain.User;
 import com.ssafy.sdme.user.repository.UserRepository;
 import com.ssafy.sdme.vendor.domain.Vendor;
@@ -31,6 +36,8 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
+    private final PaymentRepository paymentRepository;
+    private final ScheduleService scheduleService;
 
     @Transactional
     public Reservation createReservation(Long userId, ReservationRequest request) {
@@ -61,6 +68,20 @@ public class ReservationService {
                 .memo(request.getMemo())
                 .build();
         reservationRepository.save(reservation);
+
+        // 일정 자동 추가 (reservationId 연결)
+        try {
+            Vendor vendor = vendorRepository.findById(request.getVendorId()).orElse(null);
+            if (vendor != null && request.getReservationDate() != null) {
+                scheduleService.createScheduleWithReservation(userId, vendor.getName() + " 방문",
+                        request.getReservationDate(), request.getReservationTime(),
+                        request.getMemo(), mapCategory(vendor.getCategory()), reservation.getId());
+                log.info("[Reservation] 일정 자동 추가 - vendorName: {}, date: {}, reservationId: {}",
+                        vendor.getName(), request.getReservationDate(), reservation.getId());
+            }
+        } catch (Exception e) {
+            log.warn("[Reservation] 일정 자동 추가 실패 - {}", e.getMessage());
+        }
 
         log.info("[Reservation] 예약 생성 - userId: {}, vendorId: {}", userId, request.getVendorId());
         return reservation;
@@ -104,7 +125,16 @@ public class ReservationService {
                 .orElseThrow(() -> new NotFoundException("예약을 찾을 수 없습니다."));
 
         reservation.cancel();
-        log.info("[Reservation] 예약 취소 - reservationId: {}", reservationId);
+
+        // 해당 예약의 결제도 같이 취소
+        List<Payment> payments = paymentRepository.findByReservationIdOrderByRequestedAtDesc(reservationId);
+        for (Payment payment : payments) {
+            if (payment.getStatus() == Payment.PaymentStatus.DONE) {
+                payment.cancel();
+            }
+        }
+
+        log.info("[Reservation] 예약 및 결제 취소 - reservationId: {}, 취소된 결제: {}건", reservationId, payments.size());
     }
 
     @Transactional(readOnly = true)
@@ -115,5 +145,15 @@ public class ReservationService {
                 .map(r -> r.getReservationTime() != null ? r.getReservationTime().toString().substring(0, 5) : "")
                 .filter(t -> !t.isEmpty())
                 .toList();
+    }
+
+    private Schedule.ScheduleCategory mapCategory(String vendorCategory) {
+        if (vendorCategory == null) return Schedule.ScheduleCategory.HALL;
+        return switch (vendorCategory.toUpperCase()) {
+            case "STUDIO" -> Schedule.ScheduleCategory.STUDIO;
+            case "DRESS" -> Schedule.ScheduleCategory.DRESS;
+            case "MAKEUP" -> Schedule.ScheduleCategory.MAKEUP;
+            default -> Schedule.ScheduleCategory.HALL;
+        };
     }
 }
