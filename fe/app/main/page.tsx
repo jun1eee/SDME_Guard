@@ -1447,9 +1447,13 @@ function ChatPanelWithDrop({
               content={message.content}
               recommendations={message.recommendations}
               onCardClick={(rec) => {
-                // 카드 클릭 → 우측 상세 패널
-                if (rec.id) {
-                  addPanelTab("vendors", "right")
+                // 카드 클릭 → 우측 업체 패널 열기
+                try {
+                  if (rec.id && typeof addPanelTab === "function") {
+                    addPanelTab("vendors", "right")
+                  }
+                } catch {
+                  // 패널 기능 없는 컨텍스트에서는 무시
                 }
               }}
             />
