@@ -144,6 +144,15 @@ TOOLS_SCHEMA = [
         }, "required": ["vendor_name"]},
     }},
     {"type": "function", "function": {
+        "name": "search_related",
+        "description": "업체와 어울리는 다른 카테고리 추천. '~와 어울리는', '~에 맞는', '~와 잘맞는' 표현이 있고 target이 현재 카테고리와 다를 때 반드시 사용. 예: 스튜디오→드레스, 드레스→메이크업",
+        "parameters": {"type": "object", "properties": {
+            "source_vendor": {"type": "string", "description": "기준 업체명 (없으면 빈 문자열)"},
+            "source_style": {"type": "string", "description": "기준 스타일/조건 (업체명 없을 때)"},
+            "target_category": {"type": "string", "enum": ["studio", "dress", "makeup"], "description": "추천받을 카테고리"},
+        }, "required": ["target_category"]},
+    }},
+    {"type": "function", "function": {
         "name": "get_user_preference",
         "description": "사용자 선호도를 조회합니다.",
         "parameters": {"type": "object", "properties": {}},
@@ -164,6 +173,7 @@ class SdmToolRegistry:
         self.tool_map = {
             "search_structured": self.search_structured,
             "search_semantic": self.search_semantic,
+            "search_related": self.search_related,
             "compare_vendors": self.compare_vendors,
             "filter_previous": self.filter_previous,
             "get_vendor_detail": self.get_vendor_detail,
@@ -197,6 +207,26 @@ class SdmToolRegistry:
         answer, vendors = self.engine.search_semantic(
             query=query, category=category, region=region, max_price=max_price, min_price=min_price,
         )
+        return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
+
+    def search_related(self, target_category: str, couple_id: int,
+                       source_vendor: str = "", source_style: str = "", **_) -> ToolResult:
+        """업체명 또는 스타일 기준으로 다른 카테고리 업체 추천"""
+        query_text = ""
+        if source_vendor:
+            records = self.engine.query_vendors_by_names([source_vendor])
+            if records:
+                tags = records[0].get("tags", [])
+                query_text = f"{source_vendor} {' '.join(tags[:8])}"
+            else:
+                query_text = source_vendor
+        elif source_style:
+            query_text = source_style
+        if not query_text:
+            return ToolResult(result_type="direct", data="기준 업체 또는 스타일을 알려주세요.", vendors=[])
+        answer, vendors = self.engine.search_semantic(query=query_text, category=target_category)
+        if not vendors:
+            vendors = self.engine._extract_vendors_from_bold(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     def compare_vendors(self, vendor_names: list[str], couple_id: int, criteria=None, **_) -> ToolResult:
