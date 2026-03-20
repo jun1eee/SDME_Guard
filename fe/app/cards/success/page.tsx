@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { registerCard, tryReissue } from "@/lib/api"
 
-export default function CardSuccessPage() {
+function SuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
@@ -20,7 +20,6 @@ export default function CardSuccessPage() {
       return
     }
 
-    // 토스 리다이렉트로 페이지 새로 로드되면 토큰이 없으므로 재발급
     tryReissue().then(() => registerCard({ authKey, customerKey }))
       .then(() => {
         setStatus("success")
@@ -63,5 +62,13 @@ export default function CardSuccessPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CardSuccessPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center"><p className="text-sm text-muted-foreground">로딩 중...</p></div>}>
+      <SuccessContent />
+    </Suspense>
   )
 }
