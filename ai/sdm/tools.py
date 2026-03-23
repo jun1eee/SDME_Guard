@@ -87,6 +87,33 @@ def geocode_query(query: str) -> tuple:
     return None, None, None
 
 
+def _dedup_vendors(records: list[dict]) -> list[dict]:
+    """같은 이름 업체를 하나로 합침. 가격은 범위로 표시."""
+    seen: dict[str, dict] = {}
+    for r in records:
+        name = r.get("name", "")
+        if not name:
+            continue
+        if name in seen:
+            existing = seen[name]
+            # 가격 범위 합침
+            ep = existing.get("price") or 0
+            rp = r.get("price") or 0
+            if ep and rp and ep != rp:
+                existing["priceMin"] = min(existing.get("priceMin", ep), rp)
+                existing["priceMax"] = max(existing.get("priceMax", ep), rp)
+            # 태그 합침
+            existing_tags = set(existing.get("tags") or [])
+            new_tags = set(r.get("tags") or [])
+            existing["tags"] = list(existing_tags | new_tags)[:8]
+        else:
+            price = r.get("price") or 0
+            r["priceMin"] = price
+            r["priceMax"] = price
+            seen[name] = r
+    return list(seen.values())
+
+
 def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
     m = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", query)
     return min(int(m.group(1)), maximum) if m else default
@@ -239,9 +266,10 @@ class ToolRegistry:
             lat, lng, _ = geocode_query(query)
             count = _extract_count(query)
             if lat and lng and self.engine.driver:
-                records = _search_nearest(self.engine.driver, "Vendor", category, lat, lng, limit=count)
+                records = _search_nearest(self.engine.driver, "Vendor", category, lat, lng, limit=count * 2)
                 if records:
                     self._add_distance_text(records)
+                    records = _dedup_vendors(records)[:count]
                     return ToolResult(result_type="raw",
                                      data=json.dumps(records, ensure_ascii=False, default=str),
                                      vendors=[r["name"] for r in records])
@@ -282,33 +310,53 @@ class ToolRegistry:
         driver = self.hall_engine.driver if category == "hall" and self.hall_engine else self.engine.driver
         if not driver:
             return ToolResult(result_type="direct", data="DB 연결이 없습니다.", vendors=[])
-        records = _search_nearest(driver, node_label, category, lat, lng, limit=count)
+        records = _search_nearest(driver, node_label, category, lat, lng, limit=count * 2)  # 중복 대비 여유
         if not records:
             return ToolResult(result_type="direct", data=f"{place} 근처에서 업체를 찾지 못했습니다.", vendors=[])
         self._add_distance_text(records)
+        records = _dedup_vendors(records)[:count]
         return ToolResult(result_type="raw",
                           data=json.dumps(records, ensure_ascii=False, default=str),
                           vendors=[r["name"] for r in records])
 
     # ── 4. search_related: 연관 추천 ──
 
+    # Hall 태그 → 스드메 스타일 매칭 키워드
+    _HALL_STYLE_MAP = {
+        "밝은": "밝은 화사한 자연광",
+        "어두운": "어두운 시크한 무드",
+        "야외": "야외 가든 로드씬",
+        "하우스": "프라이빗 아늑한 감성",
+        "채플": "클래식 우아한 격식",
+        "호텔": "하이엔드 프리미엄 럭셔리",
+        "일반 컨벤션": "웨딩촬영 일반",
+    }
+
     def search_related(self, source_name: str, target_category: str, couple_id: int, **_) -> ToolResult:
         query_text = ""
         region_hint = ""
+
         # Vendor에서 태그 조회
         records = self.engine.query_vendors_by_names([source_name])
         if records:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 태그/지역 조회
+        # Hall에서 조회 → 스타일 키워드를 스드메 검색어로 변환
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
                 region_hint = hall.region
-                # Hall 태그는 스드메 검색에 부적합할 수 있으므로, 스타일 필터 + 지역 위주
-                style_info = ' '.join(hall.style_filters[:5])
-                query_text = f"{hall.region} {style_info} 웨딩" if style_info else f"{hall.region} 웨딩"
+                # Hall 태그에서 스타일 키워드 추출 → 스드메 검색어 변환
+                style_words = []
+                for tag in hall.tags:
+                    mapped = self._HALL_STYLE_MAP.get(tag)
+                    if mapped:
+                        style_words.append(mapped)
+                if not style_words:
+                    style_words = ["웨딩촬영"]
+                query_text = " ".join(style_words)
+
         if not query_text:
             query_text = source_name
 
