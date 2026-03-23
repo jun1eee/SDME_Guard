@@ -64,7 +64,25 @@ public class VendorReviewService {
         // 사용자 작성 리뷰: REVIEW 테이블
         vendorReviewRepository.findByVendorIdAndDeletedAtIsNullOrderByCreatedAtDesc(vendorId)
             .stream()
-            .map(VendorReviewResponse::from)
+            .map(review -> {
+                String authorName;
+                if (review.getUserId() != null) {
+                    authorName = userRepository.findById(review.getUserId())
+                        .map(u -> u.getNickname() != null && !u.getNickname().isBlank()
+                            ? u.getNickname() : u.getName())
+                        .orElse("익명");
+                } else {
+                    // user_id 없는 기존 리뷰: coupleId로 폴백
+                    authorName = userRepository.findByCoupleId(review.getCoupleId())
+                        .stream()
+                        .map(u -> u.getNickname() != null && !u.getNickname().isBlank()
+                            ? u.getNickname() : u.getName())
+                        .filter(n -> n != null && !n.isBlank())
+                        .findFirst()
+                        .orElse("익명");
+                }
+                return VendorReviewResponse.from(review, authorName);
+            })
             .forEach(result::add);
 
         return result;
@@ -106,6 +124,7 @@ public class VendorReviewService {
 
         VendorReview review = VendorReview.builder()
             .coupleId(coupleId)
+            .userId(userId)
             .vendorId(vendorId)
             .reservationId(reservation.getId())
             .rating(request.rating())

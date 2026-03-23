@@ -21,6 +21,9 @@ public class VendorReview {
     @Column(name = "couple_id", nullable = false)
     private Long coupleId;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "vendor_id", nullable = false)
     private Long vendorId;
 
@@ -43,8 +46,9 @@ public class VendorReview {
     private LocalDateTime deletedAt;
 
     @Builder
-    private VendorReview(Long coupleId, Long vendorId, Long reservationId, Float rating, String content) {
+    private VendorReview(Long coupleId, Long userId, Long vendorId, Long reservationId, Float rating, String content) {
         this.coupleId      = coupleId;
+        this.userId        = userId;
         this.vendorId      = vendorId;
         this.reservationId = reservationId;
         this.rating        = rating;
