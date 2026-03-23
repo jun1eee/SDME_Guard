@@ -14,10 +14,10 @@ interface WelcomeScreenProps {
 }
 
 const suggestionChips = [
-  "웨딩홀 추천해줘",
-  "스드메 패키지 비교",
-  "하객 예상 비용 계산",
-  "허니문 추천",
+  "강남역 근처 웨딩홀 추천해줘",
+  "자연스러운 느낌의 스튜디오 찾아줘",
+  "예산 3000만원대 웨딩홀 있어?",
+  "내 취향에 맞는 드레스샵 추천해줘",
 ]
 
 export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: WelcomeScreenProps) {
