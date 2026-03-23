@@ -41,8 +41,9 @@ pipeline {
                  }
              }
              steps {
-                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
-                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
+                 docker rm -f frontend backend nginx 2>/dev/null || true
+                 docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans
+                 docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build
              }
          }
     }
