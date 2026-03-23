@@ -16,6 +16,11 @@ pipeline {
         }
 
         stage('Build Backend') {
+            when {
+                expression {
+                    return env.gitlabSourceBranch == 'dev'
+                }
+            }
             steps {
                 dir('be') {
                     sh 'chmod +x ./gradlew'
@@ -25,6 +30,11 @@ pipeline {
         }
 
         stage('Build Frontend') {
+            when {
+                expression {
+                    return env.gitlabSourceBranch == 'dev'
+                }
+            }
             steps {
                 dir('fe') {
                     sh 'npm install'
