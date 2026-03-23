@@ -182,58 +182,73 @@ export function PaymentView() {
               {cards.map((card, i) => {
                 const theme = CARD_THEME[card.cardBrand] || DEFAULT_CARD_THEME
                 return (
-                  <div key={card.id} className="group relative overflow-hidden rounded-2xl shadow-lg">
-                    <div className={`relative bg-gradient-to-br ${theme.bg} p-6 text-white overflow-hidden`}>
+                  <div key={card.id} className="flex flex-col items-center">
+                    {/* 카드 본체 — 신용카드 표준 비율 85.6:54 */}
+                    <div
+                      className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-gradient-to-br ${theme.bg} text-white shadow-2xl`}
+                      style={{ aspectRatio: "85.6 / 54" }}
+                    >
                       {/* 배경 장식 원 */}
-                      <div className={`absolute -right-8 -top-8 size-32 rounded-full ${theme.accent}`} />
-                      <div className={`absolute -right-4 bottom-0 size-24 rounded-full ${theme.accent}`} />
+                      <div className={`absolute -right-10 -top-10 size-40 rounded-full ${theme.accent}`} />
+                      <div className={`absolute -bottom-12 -right-6 size-52 rounded-full ${theme.accent}`} />
 
-                      {/* 카드사명 + 기본카드 뱃지 */}
-                      <div className="relative flex items-start justify-between">
-                        <p className="text-base font-bold">{getCardName(card)}</p>
-                        {i === 0 && (
-                          <span className="rounded-full bg-white/25 backdrop-blur-sm px-3 py-1 text-xs font-semibold">
-                            기본카드
-                          </span>
-                        )}
-                      </div>
-
-                      {/* IC칩 */}
-                      <div className="relative mt-5 mb-4">
-                        <div className="size-10 rounded-md bg-gradient-to-br from-yellow-200/80 to-yellow-400/80 shadow-inner" />
-                      </div>
-
-                      {/* 카드 번호 */}
-                      <p className="relative text-xl font-bold tracking-[0.15em] mb-4">
-                        •••• •••• •••• {card.cardLast4}
-                      </p>
-
-                      {/* 하단 정보 */}
-                      <div className="relative flex items-end justify-between">
-                        <div>
-                          {card.ownerName && (
-                            <p className="text-sm font-medium tracking-wide uppercase">{card.ownerName}</p>
+                      {/* 내부 레이아웃: 상단/중단/하단 */}
+                      <div className="relative flex h-full flex-col justify-between p-6">
+                        {/* 상단: 카드사명 + 기본카드 뱃지 */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-base font-extrabold tracking-wide">{getCardName(card)}</p>
+                          {i === 0 && (
+                            <span className="rounded-full bg-white/25 px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm">
+                              기본카드
+                            </span>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <div className="flex gap-1">
-                            <div className="size-6 rounded-full bg-white/40" />
-                            <div className="size-6 rounded-full bg-white/25 -ml-3" />
+
+                        {/* 중단: IC칩 + NFC */}
+                        <div className="flex items-center justify-between">
+                          {/* IC 칩 */}
+                          <div className="relative h-8 w-11 overflow-hidden rounded-md bg-gradient-to-br from-yellow-200 to-yellow-400 shadow-inner">
+                            <div className="absolute inset-x-1 top-[30%] h-px bg-yellow-600/30" />
+                            <div className="absolute inset-x-1 top-[50%] h-px bg-yellow-600/30" />
+                            <div className="absolute inset-x-1 top-[70%] h-px bg-yellow-600/30" />
+                            <div className="absolute inset-y-1 left-[40%] w-px bg-yellow-600/30" />
+                          </div>
+                          {/* NFC 아이콘 */}
+                          <svg viewBox="0 0 24 24" className="size-5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M8.25 9a3.75 3.75 0 0 1 0 6M12 7.5a6 6 0 0 1 0 9M15.75 6a9.75 9.75 0 0 1 0 12" strokeLinecap="round" />
+                          </svg>
+                        </div>
+
+                        {/* 하단: 카드번호 + 소유자 + 마스터카드 심볼 */}
+                        <div>
+                          <p className="mb-3 font-mono text-lg font-bold tracking-[0.18em]">
+                            •••• •••• •••• {card.cardLast4}
+                          </p>
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-widest text-white/50">Card Holder</p>
+                              <p className="mt-0.5 text-sm font-semibold uppercase tracking-wide">
+                                {card.ownerName || "—"}
+                              </p>
+                            </div>
+                            {/* 마스터카드 스타일 심볼 */}
+                            <div className="flex items-center">
+                              <div className="size-7 rounded-full bg-white/40" />
+                              <div className="-ml-3 size-7 rounded-full bg-white/25" />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* 삭제 버튼 */}
-                    <div className="flex items-center justify-end bg-card px-4 py-2.5">
-                      <button
-                        onClick={() => handleDeleteCard(card.id)}
-                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="size-3.5" />
-                        삭제
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleDeleteCard(card.id)}
+                      className="mt-2 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="size-3.5" />
+                      카드 삭제
+                    </button>
                   </div>
                 )
               })}

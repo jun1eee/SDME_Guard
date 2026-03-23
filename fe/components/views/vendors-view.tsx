@@ -99,7 +99,7 @@ interface Vendor {
   floor?: string
   rating: number
   reviewCount: number
-  paymentStep: 1 | 2 | 3 | 4 | 5
+  paymentStep: 0 | 1 | 2 | 3 | 4 | 5
   price: string
   isFavorite: boolean
   packages?: VendorPackage[]
@@ -206,7 +206,7 @@ function mapListItemToVendor(item: VendorListItem): Vendor {
     address: "주소 정보 없음",
     rating: Number(((item.rating ?? 0) / 20).toFixed(1)),
     reviewCount: item.reviewCount ?? 0,
-    paymentStep: 1,
+    paymentStep: 0,
     price: item.price != null ? `${item.price.toLocaleString("ko-KR")}원` : "문의",
     isFavorite: false,
     coverUrl: item.imageUrl ?? undefined,
@@ -587,7 +587,29 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
             ...v,
             isFavorite: favoriteVendorIds?.includes(v.id) ?? false,
           }))
-          setVendors(mapped.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i))
+          const deduped = mapped.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i)
+          // 결제 현황 반영: 실제 결제가 있는 업체만 paymentStep 업데이트
+          import("@/lib/api").then(({ getPayments }) => {
+            getPayments()
+              .then((payRes) => {
+                const paymentMap: Record<string, number> = {}
+                payRes.data.forEach((p: any) => {
+                  if (p.status !== "DONE") return
+                  const vid = String(p.vendorId)
+                  if (p.type === "BALANCE") {
+                    paymentMap[vid] = Math.max(paymentMap[vid] ?? 0, 3) // 잔금 완료
+                  } else if (p.type === "DEPOSIT") {
+                    paymentMap[vid] = Math.max(paymentMap[vid] ?? 0, 1) // 계약금 완료 → 서비스 진행중
+                  }
+                })
+                if (!cancelled) {
+                  setVendors(deduped.map((v) =>
+                    paymentMap[v.id] != null ? { ...v, paymentStep: paymentMap[v.id] as Vendor["paymentStep"] } : v
+                  ))
+                }
+              })
+              .catch(() => { if (!cancelled) setVendors(deduped) })
+          }).catch(() => { if (!cancelled) setVendors(deduped) })
           setNextCursor(cursor)
         }
       } catch (e) {
@@ -854,11 +876,13 @@ function VendorCard({
           ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
           : <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">{catLabel}</div>
         }
-        <div className="absolute inset-x-3 top-3 flex items-center justify-end">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
-            {stepLabel}
-          </span>
-        </div>
+        {stepLabel && (
+          <div className="absolute inset-x-3 top-3 flex items-center justify-end">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
+              {stepLabel}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -936,7 +960,7 @@ export function VendorDetailView({
   const [addrCopied, setAddrCopied] = useState(false)
   const [reviewPage, setReviewPage] = useState(5)
   const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
-  const [currentPaymentStep, setCurrentPaymentStep] = useState(vendor.paymentStep)
+  const [currentPaymentStep, setCurrentPaymentStep] = useState<number>(vendor.paymentStep)
   const [reservationDate, setReservationDate] = useState<string | null>(null)
   const [hasUsedBefore, setHasUsedBefore] = useState(false)
   const vendorId = vendor.id
@@ -1193,20 +1217,26 @@ export function VendorDetailView({
               <h2 className="mb-4 text-sm font-semibold text-foreground">용도별 패키지</h2>
 
               {vendor.packages.length > 1 && (
-                <div className="mb-4 flex gap-1.5 rounded-xl bg-muted p-1">
-                  {vendor.packages.map((pkg) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setSelectedPkgId(pkg.id)}
-                      className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
-                        selectedPkgId === pkg.id
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground"
-                      }`}
+                <div className="mb-4">
+                  <div className="relative">
+                    <select
+                      value={selectedPkgId ?? ""}
+                      onChange={(e) => setSelectedPkgId(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-border bg-muted px-4 py-2.5 pr-9 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      {pkg.name}
-                    </button>
-                  ))}
+                      {vendor.packages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-right text-xs text-muted-foreground">
+                    {vendor.packages.findIndex(p => p.id === selectedPkgId) + 1} / {vendor.packages.length}개 패키지
+                  </p>
                 </div>
               )}
 
@@ -1646,7 +1676,10 @@ export function VendorDetailView({
           vendorId={vendor.id}
           vendorName={vendor.name}
           onClose={() => setShowReview(false)}
-          onSuccess={() => { setShowReview(false); void fetchReviews() }}
+          onSuccess={(newReview) => {
+            setShowReview(false)
+            setReviews((prev) => [newReview, ...prev])
+          }}
         />
       )}
       {showReport && (
@@ -2247,7 +2280,7 @@ function ReviewModal({
   vendorId: string
   vendorName: string
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (review: VendorReview) => void
 }) {
   const [rating, setRating] = useState(5)
   const [hover, setHover] = useState(0)
@@ -2260,8 +2293,14 @@ function ReviewModal({
     setIsSubmitting(true)
     setError(null)
     try {
-      await createReview(Number(vendorId), { rating, content: content.trim() })
-      onSuccess()
+      const res = await createReview(Number(vendorId), { rating, content: content.trim() })
+      onSuccess({
+        id: String(res.data.id),
+        authorName: res.data.authorName ?? "나",
+        rating: res.data.rating,
+        content: res.data.content,
+        date: res.data.reviewedAt?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : ""
       if (msg.includes("400") || msg.toLowerCase().includes("already") || msg.includes("이미")) {

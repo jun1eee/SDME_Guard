@@ -55,7 +55,7 @@ function StarRating({
   )
 }
 
-export function ReviewView() {
+export function ReviewView({ onVendorClick }: { onVendorClick?: (vendorId: string) => void }) {
   const [reviews, setReviews] = useState<MyReviewItem[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -168,7 +168,13 @@ export function ReviewView() {
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{categoryIcon[review.vendorCategory] ?? "📋"}</span>
                         <div>
-                          <p className="font-semibold text-foreground">{review.vendorName}</p>
+                          <button
+                            type="button"
+                            onClick={() => onVendorClick?.(String(review.vendorId))}
+                            className="font-semibold text-foreground hover:text-primary hover:underline text-left"
+                          >
+                            {review.vendorName}
+                          </button>
                           <p className="text-xs text-muted-foreground">
                             {categoryLabel[review.vendorCategory] ?? review.vendorCategory}
                           </p>
@@ -206,7 +212,13 @@ export function ReviewView() {
                         <div className="flex items-center gap-3">
                           <span className="text-xl">{categoryIcon[review.vendorCategory] ?? "📋"}</span>
                           <div>
-                            <p className="font-semibold text-foreground">{review.vendorName}</p>
+                            <button
+                              type="button"
+                              onClick={() => onVendorClick?.(String(review.vendorId))}
+                              className="font-semibold text-foreground hover:text-primary hover:underline text-left"
+                            >
+                              {review.vendorName}
+                            </button>
                             <p className="text-xs text-muted-foreground">
                               {categoryLabel[review.vendorCategory] ?? review.vendorCategory}
                               {" · "}

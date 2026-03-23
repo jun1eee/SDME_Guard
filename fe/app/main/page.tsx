@@ -1047,6 +1047,23 @@ export default function ChatPage() {
                 const res = await connectCouple(inviteCode)
                 setCoupleConnected(true)
                 toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
+                // 커플 프로필 즉시 반영
+                try {
+                  const coupleRes = await getCoupleProfile()
+                  const g = coupleRes.data.groom
+                  const b = coupleRes.data.bride
+                  setWeddingConfig((prev) => ({
+                    ...prev,
+                    groomName: g?.name || prev.groomName,
+                    brideName: b?.name || prev.brideName,
+                    groomNickname: g?.nickname || prev.groomNickname,
+                    brideNickname: b?.nickname || prev.brideNickname,
+                    groomPhoto: g?.profileImage || prev.groomPhoto,
+                    bridePhoto: b?.profileImage || prev.bridePhoto,
+                  }))
+                } catch {}
+              } catch {
+                toast.error("연결 실패", { description: "초대코드를 확인해주세요." })
               } catch (err: any) {
                 toast.error("연결 실패", { description: err.message || "초대코드를 확인해주세요." })
               }
@@ -1075,7 +1092,11 @@ export default function ChatPage() {
       case "reservation":
         return <ReservationView onNavigateToSchedule={() => setCurrentView("schedule")} />
       case "reviews":
-        return <ReviewView />
+        return <ReviewView onVendorClick={(vendorId) => {
+          setCurrentView(null)
+          setOpenVendorId(vendorId)
+          addPanelTab("vendors", "right")
+        }} />
       case "vote":
         return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
           const numId = Number(itemId)

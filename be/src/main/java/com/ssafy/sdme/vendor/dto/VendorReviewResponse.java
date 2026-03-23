@@ -18,4 +18,14 @@ public record VendorReviewResponse(
             review.getCreatedAt() != null ? review.getCreatedAt().toString() : null
         );
     }
+
+    public static VendorReviewResponse from(VendorReview review, String authorName) {
+        return new VendorReviewResponse(
+            review.getId(),
+            review.getRating(),
+            authorName,
+            review.getContent(),
+            review.getCreatedAt() != null ? review.getCreatedAt().toString() : null
+        );
+    }
 }
