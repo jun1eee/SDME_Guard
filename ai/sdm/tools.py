@@ -87,6 +87,33 @@ def geocode_query(query: str) -> tuple:
     return None, None, None
 
 
+def _dedup_vendors(records: list[dict]) -> list[dict]:
+    """같은 이름 업체를 하나로 합침. 가격은 범위로 표시."""
+    seen: dict[str, dict] = {}
+    for r in records:
+        name = r.get("name", "")
+        if not name:
+            continue
+        if name in seen:
+            existing = seen[name]
+            # 가격 범위 합침
+            ep = existing.get("price") or 0
+            rp = r.get("price") or 0
+            if ep and rp and ep != rp:
+                existing["priceMin"] = min(existing.get("priceMin", ep), rp)
+                existing["priceMax"] = max(existing.get("priceMax", ep), rp)
+            # 태그 합침
+            existing_tags = set(existing.get("tags") or [])
+            new_tags = set(r.get("tags") or [])
+            existing["tags"] = list(existing_tags | new_tags)[:8]
+        else:
+            price = r.get("price") or 0
+            r["priceMin"] = price
+            r["priceMax"] = price
+            seen[name] = r
+    return list(seen.values())
+
+
 def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
     m = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", query)
     return min(int(m.group(1)), maximum) if m else default
@@ -239,9 +266,10 @@ class ToolRegistry:
             lat, lng, _ = geocode_query(query)
             count = _extract_count(query)
             if lat and lng and self.engine.driver:
-                records = _search_nearest(self.engine.driver, "Vendor", category, lat, lng, limit=count)
+                records = _search_nearest(self.engine.driver, "Vendor", category, lat, lng, limit=count * 2)
                 if records:
                     self._add_distance_text(records)
+                    records = _dedup_vendors(records)[:count]
                     return ToolResult(result_type="raw",
                                      data=json.dumps(records, ensure_ascii=False, default=str),
                                      vendors=[r["name"] for r in records])
@@ -282,10 +310,11 @@ class ToolRegistry:
         driver = self.hall_engine.driver if category == "hall" and self.hall_engine else self.engine.driver
         if not driver:
             return ToolResult(result_type="direct", data="DB 연결이 없습니다.", vendors=[])
-        records = _search_nearest(driver, node_label, category, lat, lng, limit=count)
+        records = _search_nearest(driver, node_label, category, lat, lng, limit=count * 2)  # 중복 대비 여유
         if not records:
             return ToolResult(result_type="direct", data=f"{place} 근처에서 업체를 찾지 못했습니다.", vendors=[])
         self._add_distance_text(records)
+        records = _dedup_vendors(records)[:count]
         return ToolResult(result_type="raw",
                           data=json.dumps(records, ensure_ascii=False, default=str),
                           vendors=[r["name"] for r in records])
