@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
-  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck,
+  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1907,17 +1907,34 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         </div>
       ) : step === "payment" ? (
         <>
-          <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
-            {/* 선택된 패키지/홀 - 계약금 결제일 때만 */}
-            {!isBalancePayment && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">{isVenue ? "선택 홀" : "선택 패키지"}</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                  <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+          <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
+
+            {/* 주문 정보 */}
+            <div className="rounded-xl bg-muted/30 p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">주문 정보</p>
+
+              {/* 선택 상품 */}
+              {!isBalancePayment && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-background">
+                      <Building2 className="size-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* 예약 일시 */}
+              {(date || time) && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarCheck className="size-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{date}</span>
+                  {time && <span className="text-muted-foreground">{time}</span>}
+                </div>
+              )}
+            </div>
 
             {/* 추가상품 - 계약금 결제일 때만 */}
             {!isBalancePayment && addons && addons.length > 0 && (
@@ -1971,95 +1988,142 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
               )}
             </div>
 
-            {/* 결제 금액 요약 */}
-            <div className="rounded-xl bg-muted p-4 space-y-2">
-              {isBalancePayment ? (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">총 금액</span>
-                    <span className="font-medium">{paidDepositAmount > 0 ? formatPrice(paidDepositAmount * 10) : "—"}</span>
+            {/* 결제 금액 */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/30 px-4 py-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">결제 금액</p>
+              </div>
+              <div className="p-4 space-y-2.5">
+                {isBalancePayment ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">총 서비스 금액</span>
+                      <span className="font-medium">{paidDepositAmount > 0 ? formatPrice(paidDepositAmount * 10) : "—"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">납입 계약금</span>
+                      <span className="font-medium text-emerald-600">-{formatPrice(paidDepositAmount)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">서비스 금액</span>
+                      <span className="font-medium">{formatPrice(totalPrice)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">계약금 비율</span>
+                      <span className="font-medium">10%</span>
+                    </div>
+                  </>
+                )}
+                <div className="border-t border-border pt-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-foreground">결제할 금액</span>
+                    <span className="text-xl font-bold text-primary">{formatPrice(isBalancePayment ? balanceAmount : depositAmount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">납입 계약금 (10%)</span>
-                    <span className="font-medium text-emerald-600">-{formatPrice(paidDepositAmount)}</span>
-                  </div>
-                  <div className="border-t border-border pt-2 mt-1" />
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold text-foreground">잔금 (90%)</span>
-                    <span className="text-lg font-bold text-foreground">{formatPrice(balanceAmount)}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "홀") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                    <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
-                  </div>
-                  {selectedAddons.map(id => {
-                    const addon = addons?.find(a => a.id === id)
-                    if (!addon) return null
-                    return (
-                      <div key={id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{addon.name}</span>
-                        <span className="font-medium">{formatPrice(addon.price)}</span>
-                      </div>
-                    )
-                  })}
-                  <div className="border-t border-border pt-2 mt-1" />
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold text-foreground">총 금액</span>
-                    <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">계약금 (10%)</span>
-                    <span className="text-lg font-bold text-foreground">{formatPrice(depositAmount)}</span>
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
             {/* 결제 수단 */}
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">결제 수단</p>
               {loadingCards ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">카드 정보 불러오는 중...</p>
               ) : cards.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">등록된 카드가 없습니다</p>
-                  <p className="text-xs text-muted-foreground">마이페이지에서 카드를 먼저 등록해주세요</p>
+                  <CreditCard className="mx-auto mb-2 size-8 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground mb-1">등록된 카드가 없습니다</p>
+                  <p className="text-xs text-muted-foreground mb-3">결제하려면 카드를 먼저 등록해주세요</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { getTossClientKey } = await import("@/lib/api")
+                        const keyRes = await getTossClientKey()
+                        const clientKey = keyRes.data.clientKey
+                        const customerKey = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8)
+                        const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk")
+                        const toss = await loadTossPayments(clientKey)
+                        const payment = toss.payment({ customerKey })
+                        await payment.requestBillingAuth({
+                          method: "CARD",
+                          successUrl: window.location.origin + "/cards/success",
+                          failUrl: window.location.origin + "/cards/fail",
+                        })
+                      } catch {}
+                    }}
+                    className="rounded-lg bg-foreground px-4 py-2 text-xs font-medium text-background hover:bg-foreground/90"
+                  >
+                    카드 등록하기
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {cards.map((card) => (
-                    <button
-                      key={card.id}
-                      onClick={() => setSelectedCardId(card.id)}
-                      className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        selectedCardId === card.id
-                          ? "border-primary bg-primary/5 text-foreground"
-                          : "border-border text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {card.cardBrand || "카드"} •••• {card.cardLast4}
-                    </button>
-                  ))}
+                  {cards.map((card) => {
+                    const BRANDS: Record<string, string> = {
+                      "11": "KB국민", "41": "신한", "51": "삼성", "21": "하나", "61": "현대",
+                      "33": "우리", "W1": "우리", "71": "롯데", "91": "NH농협", "31": "BC",
+                      "15": "카카오뱅크", "24": "토스뱅크", "3A": "케이뱅크",
+                    }
+                    const BRAND_COLORS: Record<string, string> = {
+                      "11": "from-amber-400 to-amber-600", "41": "from-blue-400 to-blue-600",
+                      "51": "from-blue-500 to-indigo-700", "21": "from-teal-400 to-teal-600",
+                      "61": "from-gray-700 to-gray-900", "33": "from-sky-400 to-sky-600",
+                      "W1": "from-sky-400 to-sky-600", "71": "from-red-400 to-red-600",
+                      "91": "from-green-500 to-green-700", "31": "from-rose-400 to-rose-600",
+                      "15": "from-yellow-300 to-yellow-500", "24": "from-blue-300 to-blue-500",
+                    }
+                    const brandName = BRANDS[card.cardBrand] || card.cardBrand || "카드"
+                    const brandColor = BRAND_COLORS[card.cardBrand] || "from-slate-500 to-slate-700"
+                    const selected = selectedCardId === card.id
+                    return (
+                      <button
+                        key={card.id}
+                        onClick={() => setSelectedCardId(card.id)}
+                        className={`flex w-full items-center gap-3.5 rounded-xl border-2 px-3.5 py-3 text-left transition-all ${
+                          selected
+                            ? "border-primary shadow-sm"
+                            : "border-transparent bg-muted/40 hover:bg-muted/60"
+                        }`}
+                      >
+                        {/* 미니 카드 */}
+                        <div className={`relative h-10 w-14 shrink-0 rounded-lg bg-gradient-to-br ${brandColor} p-1.5 shadow-sm`}>
+                          <div className="absolute top-1.5 left-1.5 size-2.5 rounded-sm bg-yellow-200/70" />
+                          <div className="absolute bottom-1.5 right-1.5 flex gap-0.5">
+                            <div className="size-2 rounded-full bg-white/40" />
+                            <div className="size-2 rounded-full bg-white/25 -ml-1" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{brandName}</p>
+                          <p className="text-xs text-muted-foreground">{card.cardLast4}</p>
+                        </div>
+                        <div className={`flex size-5 items-center justify-center rounded-full border-2 transition-colors ${
+                          selected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                        }`}>
+                          {selected && <Check className="size-3 text-primary-foreground" />}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
-            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => {
-              if (packages && packages.length > 1) setStep("package")
-              else setStep("schedule")
-            }}>이전</Button>
+          <div className="mt-5 space-y-2">
             <Button
-              className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+              className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 text-base font-semibold"
               onClick={() => setShowConfirm(true)}
               disabled={!selectedCardId || cards.length === 0 || isSubmitting}
             >
               {isSubmitting ? "결제 중..." : `${formatPrice(isBalancePayment ? balanceAmount : depositAmount)} 결제하기`}
             </Button>
+            <Button variant="ghost" className="w-full h-9 text-sm text-muted-foreground" onClick={() => {
+              if (packages && packages.length > 1) setStep("package")
+              else setStep("schedule")
+            }}>이전으로 돌아가기</Button>
           </div>
 
           {/* 결제 확인 모달 */}
