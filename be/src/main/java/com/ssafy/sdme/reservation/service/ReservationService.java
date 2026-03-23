@@ -5,6 +5,7 @@ import com.ssafy.sdme._global.exception.NotFoundException;
 import com.ssafy.sdme.payment.domain.Payment;
 import com.ssafy.sdme.payment.repository.PaymentRepository;
 import com.ssafy.sdme.reservation.domain.Reservation;
+import com.ssafy.sdme.schedule.repository.ScheduleRepository;
 import com.ssafy.sdme.reservation.dto.ReservationRequest;
 import com.ssafy.sdme.reservation.dto.ReservationResponse;
 import com.ssafy.sdme.reservation.repository.ReservationRepository;
@@ -38,6 +39,7 @@ public class ReservationService {
     private final VendorRepository vendorRepository;
     private final PaymentRepository paymentRepository;
     private final ScheduleService scheduleService;
+    private final ScheduleRepository scheduleRepository;
 
     @Transactional
     public Reservation createReservation(Long userId, ReservationRequest request) {
@@ -134,7 +136,14 @@ public class ReservationService {
             }
         }
 
-        log.info("[Reservation] 예약 및 결제 취소 - reservationId: {}, 취소된 결제: {}건", reservationId, payments.size());
+        // 연결된 일정도 같이 삭제
+        scheduleRepository.findByReservationIdAndDeletedAtIsNull(reservationId)
+                .forEach(schedule -> {
+                    schedule.delete();
+                    log.info("[Reservation] 연결된 일정 삭제 - scheduleId: {}", schedule.getId());
+                });
+
+        log.info("[Reservation] 예약/결제/일정 취소 - reservationId: {}, 취소된 결제: {}건", reservationId, payments.size());
     }
 
     @Transactional(readOnly = true)
