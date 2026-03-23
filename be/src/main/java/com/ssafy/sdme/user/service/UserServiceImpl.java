@@ -1,6 +1,8 @@
 package com.ssafy.sdme.user.service;
 
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.budget.domain.Budget;
+import com.ssafy.sdme.budget.repository.BudgetRepository;
 import com.ssafy.sdme.couple.domain.Couple;
 import com.ssafy.sdme.couple.domain.CoupleStatus;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
@@ -30,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final CoupleRepository coupleRepository;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final BudgetRepository budgetRepository;
 
     @Override
     public UserResponse getMyInfo(Long userId) {
@@ -183,6 +186,14 @@ public class UserServiceImpl implements UserService {
                 userPreferenceRepository.save(partnerPref);
                 log.info("[User] 추가 정보 커플 동기화 - userId: {}, partnerId: {}", userId, partnerId);
             }
+        }
+
+        // Budget 테이블도 동기화
+        if (user.getCoupleId() != null && request.getTotalBudget() != null) {
+            budgetRepository.findByCoupleId(user.getCoupleId()).ifPresent(budget -> {
+                budget.updateTotal(request.getTotalBudget() * 10000);
+                log.info("[User] Budget 동기화 - coupleId: {}, totalBudget: {}", user.getCoupleId(), request.getTotalBudget() * 10000);
+            });
         }
 
         log.info("[User] 추가 정보 수정 - userId: {}", userId);

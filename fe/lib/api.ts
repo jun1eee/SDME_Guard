@@ -509,3 +509,31 @@ export async function getVendorPayments(vendorId: number) {
 export async function deleteReview(reviewId: number) {
   return fetchApi(`/reviews/${reviewId}`, { method: "DELETE" })
 }
+
+// ─── 예산 관리 ──────────────────────────────────────────────────────
+
+export async function getBudget() {
+  return fetchApi<{
+    id: number; totalBudget: number; totalSpent: number; totalRemaining: number
+    categories: {
+      id: number; name: string; allocated: number; spent: number; remaining: number
+      items: { id: number; name: string; vendorId: number; amount: number; isPaid: boolean }[]
+    }[]
+  }>("/budgets")
+}
+
+export async function updateBudgetTotal(totalBudget: number) {
+  return fetchApi("/budgets/total", { method: "PUT", body: JSON.stringify({ totalBudget }) })
+}
+
+export async function addBudgetItem(data: { category: string; name: string; vendorId?: number; amount: number }) {
+  return fetchApi("/budgets/category/items", { method: "POST", body: JSON.stringify(data) })
+}
+
+export async function updateBudgetItem(itemId: number, data: { name?: string; amount?: number }) {
+  return fetchApi(`/budgets/category/${itemId}`, { method: "PUT", body: JSON.stringify(data) })
+}
+
+export async function deleteBudgetItem(itemId: number) {
+  return fetchApi(`/budgets/category/${itemId}`, { method: "DELETE" })
+}

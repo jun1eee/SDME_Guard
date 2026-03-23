@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+
 import { registerCard, tryReissue } from "@/lib/api"
 
 function SuccessContent() {
