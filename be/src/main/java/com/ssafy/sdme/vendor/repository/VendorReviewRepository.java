@@ -9,5 +9,7 @@ public interface VendorReviewRepository extends JpaRepository<VendorReview, Long
 
     List<VendorReview> findByVendorIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long vendorId);
 
+    List<VendorReview> findByCoupleIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long coupleId);
+
     boolean existsByCoupleIdAndVendorIdAndDeletedAtIsNull(Long coupleId, Long vendorId);
 }
