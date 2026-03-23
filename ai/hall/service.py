@@ -31,6 +31,7 @@ class HallChatService:
             "compare_halls": self._tool_compare_halls,
             "get_hall_details": self._tool_get_hall_details,
             "plan_tour_route": self._tool_plan_tour_route,
+            "modify_tour_route": self._tool_modify_tour_route,
         }
 
     def chat(self, request: ChatRequest, trace_id: str) -> ChatPayload:
@@ -286,15 +287,120 @@ class HallChatService:
             hall_names=hall_names,
             start_location=tool_args.get("start_location"),
             transport=str(tool_args.get("transport") or "car"),
+            start_time=tool_args.get("start_time"),
+            visit_date=tool_args.get("visit_date"),
+            visit_duration=self._safe_int_arg(tool_args.get("visit_duration")),
         )
         ordered_halls = [
             self.engine.get_hall_details(str(hall["name"]))
             for hall in result.get("ordered_halls", [])
         ]
+        session.metadata["hall_last_tour"] = {
+            "hall_names": [str(hall["name"]) for hall in result.get("ordered_halls", [])],
+            "start_location": tool_args.get("start_location"),
+            "transport": str(tool_args.get("transport") or "car"),
+            "start_time": tool_args.get("start_time"),
+            "visit_date": tool_args.get("visit_date"),
+            "visit_duration": self._safe_int_arg(tool_args.get("visit_duration")),
+        }
         return {
             "public_result": result,
             "hall_records": [hall for hall in ordered_halls if hall],
         }
+
+    def _tool_modify_tour_route(
+        self,
+        tool_args: dict[str, Any],
+        session: SessionState,
+        user_message: str,
+    ) -> dict[str, Any]:
+        last_tour = session.metadata.get("hall_last_tour")
+        if not last_tour:
+            return {
+                "public_result": {"error": "이전 투어 계획이 없습니다. 먼저 plan_tour_route로 투어를 계획해주세요."},
+                "hall_records": [],
+            }
+
+        hall_names = list(last_tour.get("hall_names") or [])
+        action = str(tool_args.get("action") or "")
+
+        if action == "swap":
+            index_a = tool_args.get("index_a")
+            index_b = tool_args.get("index_b")
+            if index_a is not None and index_b is not None:
+                a, b = int(index_a), int(index_b)
+                if 0 <= a < len(hall_names) and 0 <= b < len(hall_names):
+                    hall_names[a], hall_names[b] = hall_names[b], hall_names[a]
+        elif action == "remove":
+            index = tool_args.get("index")
+            if index is not None:
+                idx = int(index)
+                if 0 <= idx < len(hall_names):
+                    hall_names.pop(idx)
+        elif action == "add":
+            hall_name = str(tool_args.get("hall_name") or "").strip()
+            if hall_name:
+                position = tool_args.get("position")
+                if position is not None:
+                    pos = int(position)
+                    pos = max(0, min(pos, len(hall_names)))
+                    hall_names.insert(pos, hall_name)
+                else:
+                    hall_names.append(hall_name)
+        elif action == "reorder":
+            new_order = tool_args.get("new_order")
+            if isinstance(new_order, list) and len(new_order) == len(hall_names):
+                try:
+                    reordered = [hall_names[int(i)] for i in new_order]
+                    hall_names = reordered
+                except (IndexError, TypeError, ValueError):
+                    pass
+        else:
+            return {
+                "public_result": {"error": f"지원하지 않는 action입니다: {action}"},
+                "hall_records": [],
+            }
+
+        if not hall_names:
+            return {
+                "public_result": {"error": "수정 후 투어할 웨딩홀이 없습니다."},
+                "hall_records": [],
+            }
+
+        result = self.engine.plan_tour(
+            hall_names=hall_names,
+            start_location=last_tour.get("start_location"),
+            transport=str(last_tour.get("transport") or "car"),
+            start_time=last_tour.get("start_time"),
+            visit_date=last_tour.get("visit_date"),
+            visit_duration=last_tour.get("visit_duration"),
+            preserve_order=True,
+        )
+        ordered_halls = [
+            self.engine.get_hall_details(str(hall["name"]))
+            for hall in result.get("ordered_halls", [])
+        ]
+        session.metadata["hall_last_tour"] = {
+            "hall_names": [str(hall["name"]) for hall in result.get("ordered_halls", [])],
+            "start_location": last_tour.get("start_location"),
+            "transport": last_tour.get("transport"),
+            "start_time": last_tour.get("start_time"),
+            "visit_date": last_tour.get("visit_date"),
+            "visit_duration": last_tour.get("visit_duration"),
+        }
+        return {
+            "public_result": result,
+            "hall_records": [hall for hall in ordered_halls if hall],
+        }
+
+    @staticmethod
+    def _safe_int_arg(value: Any) -> int | None:
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
     def _merge_request_metadata(self, session: SessionState, request: ChatRequest) -> None:
         metadata = (request.context.metadata if request.context else None) or {}
