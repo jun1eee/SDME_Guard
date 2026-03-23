@@ -16,6 +16,14 @@ tool 사용 규칙:
 - 특정 홀 상세 정보: get_hall_details
 - 여러 홀 비교: compare_halls
 - 투어/방문 순서/동선: plan_tour_route (출발지와 교통수단을 먼저 확인한 후 호출)
+- 투어 동선 수정(순서 변경, 홀 추가/제거/교체): modify_tour_route
+
+투어 응답 규칙:
+- 시간표(schedule)는 시간대별로 정리하여 안내하세요.
+- 점심 시간이 포함되면 점심 시간 안내를 포함하세요.
+- 지도 링크(map_links)가 있으면 각 구간 길찾기 링크를 안내하세요.
+- 휴무일 경고(warnings)가 있으면 반드시 사용자에게 알려주세요.
+- 동선 수정 요청은 modify_tour_route를 사용하세요.
 
 위치 해석 규칙:
 - "5호선", "2호선 라인", "발산역 근처", "강남역 도보권" 같은 요청은 지역뿐 아니라 역/호선 접근성까지 반영하세요.
@@ -94,7 +102,7 @@ HALL_TOOLS = [
         "type": "function",
         "function": {
             "name": "plan_tour_route",
-            "description": "여러 웨딩홀의 방문 순서를 추천합니다. 투어, 동선, 방문 순서 질문에 사용합니다. 출발지와 교통수단을 반드시 확인한 후 호출하세요.",
+            "description": "여러 웨딩홀의 방문 순서를 추천합니다. 투어, 동선, 방문 순서 질문에 사용합니다. 출발지와 교통수단을 반드시 확인한 후 호출하세요. 방문 시간, 날짜를 알면 함께 전달하세요.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -112,8 +120,63 @@ HALL_TOOLS = [
                         "enum": ["car", "walk", "transit"],
                         "description": "이동 수단. car=자동차, transit=대중교통, walk=도보. 사용자에게 반드시 확인.",
                     },
+                    "start_time": {
+                        "type": "string",
+                        "description": "HH:MM 형식, 예: 10:00. 미지정 시 오전 10시 기본.",
+                    },
+                    "visit_date": {
+                        "type": "string",
+                        "description": "YYYY-MM-DD 형식. 휴무일 확인에 사용.",
+                    },
+                    "visit_duration": {
+                        "type": "integer",
+                        "description": "홀당 방문 소요 시간(분). 미지정 시 60분 기본.",
+                    },
                 },
                 "required": ["hall_names", "start_location", "transport"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "modify_tour_route",
+            "description": "이전에 계획한 투어 동선을 수정합니다. 순서 변경, 홀 추가/제거/교체에 사용합니다.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["swap", "remove", "add", "reorder"],
+                        "description": "수정 유형. swap=두 홀 위치 교환, remove=홀 제거, add=홀 추가, reorder=전체 순서 변경.",
+                    },
+                    "index_a": {
+                        "type": "integer",
+                        "description": "swap 시 교환할 첫 번째 홀 인덱스 (0부터 시작).",
+                    },
+                    "index_b": {
+                        "type": "integer",
+                        "description": "swap 시 교환할 두 번째 홀 인덱스 (0부터 시작).",
+                    },
+                    "index": {
+                        "type": "integer",
+                        "description": "remove 시 제거할 홀 인덱스 (0부터 시작).",
+                    },
+                    "hall_name": {
+                        "type": "string",
+                        "description": "add 시 추가할 웨딩홀 이름.",
+                    },
+                    "position": {
+                        "type": "integer",
+                        "description": "add 시 삽입할 위치 인덱스 (0부터 시작). 미지정 시 맨 뒤에 추가.",
+                    },
+                    "new_order": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "reorder 시 새로운 순서 (기존 인덱스 배열, 0부터 시작).",
+                    },
+                },
+                "required": ["action"],
             },
         },
     },

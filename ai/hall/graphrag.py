@@ -55,6 +55,11 @@ REGION_ALIASES = {
     "광진구": ["광진", "광진구"],
 }
 
+DEFAULT_START_TIME = "10:00"
+DEFAULT_VISIT_DURATION_MIN = 60
+LUNCH_WINDOW = ("11:30", "13:30")
+LUNCH_DURATION_MIN = 60
+
 QUERY_STOPWORDS = {
     "웨딩홀",
     "웨딩",
@@ -372,22 +377,60 @@ class HallGraphRagEngine:
         hall_names: list[str],
         start_location: str | None = None,
         transport: str = "car",
+        start_time: str | None = None,
+        visit_date: str | None = None,
+        visit_duration: int | None = None,
+        preserve_order: bool = False,
     ) -> dict[str, Any]:
         halls = self.resolve_hall_names(hall_names, limit_per_keyword=1)
         if not halls:
             return {"ordered_halls": [], "summary": "투어 대상 웨딩홀을 찾지 못했습니다."}
 
-        routed = self._plan_tour_with_kakao(halls=halls, start_location=start_location, transport=transport)
+        effective_start_time = start_time or DEFAULT_START_TIME
+        effective_visit_duration = visit_duration or DEFAULT_VISIT_DURATION_MIN
+
+        routed = self._plan_tour_with_kakao(
+            halls=halls,
+            start_location=start_location,
+            transport=transport,
+            preserve_order=preserve_order,
+        )
         if routed:
+            schedule = self._build_schedule(
+                legs=routed.get("legs", []),
+                ordered_halls=[h["name"] for h in routed.get("ordered_halls", [])],
+                start_time=effective_start_time,
+                visit_duration_min=effective_visit_duration,
+            )
+            map_links = self._build_map_links(
+                legs=routed.get("legs", []),
+                ordered_halls=routed.get("ordered_halls", []),
+                start_location=start_location,
+                transport=transport,
+            )
+            warnings = self._check_visit_date_warnings(halls, visit_date)
+            routed["schedule"] = schedule
+            routed["map_links"] = map_links
+            routed["warnings"] = warnings
             return routed
 
         ordered = self._plan_tour_fallback(halls=halls, start_location=start_location)
         summary_names = " -> ".join(hall.name for hall in ordered)
+        schedule = self._build_schedule(
+            legs=[],
+            ordered_halls=[hall.name for hall in ordered],
+            start_time=effective_start_time,
+            visit_duration_min=effective_visit_duration,
+        )
+        warnings = self._check_visit_date_warnings(halls, visit_date)
         return {
             "ordered_halls": [self.serialize_hall(hall) for hall in ordered],
             "summary": f"추천 동선은 {summary_names} 순서입니다. 카카오 경로 정보를 가져오지 못해 거리 기반 휴리스틱으로 정렬했습니다.",
             "transport": transport,
             "route_source": "heuristic",
+            "schedule": schedule,
+            "map_links": [],
+            "warnings": warnings,
         }
 
     def serialize_hall(self, hall: HallRecord) -> dict[str, Any]:
@@ -475,6 +518,7 @@ class HallGraphRagEngine:
         halls: list[HallRecord],
         start_location: str | None,
         transport: str,
+        preserve_order: bool = False,
     ) -> dict[str, Any] | None:
         if not self.settings.kakao_rest_api_key:
             return None
@@ -489,11 +533,18 @@ class HallGraphRagEngine:
         if not valid_points:
             return None
 
-        ordered_points, legs, total_distance_km, total_travel_min = self._optimize_route(
-            valid_points=valid_points,
-            start_coord=start_coord,
-            transport=transport,
-        )
+        if preserve_order:
+            ordered_points, legs, total_distance_km, total_travel_min = self._compute_legs_in_order(
+                valid_points=valid_points,
+                start_coord=start_coord,
+                transport=transport,
+            )
+        else:
+            ordered_points, legs, total_distance_km, total_travel_min = self._optimize_route(
+                valid_points=valid_points,
+                start_coord=start_coord,
+                transport=transport,
+            )
         ordered_halls = [point["hall"] for point in ordered_points]
         if not ordered_halls:
             return None
@@ -1047,6 +1098,188 @@ class HallGraphRagEngine:
             current_coord = point["coord"]
 
         return ordered, legs, total_distance_km, total_travel_min
+
+    def _compute_legs_in_order(
+        self,
+        valid_points: list[dict[str, Any]],
+        start_coord: tuple[float, float] | None,
+        transport: str,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], float, float]:
+        ordered = valid_points[:]
+        total_distance_km = 0.0
+        total_travel_min = 0.0
+        legs: list[dict[str, Any]] = []
+
+        current_label = "출발지" if start_coord else ordered[0]["hall"].name
+        current_coord = start_coord or ordered[0]["coord"]
+        start_index = 0 if start_coord else 1
+
+        for point in ordered[start_index:]:
+            distance_km, duration_min = self._get_travel_metrics(current_coord, point["coord"], transport)
+            legs.append(
+                {
+                    "from": current_label,
+                    "to": point["hall"].name,
+                    "distance_km": distance_km,
+                    "duration_min": duration_min,
+                }
+            )
+            total_distance_km += distance_km
+            total_travel_min += duration_min
+            current_label = point["hall"].name
+            current_coord = point["coord"]
+
+        return ordered, legs, total_distance_km, total_travel_min
+
+    @staticmethod
+    def _build_schedule(
+        legs: list[dict[str, Any]],
+        ordered_halls: list[str],
+        start_time: str,
+        visit_duration_min: int,
+    ) -> list[dict[str, str]]:
+        try:
+            hours, minutes = map(int, start_time.split(":"))
+            current_minutes = hours * 60 + minutes
+        except (ValueError, AttributeError):
+            current_minutes = 10 * 60  # fallback to 10:00
+
+        leg_map: dict[str, float] = {}
+        for leg in legs:
+            leg_map[str(leg.get("to", ""))] = float(leg.get("duration_min", 0))
+
+        lunch_start = int(LUNCH_WINDOW[0].split(":")[0]) * 60 + int(LUNCH_WINDOW[0].split(":")[1])
+        lunch_end = int(LUNCH_WINDOW[1].split(":")[0]) * 60 + int(LUNCH_WINDOW[1].split(":")[1])
+        lunch_inserted = False
+
+        schedule: list[dict[str, str]] = []
+
+        def _fmt(total_min: int) -> str:
+            return f"{total_min // 60:02d}:{total_min % 60:02d}"
+
+        for hall_name in ordered_halls:
+            travel_min = leg_map.get(hall_name, 0)
+            if travel_min > 0:
+                arrive_after_travel = current_minutes + int(travel_min)
+                schedule.append({
+                    "time": f"{_fmt(current_minutes)}~{_fmt(arrive_after_travel)}",
+                    "activity": f"{hall_name}(으)로 이동 (약 {int(travel_min)}분)",
+                })
+                current_minutes = arrive_after_travel
+
+            if not lunch_inserted and current_minutes + visit_duration_min > lunch_start and current_minutes < lunch_end:
+                visit_start = current_minutes
+                if visit_start < lunch_start:
+                    visit_before = lunch_start - visit_start
+                    schedule.append({
+                        "time": f"{_fmt(visit_start)}~{_fmt(lunch_start)}",
+                        "activity": f"{hall_name} 방문 ({visit_before}분)",
+                    })
+                    current_minutes = lunch_start
+                    remaining_visit = visit_duration_min - visit_before
+                else:
+                    remaining_visit = visit_duration_min
+
+                schedule.append({
+                    "time": f"{_fmt(current_minutes)}~{_fmt(current_minutes + LUNCH_DURATION_MIN)}",
+                    "activity": "점심 식사",
+                })
+                current_minutes += LUNCH_DURATION_MIN
+                lunch_inserted = True
+
+                if remaining_visit > 0:
+                    schedule.append({
+                        "time": f"{_fmt(current_minutes)}~{_fmt(current_minutes + remaining_visit)}",
+                        "activity": f"{hall_name} 방문{' 계속' if remaining_visit < visit_duration_min else ''} ({remaining_visit}분)",
+                    })
+                    current_minutes += remaining_visit
+            else:
+                end_time = current_minutes + visit_duration_min
+                schedule.append({
+                    "time": f"{_fmt(current_minutes)}~{_fmt(end_time)}",
+                    "activity": f"{hall_name} 방문 ({visit_duration_min}분)",
+                })
+                current_minutes = end_time
+
+        if not lunch_inserted and current_minutes >= lunch_start and current_minutes <= lunch_end:
+            schedule.append({
+                "time": f"{_fmt(current_minutes)}~{_fmt(current_minutes + LUNCH_DURATION_MIN)}",
+                "activity": "점심 식사",
+            })
+
+        return schedule
+
+    @staticmethod
+    def _build_map_links(
+        legs: list[dict[str, Any]],
+        ordered_halls: list[dict[str, Any]],
+        start_location: str | None,
+        transport: str,
+    ) -> list[dict[str, str]]:
+        transport_map = {"car": "car", "transit": "publictransit", "walk": "walk"}
+        kakao_transport = transport_map.get(transport, "car")
+        links: list[dict[str, str]] = []
+
+        for leg in legs:
+            from_name = str(leg.get("from", ""))
+            to_name = str(leg.get("to", ""))
+            url = (
+                f"https://map.kakao.com/?sName={from_name}"
+                f"&eName={to_name}"
+                f"&transport={kakao_transport}"
+            )
+            links.append({
+                "from": from_name,
+                "to": to_name,
+                "url": url,
+            })
+
+        return links
+
+    def _check_visit_date_warnings(
+        self,
+        halls: list[HallRecord],
+        visit_date: str | None,
+    ) -> list[str]:
+        warnings: list[str] = []
+        if not visit_date:
+            return warnings
+
+        day_patterns = {
+            "월요일": 0, "화요일": 1, "수요일": 2, "목요일": 3,
+            "금요일": 4, "토요일": 5, "일요일": 6,
+            "월": 0, "화": 1, "수": 2, "목": 3, "금": 4, "토": 5, "일": 6,
+        }
+
+        try:
+            from datetime import datetime
+            date_obj = datetime.strptime(visit_date, "%Y-%m-%d")
+            weekday = date_obj.weekday()
+        except (ValueError, TypeError):
+            return warnings
+
+        weekday_names = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+        visit_day_name = weekday_names[weekday]
+
+        for hall in halls:
+            memo = (hall.memo or "").lower()
+            closed_patterns = [
+                r"(월|화|수|목|금|토|일)요일\s*휴무",
+                r"휴무\s*[:\s]*(월|화|수|목|금|토|일)",
+                r"(월|화|수|목|금|토|일)\s*휴관",
+                r"매주\s*(월|화|수|목|금|토|일)",
+            ]
+            for pattern in closed_patterns:
+                matches = re.findall(pattern, memo)
+                for match in matches:
+                    closed_day = day_patterns.get(match)
+                    if closed_day is not None and closed_day == weekday:
+                        warnings.append(
+                            f"{hall.name}: {visit_date}({visit_day_name})은 휴무일일 수 있습니다. 방문 전 확인을 권장합니다."
+                        )
+                        break
+
+        return warnings
 
     def _kakao_get(
         self,
