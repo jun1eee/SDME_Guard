@@ -82,7 +82,7 @@ class SdmChatService:
                         log_lines.append(f"[category_corrected] {tool_args.get('category')} -> {corrected}")
                         tool_args["category"] = corrected
 
-                if tool_name in ("search", "search_style", "search_nearby"):
+                if tool_name in ("search", "search_style", "search_nearby", "search_related", "filter_sort"):
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
