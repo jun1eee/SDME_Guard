@@ -33,16 +33,18 @@ pipeline {
             }
         }
 
-        // MR일 때는 여기서 끝 (CI만)
-        stage('Deploy') {
-            when {
-                branch 'dev'  // dev 브랜치에 실제 merge됐을 때만 배포
-            }
-            steps {
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
-            }
-        }
+
+         stage('Deploy') {
+             when {
+                 expression {
+                     return env.gitlabActionType == 'PUSH' && env.gitlabSourceBranch == 'dev'
+                 }
+             }
+             steps {
+                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
+                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
+             }
+         }
     }
 
     post {
