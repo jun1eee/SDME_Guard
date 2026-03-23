@@ -253,3 +253,12 @@ export async function fetchVendorDetail(vendorId: string | number): Promise<Vend
   return vendor
 }
 
+export async function fetchVendorDetailBySource(sourceId: string | number): Promise<Vendor> {
+  const { buildVendorDetailBySourceEndpoint } = await import("@/lib/api/endpoints")
+  const response = await fetch(buildVendorDetailBySourceEndpoint(sourceId), { credentials: "include" })
+  if (!response.ok) throw new Error(String(response.status))
+  const result = normalizeResponse((await response.json()) as VendorDetailApiEnvelope | VendorDetailResponse)
+  const vendor = mapDetailToVendor(result)
+  return vendor
+}
+

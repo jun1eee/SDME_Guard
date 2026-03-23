@@ -82,6 +82,11 @@ async function fetchApi<T>(
     throw new Error("인증이 만료되었습니다.")
   }
 
+  // 204 No Content는 body가 없으므로 json 파싱 생략
+  if (res.status === 204) {
+    return { status: 204, message: "", data: undefined as T }
+  }
+
   const data = await res.json()
   if (!res.ok) {
     throw new Error(data.message || `API Error: ${res.status}`)
@@ -449,4 +454,131 @@ export async function sendAiChat(data: {
       sessionId: data.sessionId ?? undefined,
     }),
   })
+}
+
+// ─── 카드 관리 ──────────────────────────────────────────────────────────
+
+export async function registerCard(data: { authKey: string; customerKey: string }) {
+  return fetchApi<{
+    id: number; cardBrand: string; cardLast4: string; ownerName: string; createdAt: string
+  }>("/cards", { method: "POST", body: JSON.stringify(data) })
+}
+
+export async function getCards() {
+  return fetchApi<{
+    id: number; cardBrand: string; cardLast4: string; ownerName: string; createdAt: string
+  }[]>("/cards")
+}
+
+export async function deleteCard(cardId: number) {
+  return fetchApi(`/cards/${cardId}`, { method: "DELETE" })
+}
+
+export async function getTossClientKey() {
+  return fetchApi<{ clientKey: string }>("/cards/toss-client-key")
+}
+
+// ─── 결제 ──────────────────────────────────────────────────────────────
+
+export async function requestPayment(data: {
+  reservationId: number; cardId: number; type: string; amount: number
+}) {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; vendorCategory: string; vendorImage: string
+    reservationId: number; type: string
+    amount: number; status: string; paymentKey: string
+    cardBrand: string; cardLast4: string; requestedAt: string; approvedAt: string
+  }>("/payments", { method: "POST", body: JSON.stringify(data) })
+}
+
+export async function getPayments() {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; vendorCategory: string; vendorImage: string
+    reservationId: number; type: string
+    amount: number; status: string; paymentKey: string
+    cardBrand: string; cardLast4: string; requestedAt: string; approvedAt: string
+  }[]>("/payments")
+}
+
+export async function getVendorPayments(vendorId: number) {
+  return fetchApi<{
+    id: number; vendorId: number; vendorName: string; vendorCategory: string; vendorImage: string
+    reservationId: number; type: string
+    amount: number; status: string; paymentKey: string
+    cardBrand: string; cardLast4: string; requestedAt: string; approvedAt: string
+  }[]>(`/payments/vendor/${vendorId}`)
+}
+
+// ─── 리뷰 ──────────────────────────────────────────────────────────────
+
+export interface MyReviewItem {
+  id: number
+  vendorId: number
+  vendorName: string
+  vendorCategory: string
+  rating: number
+  content: string
+  reviewedAt: string
+}
+
+export async function getMyReviews() {
+  return fetchApi<MyReviewItem[]>("/vendors/my")
+}
+
+export async function createReview(vendorId: number, data: { rating: number; content: string }) {
+  return fetchApi<{
+    id: number
+    rating: number
+    authorName: string | null
+    content: string
+    reviewedAt: string
+  }>(`/vendors/${vendorId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateReview(reviewId: number, data: { rating: number; content: string }) {
+  return fetchApi<{
+    id: number
+    rating: number
+    authorName: string | null
+    content: string
+    reviewedAt: string
+  }>(`/reviews/${reviewId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteReview(reviewId: number) {
+  return fetchApi(`/reviews/${reviewId}`, { method: "DELETE" })
+}
+
+// ─── 예산 관리 ──────────────────────────────────────────────────────
+
+export async function getBudget() {
+  return fetchApi<{
+    id: number; totalBudget: number; totalSpent: number; totalRemaining: number
+    categories: {
+      id: number; name: string; allocated: number; spent: number; remaining: number
+      items: { id: number; name: string; vendorId: number; amount: number; isPaid: boolean }[]
+    }[]
+  }>("/budgets")
+}
+
+export async function updateBudgetTotal(totalBudget: number) {
+  return fetchApi("/budgets/total", { method: "PUT", body: JSON.stringify({ totalBudget }) })
+}
+
+export async function addBudgetItem(data: { category: string; name: string; vendorId?: number; amount: number }) {
+  return fetchApi("/budgets/category/items", { method: "POST", body: JSON.stringify(data) })
+}
+
+export async function updateBudgetItem(itemId: number, data: { name?: string; amount?: number }) {
+  return fetchApi(`/budgets/category/${itemId}`, { method: "PUT", body: JSON.stringify(data) })
+}
+
+export async function deleteBudgetItem(itemId: number) {
+  return fetchApi(`/budgets/category/${itemId}`, { method: "DELETE" })
 }

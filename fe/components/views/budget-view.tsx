@@ -1,18 +1,16 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import {
   Plus,
   Check,
   Pencil,
   Trash2,
-  Sparkles,
-  CreditCard,
-  ExternalLink,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { getBudget, updateBudgetTotal, addBudgetItem, updateBudgetItem, deleteBudgetItem } from "@/lib/api"
 
 interface BudgetItem {
   id: string
@@ -41,31 +39,6 @@ const REMAINING_COLOR = { stroke: "#dfe6e9", bg: "#f5f6fa", text: "#636e72" } //
 
 const PRESET_CATEGORIES = ["웨딩홀", "스튜디오", "드레스", "메이크업", "허니문", "기타"]
 
-const initialBudgetItems: BudgetItem[] = [
-  { id: "1", category: "웨딩홀",   name: "더 그랜드 파빌리온", amount: 14000000, isPaid: true },
-  { id: "2", category: "스튜디오", name: "로앤스튜디오",         amount:  6000000, isPaid: false },
-  { id: "3", category: "드레스",   name: "로자스피사",           amount:  6000000, isPaid: false },
-  { id: "4", category: "메이크업", name: "글로우 뷰티",          amount:  1500000, isPaid: false },
-]
-
-const cardRecommendations = [
-  {
-    id: "1",
-    name: "삼성 웨딩카드",
-    issuer: "삼성카드",
-    benefit: "웨딩홀 결제 시 5% 캐시백",
-    description: "웨딩 관련 업종 할인 및 무이자 할부 12개월",
-    badge: "최대 60만원",
-  },
-  {
-    id: "2",
-    name: "현대 M포인트",
-    issuer: "현대카드",
-    benefit: "스튜디오/드레스 10% 포인트 적립",
-    description: "결혼 준비 전 업종 M포인트 2배 적립",
-    badge: "최대 30만 포인트",
-  },
-]
 
 // ── 도넛 차트 계산 ─────────────────────────────────────────────
 const RADIUS = 80
@@ -139,15 +112,36 @@ const fmtShort = (n: number): string => {
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────
 export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
-  const [items, setItems] = useState<BudgetItem[]>(initialBudgetItems)
+  const [items, setItems] = useState<BudgetItem[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editAmount, setEditAmount] = useState("")
   const [editName, setEditName] = useState("")
   const [totalBudget, setTotalBudget] = useState(initialBudget)
   const [editingBudget, setEditingBudget] = useState(false)
-  // 만원 단위로 표시/입력
   const [tempBudget, setTempBudget] = useState(Math.round(initialBudget / 10000).toString())
+  const [loading, setLoading] = useState(true)
+
+  // API에서 예산 데이터 로드
+  useEffect(() => {
+    getBudget()
+      .then((res) => {
+        const data = res.data
+        if (data.totalBudget > 0) setTotalBudget(data.totalBudget)
+        const allItems: BudgetItem[] = data.categories.flatMap((cat) =>
+          cat.items.map((item) => ({
+            id: item.id.toString(),
+            category: cat.name,
+            name: item.name,
+            amount: item.amount,
+            isPaid: item.isPaid,
+          }))
+        )
+        setItems(allItems)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   // 카테고리별 색상 인덱스 (추가 순서 유지)
   const colorMap = useMemo(() => {
@@ -185,12 +179,14 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
   const paidAmount = items.filter((i) => i.isPaid).reduce((s, i) => s + i.amount, 0)
   const budgetUsedPct = totalBudget > 0 ? Math.min(100, (total / totalBudget) * 100) : 0
 
-  // ── 핸들러 ─────────────────────────────────────────────────
+  // ── 핸들러 (API 연동) ─────────────────────────────────────
   const togglePaid = (id: string) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, isPaid: !i.isPaid } : i)))
 
-  const deleteItem = (id: string) =>
+  const handleDelete = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id))
+    deleteBudgetItem(Number(id)).catch(() => {})
+  }
 
   const startEdit = (id: string, name: string, amount: number) => {
     setEditingId(id)
@@ -202,17 +198,30 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
     const parsed = parseInt(editAmount)
     if (!isNaN(parsed) && parsed > 0 && editName.trim()) {
       setItems((prev) => prev.map((i) => (i.id === id ? { ...i, name: editName.trim(), amount: parsed } : i)))
+      updateBudgetItem(Number(id), { name: editName.trim(), amount: parsed }).catch(() => {})
     }
     setEditingId(null)
   }
 
   const saveBudget = () => {
     const parsed = parseInt(tempBudget.replace(/,/g, ""))
-    if (!isNaN(parsed) && parsed > 0) setTotalBudget(parsed * 10000)
+    if (!isNaN(parsed) && parsed > 0) {
+      const newTotal = parsed * 10000
+      setTotalBudget(newTotal)
+      updateBudgetTotal(newTotal).catch(() => {})
+    }
     setEditingBudget(false)
   }
 
   // ── 렌더 ──────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">예산 정보 불러오는 중...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-background">
       <div className="mx-auto w-full max-w-2xl px-4 py-8">
@@ -384,8 +393,18 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
             <div className="border-b border-border px-5 py-4">
               <AddBudgetItemForm
                 onAdd={(item) => {
-                  setItems((prev) => [...prev, { ...item, id: Date.now().toString(), isCustom: true }])
+                  const tempId = Date.now().toString()
+                  setItems((prev) => [...prev, { ...item, id: tempId, isCustom: true }])
                   setShowAddForm(false)
+                  addBudgetItem({ category: item.category, name: item.name, amount: item.amount })
+                    .then((res) => {
+                      // API 응답에서 실제 ID로 교체
+                      const allItems: BudgetItem[] = res.data.categories.flatMap((cat: any) =>
+                        cat.items.map((i: any) => ({ id: i.id.toString(), category: cat.name, name: i.name, amount: i.amount, isPaid: i.isPaid }))
+                      )
+                      setItems(allItems)
+                    })
+                    .catch(() => {})
                 }}
                 onCancel={() => setShowAddForm(false)}
               />
@@ -480,7 +499,7 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                         <Pencil className="size-3.5" />
                       </button>
                       <button
-                        onClick={() => deleteItem(item.id)}
+                        onClick={() => handleDelete(item.id)}
                         className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="size-3.5" />
@@ -502,39 +521,6 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
           )}
         </div>
 
-        {/* ── AI 카드 추천 ── */}
-        <div className="rounded-2xl bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="font-semibold text-foreground">AI 추천 카드</h2>
-          </div>
-          <div className="divide-y divide-border">
-            {cardRecommendations.map((card) => (
-              <div key={card.id} className="flex items-start gap-4 px-5 py-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  <CreditCard className="size-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-foreground">{card.name}</p>
-                      <p className="text-xs text-muted-foreground">{card.issuer}</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {card.badge}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-sm font-medium text-foreground">{card.benefit}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{card.description}</p>
-                  <button className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                    <ExternalLink className="size-3.5" />
-                    자세히 보기
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
       </div>
     </div>

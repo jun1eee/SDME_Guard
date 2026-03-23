@@ -117,6 +117,7 @@ export default function ChatPage() {
         "/wishlist": "wishlist",
         "/vote": "vote",
         "/reviews": "reviews",
+        "/payment": "payment",
         "/mypage": "my-page",
         "/couple-chat": "couple-chat",
       }
@@ -221,7 +222,7 @@ export default function ChatPage() {
           if (!(pendingView in PANEL_VIEWS)) {
             setCurrentView(pendingView as ViewType)
           }
-          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
           window.history.replaceState(null, "", urlMap[pendingView] || "/main")
           // 패널 뷰를 위해 임시 저장
           if (pendingView in PANEL_VIEWS) {
@@ -589,7 +590,7 @@ export default function ChatPage() {
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
     // URL 업데이트 (페이지 이동 없이)
-    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
     window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
@@ -597,7 +598,7 @@ export default function ChatPage() {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
-      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews" }
+      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
       window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
@@ -806,6 +807,10 @@ export default function ChatPage() {
             onVendorDrop={handleVendorDrop}
             onRemoveVendor={handleRemoveVendor}
             onOpenTab={(type) => addPanelTab(type as PanelTabType, "right")}
+            onCardVendorClick={(vendorId) => {
+              addPanelTab("vendors", "right")
+              setOpenVendorId(vendorId)
+            }}
           />
         )
 
@@ -1386,6 +1391,7 @@ function ChatPanelWithDrop({
   onVendorDrop,
   onRemoveVendor,
   onOpenTab,
+  onCardVendorClick,
 }: {
   messages: Message[]
   isTyping: boolean
@@ -1395,6 +1401,7 @@ function ChatPanelWithDrop({
   onVendorDrop: (vendor: DroppedVendor) => void
   onRemoveVendor: (id: string) => void
   onOpenTab: (type: string) => void
+  onCardVendorClick?: (vendorId: string) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
 
@@ -1447,13 +1454,8 @@ function ChatPanelWithDrop({
               content={message.content}
               recommendations={message.recommendations}
               onCardClick={(rec) => {
-                // 카드 클릭 → 우측 업체 패널 열기
-                try {
-                  if (rec.id && typeof addPanelTab === "function") {
-                    addPanelTab("vendors", "right")
-                  }
-                } catch {
-                  // 패널 기능 없는 컨텍스트에서는 무시
+                if (rec.id) {
+                  onCardVendorClick?.(String(rec.id))
                 }
               }}
             />

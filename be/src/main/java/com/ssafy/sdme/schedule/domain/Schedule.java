@@ -62,9 +62,12 @@ public class Schedule {
     @Column(columnDefinition = "ENUM('USER','AI')")
     private ScheduleSource source;
 
+    @Column(name = "reservation_id")
+    private Long reservationId;
+
     @Builder
     public Schedule(Long userId, Long coupleId, String title, LocalDate date, LocalTime time,
-                    String location, String memo, ScheduleCategory category, ScheduleSource source) {
+                    String location, String memo, ScheduleCategory category, ScheduleSource source, Long reservationId) {
         this.userId = userId;
         this.coupleId = coupleId;
         this.title = title;
@@ -74,6 +77,7 @@ public class Schedule {
         this.memo = memo;
         this.category = category;
         this.source = source != null ? source : ScheduleSource.USER;
+        this.reservationId = reservationId;
         this.status = ScheduleStatus.대기중;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();

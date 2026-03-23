@@ -52,4 +52,14 @@ public class VendorReview {
         this.createdAt     = LocalDateTime.now();
         this.updatedAt     = LocalDateTime.now();
     }
+
+    public void update(Float rating, String content) {
+        this.rating    = rating;
+        this.content   = content;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }

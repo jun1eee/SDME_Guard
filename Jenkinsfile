@@ -4,7 +4,14 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([
+                      $class: 'GitSCM',
+                      branches: [[name: env.gitlabSourceBranch ?: 'dev']],
+                      userRemoteConfigs: [[
+                          url: 'https://lab.ssafy.com/s14-fintech-finance-sub1/S14P21A105.git',
+                          credentialsId: 'gitlab-credentials'
+                      ]]
+                  ])
             }
         }
 
@@ -26,20 +33,27 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            steps {
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans' 
-                sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
-            }
-        }
+
+         stage('Deploy') {
+             when {
+                 expression {
+                     return env.gitlabActionType == 'PUSH' && env.gitlabSourceBranch == 'dev'
+                 }
+             }
+             steps {
+                 sh 'docker rm -f frontend backend nginx || true'
+                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
+                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
+             }
+         }
     }
 
     post {
         success {
-            echo '✅ 배포 성공!'
+            updateGitlabCommitStatus name: 'build', state: 'success'
         }
         failure {
-            echo '❌ 배포 실패!'
+            updateGitlabCommitStatus name: 'build', state: 'failed'
         }
     }
 }
