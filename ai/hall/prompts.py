@@ -17,6 +17,8 @@ tool 사용 규칙:
 - 여러 홀 비교: compare_halls
 - 투어/방문 순서/동선: plan_tour_route (출발지와 교통수단을 먼저 확인한 후 호출)
 - 투어 동선 수정(순서 변경, 홀 추가/제거/교체): modify_tour_route
+- 투어/동선 관련 요청이 포함되면 반드시 plan_tour_route tool을 호출하세요. 직접 동선을 텍스트로 만들지 마세요.
+- "찾아서 투어 짜줘" 같은 복합 요청은 먼저 search_halls로 검색 후, 이어서 plan_tour_route를 호출하세요.
 
 투어 응답 규칙:
 - 시간표(schedule)는 시간대별로 정리하여 안내하세요.
