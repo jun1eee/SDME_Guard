@@ -23,7 +23,7 @@ ai/
 
 ## 규칙
 1. 커밋: `type: 한국어 요약` - 자동 커밋 금지, 사용자 확인 후
-2. 브랜치: `feature/ai/{기능}` -> MR -> `ai-dc` (부모 브랜치)
+2. 브랜치: `feature/ai/{기능}` -> MR -> `ai` -> MR -> `dev` (배포)
 3. Neo4j 쓰기: scripts/db_load.py만. 서버/노트북에서 삭제/삽입 금지
 4. hall/ 수정 금지
 5. `.claude/rules/` 자동 적용됨
