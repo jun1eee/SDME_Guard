@@ -20,7 +20,7 @@ import { ReviewView } from "@/components/views/review-view"
 import { VoteView, type VendorItem } from "@/components/views/vote-view"
 import { CoupleWishlistView } from "@/components/views/couple-wishlist-view"
 import { SplitPanel, type PanelState, type PanelTab, type PanelTabType } from "@/components/split-panel"
-import { Store, DollarSign, Calendar, Sparkles, Send, X } from "lucide-react"
+import { Store, DollarSign, Calendar, Sparkles, Send, X, Heart } from "lucide-react"
 
 // 패널 탭으로 열 수 있는 뷰
 const PANEL_VIEWS: Record<string, PanelTabType> = {
@@ -118,6 +118,7 @@ export default function ChatPage() {
         "/vote": "vote",
         "/reviews": "reviews",
         "/payment": "payment",
+        "/budget": "budget",
         "/mypage": "my-page",
         "/couple-chat": "couple-chat",
       }
@@ -221,9 +222,9 @@ export default function ChatPage() {
           // 패널 뷰는 authChecked 후에 처리하기 위해 저장
           if (!(pendingView in PANEL_VIEWS)) {
             setCurrentView(pendingView as ViewType)
+            const urlMap: Record<string, string> = { "my-page": "/mypage", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment", budget: "/budget" }
+            window.history.replaceState(null, "", urlMap[pendingView] || "/main")
           }
-          const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
-          window.history.replaceState(null, "", urlMap[pendingView] || "/main")
           // 패널 뷰를 위해 임시 저장
           if (pendingView in PANEL_VIEWS) {
             sessionStorage.setItem("pendingPanel", pendingView)
@@ -579,10 +580,9 @@ export default function ChatPage() {
 
       addPanelTab(panelType, "left")
       if (view === "vote") setVoteBadge(0)
-      // couple-chat URL은 유지, 다른 패널 추가 시 URL 안 바꿈
-      if (view === "couple-chat") {
-        window.history.pushState(null, "", "/couple-chat")
-      }
+      // 풀페이지 뷰에서 패널 뷰로 전환 시 URL을 /main으로
+      setCurrentView(null)
+      window.history.pushState(null, "", "/main")
       return
     }
 
@@ -590,7 +590,7 @@ export default function ChatPage() {
     setCurrentView(view)
     if (view === "vote") setVoteBadge(0)
     // URL 업데이트 (페이지 이동 없이)
-    const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
+    const urlMap: Record<string, string> = { "my-page": "/mypage", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment", budget: "/budget" }
     window.history.pushState(null, "", urlMap[view] || "/main")
   }
 
@@ -598,7 +598,7 @@ export default function ChatPage() {
     const validViews: ViewType[] = ["my-page", "wishlist", "payment", "reservation", "reviews"]
     if (validViews.includes(view as ViewType)) {
       setCurrentView(view as ViewType)
-      const urlMap: Record<string, string> = { "my-page": "/mypage", "couple-chat": "/couple-chat", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment" }
+      const urlMap: Record<string, string> = { "my-page": "/mypage", reservation: "/reservation", wishlist: "/wishlist", vote: "/vote", reviews: "/reviews", payment: "/payment", budget: "/budget" }
       window.history.pushState(null, "", urlMap[view] || "/main")
     }
   }
@@ -815,6 +815,19 @@ export default function ChatPage() {
         )
 
       case "couple-chat":
+        if (!coupleConnected) {
+          return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6">
+              <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                <Heart className="size-8 text-muted-foreground/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">커플 매칭이 필요합니다</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">파트너와 매칭 후 커플 채팅을 이용할 수 있어요</p>
+              </div>
+            </div>
+          )
+        }
         return (
           <CoupleChatView
             groomName={weddingConfig.groomName}
@@ -892,6 +905,19 @@ export default function ChatPage() {
         )
 
       case "schedule":
+        if (!coupleConnected) {
+          return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6">
+              <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                <Calendar className="size-8 text-muted-foreground/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">커플 매칭이 필요합니다</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">파트너와 매칭 후 커플 일정을 이용할 수 있어요</p>
+              </div>
+            </div>
+          )
+        }
         return <ScheduleView />
 
       case "vote":
@@ -901,6 +927,19 @@ export default function ChatPage() {
         }} />
 
       case "budget":
+        if (!coupleConnected) {
+          return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6">
+              <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                <DollarSign className="size-8 text-muted-foreground/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">커플 매칭이 필요합니다</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">파트너와 매칭 후 커플 예산을 이용할 수 있어요</p>
+              </div>
+            </div>
+          )
+        }
         return <BudgetView totalBudget={weddingConfig.budget} />
 
       case "couple-wishlist":
@@ -962,8 +1001,34 @@ export default function ChatPage() {
   const renderFullPageContent = () => {
     switch (currentView) {
       case "budget":
+        if (!coupleConnected) {
+          return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6">
+              <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                <DollarSign className="size-8 text-muted-foreground/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">커플 매칭이 필요합니다</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">파트너와 매칭 후 커플 예산을 이용할 수 있어요</p>
+              </div>
+            </div>
+          )
+        }
         return <BudgetView totalBudget={weddingConfig.budget} />
       case "schedule":
+        if (!coupleConnected) {
+          return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 bg-background px-6">
+              <div className="flex size-16 items-center justify-center rounded-full bg-muted">
+                <Calendar className="size-8 text-muted-foreground/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">커플 매칭이 필요합니다</p>
+                <p className="mt-1.5 text-sm text-muted-foreground">파트너와 매칭 후 커플 일정을 이용할 수 있어요</p>
+              </div>
+            </div>
+          )
+        }
         return <ScheduleView />
       case "my-page":
         return (
@@ -982,8 +1047,8 @@ export default function ChatPage() {
                 const res = await connectCouple(inviteCode)
                 setCoupleConnected(true)
                 toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
-              } catch {
-                toast.error("연결 실패", { description: "초대코드를 확인해주세요." })
+              } catch (err: any) {
+                toast.error("연결 실패", { description: err.message || "초대코드를 확인해주세요." })
               }
             }}
             onUpdateProfile={handleUpdateProfile}
