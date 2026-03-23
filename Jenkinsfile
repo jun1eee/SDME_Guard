@@ -53,7 +53,7 @@ pipeline {
              steps {
                  sh '''
                      cd /var/jenkins_home/workspace/sdmguard
-                     docker compose up -d --build ai backend frontend nginx
+                     docker-compose up -d --build ai backend frontend nginx
                  '''
              }
          }
