@@ -18,3 +18,6 @@ cors:
 
 server:
   port: 8080
+
+ai:
+  server-url: http://ai:8000

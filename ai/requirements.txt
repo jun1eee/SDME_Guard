@@ -11,5 +11,12 @@ openai>=1.0.0
 # DB
 mysql-connector-python>=8.0.0
 
+# HTTP
+aiohttp>=3.9.0
+requests>=2.31.0
+
 # Utils
 python-dotenv>=1.0.0
+
+# UI (optional)
+gradio>=4.0.0
