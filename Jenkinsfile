@@ -68,7 +68,7 @@ pipeline {
                     echo "Waiting for AI server..."
                     for i in 1 2 3 4 5 6; do
                         sleep 15
-                        if curl -sf http://localhost:8000/healthz > /dev/null 2>&1; then
+                        if docker exec ai python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" 2>/dev/null; then
                             echo "AI health check passed (attempt $i)"
                             exit 0
                         fi
