@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import {createReservation, getAccessToken, getBookedTimes, getCards, requestPayment, reportVendor} from "@/lib/api"
+import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -2229,31 +2229,17 @@ function ReviewModal({
     setIsSubmitting(true)
     setError(null)
     try {
-      const token = getAccessToken()
-      const res = await fetch(`/api/vendors/${vendorId}/reviews`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: "include",
-        body: JSON.stringify({ rating, content: content.trim() }),
-      })
-      if (res.status === 400) {
-        setError("이미 리뷰를 작성했습니다.")
-        return
-      }
-      if (res.status === 403) {
-        setError("예약 내역이 없거나 커플 연결이 필요합니다.")
-        return
-      }
-      if (!res.ok) {
-        setError("리뷰 등록에 실패했습니다.")
-        return
-      }
+      await createReview(Number(vendorId), { rating, content: content.trim() })
       onSuccess()
-    } catch {
-      setError("네트워크 오류가 발생했습니다.")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ""
+      if (msg.includes("400") || msg.toLowerCase().includes("already") || msg.includes("이미")) {
+        setError("이미 리뷰를 작성했습니다.")
+      } else if (msg.includes("403") || msg.includes("커플") || msg.includes("예약")) {
+        setError("예약 내역이 없거나 커플 연결이 필요합니다.")
+      } else {
+        setError("리뷰 등록에 실패했습니다.")
+      }
     } finally {
       setIsSubmitting(false)
     }

@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(grep -r \"useState\\\\|useContext\\\\|useReducer\\\\|redux\\\\|zustand\" /c/sdmguard_fe/S14P21A105/fe/lib --include=*.ts --include=*.tsx)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs wc:*)"
     ]
   }
 }
