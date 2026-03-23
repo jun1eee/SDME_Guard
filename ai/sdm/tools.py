@@ -321,23 +321,42 @@ class ToolRegistry:
 
     # ── 4. search_related: 연관 추천 ──
 
+    # Hall 태그 → 스드메 스타일 매칭 키워드
+    _HALL_STYLE_MAP = {
+        "밝은": "밝은 화사한 자연광",
+        "어두운": "어두운 시크한 무드",
+        "야외": "야외 가든 로드씬",
+        "하우스": "프라이빗 아늑한 감성",
+        "채플": "클래식 우아한 격식",
+        "호텔": "하이엔드 프리미엄 럭셔리",
+        "일반 컨벤션": "웨딩촬영 일반",
+    }
+
     def search_related(self, source_name: str, target_category: str, couple_id: int, **_) -> ToolResult:
         query_text = ""
         region_hint = ""
+
         # Vendor에서 태그 조회
         records = self.engine.query_vendors_by_names([source_name])
         if records:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 태그/지역 조회
+        # Hall에서 조회 → 스타일 키워드를 스드메 검색어로 변환
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
                 region_hint = hall.region
-                # Hall 태그는 스드메 검색에 부적합할 수 있으므로, 스타일 필터 + 지역 위주
-                style_info = ' '.join(hall.style_filters[:5])
-                query_text = f"{hall.region} {style_info} 웨딩" if style_info else f"{hall.region} 웨딩"
+                # Hall 태그에서 스타일 키워드 추출 → 스드메 검색어 변환
+                style_words = []
+                for tag in hall.tags:
+                    mapped = self._HALL_STYLE_MAP.get(tag)
+                    if mapped:
+                        style_words.append(mapped)
+                if not style_words:
+                    style_words = ["웨딩촬영"]
+                query_text = " ".join(style_words)
+
         if not query_text:
             query_text = source_name
 
