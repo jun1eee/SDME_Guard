@@ -1844,6 +1844,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
     setStep("payment")
   }
 
+
   // 최종 결제 (계약금: 예약 생성 → 결제 / 잔금: 기존 예약으로 결제)
   const handlePayment = async () => {
     if (!selectedCardId || isSubmitting) return
