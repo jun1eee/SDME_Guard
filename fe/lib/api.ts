@@ -82,6 +82,11 @@ async function fetchApi<T>(
     throw new Error("인증이 만료되었습니다.")
   }
 
+  // 204 No Content는 body가 없으므로 json 파싱 생략
+  if (res.status === 204) {
+    return { status: 204, message: "", data: undefined as T }
+  }
+
   const data = await res.json()
   if (!res.ok) {
     throw new Error(data.message || `API Error: ${res.status}`)
@@ -504,7 +509,47 @@ export async function getVendorPayments(vendorId: number) {
   }[]>(`/payments/vendor/${vendorId}`)
 }
 
-// ─── 리뷰 삭제 ──────────────────────────────────────────────────────────
+// ─── 리뷰 ──────────────────────────────────────────────────────────────
+
+export interface MyReviewItem {
+  id: number
+  vendorId: number
+  vendorName: string
+  vendorCategory: string
+  rating: number
+  content: string
+  reviewedAt: string
+}
+
+export async function getMyReviews() {
+  return fetchApi<MyReviewItem[]>("/vendors/my")
+}
+
+export async function createReview(vendorId: number, data: { rating: number; content: string }) {
+  return fetchApi<{
+    id: number
+    rating: number
+    authorName: string | null
+    content: string
+    reviewedAt: string
+  }>(`/vendors/${vendorId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateReview(reviewId: number, data: { rating: number; content: string }) {
+  return fetchApi<{
+    id: number
+    rating: number
+    authorName: string | null
+    content: string
+    reviewedAt: string
+  }>(`/reviews/${reviewId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
+}
 
 export async function deleteReview(reviewId: number) {
   return fetchApi(`/reviews/${reviewId}`, { method: "DELETE" })
