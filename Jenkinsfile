@@ -16,6 +16,11 @@ pipeline {
         }
 
         stage('Build Backend') {
+            when {
+                expression {
+                    return env.gitlabSourceBranch == 'dev'
+                }
+            }
             steps {
                 dir('be') {
                     sh 'chmod +x ./gradlew'
@@ -25,6 +30,11 @@ pipeline {
         }
 
         stage('Build Frontend') {
+            when {
+                expression {
+                    return env.gitlabSourceBranch == 'dev'
+                }
+            }
             steps {
                 dir('fe') {
                     sh 'npm install'
@@ -41,9 +51,25 @@ pipeline {
                  }
              }
              steps {
-                 sh 'docker rm -f frontend backend nginx || true'
-                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml down --remove-orphans'
-                 sh 'docker-compose -f /var/jenkins_home/workspace/sdmguard/docker-compose.yml up -d --build'
+                 sh '''
+                     cd /var/jenkins_home/workspace/sdmguard
+                     docker compose up -d --build ai backend frontend nginx
+                 '''
+             }
+         }
+
+         stage('Health Check') {
+             when {
+                 expression {
+                     return env.gitlabActionType == 'PUSH' && env.gitlabSourceBranch == 'dev'
+                 }
+             }
+             steps {
+                 sh '''
+                     sleep 15
+                     curl -f http://localhost:8000/healthz || exit 1
+                     echo "AI health check passed"
+                 '''
              }
          }
     }
