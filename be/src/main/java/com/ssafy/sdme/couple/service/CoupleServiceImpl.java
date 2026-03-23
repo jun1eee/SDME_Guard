@@ -3,6 +3,11 @@ package com.ssafy.sdme.couple.service;
 import com.ssafy.sdme._global.exception.BadRequestException;
 import com.ssafy.sdme._global.exception.ConflictException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.chat.domain.CoupleChatMessage;
+import com.ssafy.sdme.chat.domain.CoupleChatRoom;
+import com.ssafy.sdme.chat.domain.MessageType;
+import com.ssafy.sdme.chat.repository.CoupleChatMessageRepository;
+import com.ssafy.sdme.chat.repository.CoupleChatRoomRepository;
 import com.ssafy.sdme.couple.domain.*;
 import com.ssafy.sdme.couple.dto.response.CoupleConnectResponse;
 import com.ssafy.sdme.couple.dto.response.CoupleInviteResponse;
@@ -33,6 +38,8 @@ public class CoupleServiceImpl implements CoupleService {
     private final CoupleRepository coupleRepository;
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final CoupleChatRoomRepository chatRoomRepository;
+    private final CoupleChatMessageRepository chatMessageRepository;
 
     @Override
     public CoupleInviteResponse createInviteCode(Long userId) {
@@ -116,6 +123,13 @@ public class CoupleServiceImpl implements CoupleService {
         invite.accept(userId);
 
         log.info("[Couple] 커플 매칭 완료 - coupleId: {}, inviter: {}, acceptor: {}", couple.getId(), inviter.getNickname(), acceptor.getNickname());
+
+        // 선호도 비교 → 차이 있으면 시스템 메시지 전송
+        try {
+            sendPreferenceDiffMessage(couple, inviter, acceptor);
+        } catch (Exception e) {
+            log.warn("[Couple] 선호도 비교 메시지 전송 실패 - {}", e.getMessage());
+        }
 
         return CoupleConnectResponse.of(couple.getId(), inviter.getNickname());
     }
@@ -211,6 +225,63 @@ public class CoupleServiceImpl implements CoupleService {
         }
 
         log.info("[Couple] 커플 매칭 해제 - userId: {}, coupleId: {}", userId, couple.getId());
+    }
+
+    private void sendPreferenceDiffMessage(Couple couple, User inviter, User acceptor) {
+        UserPreference pref1 = userPreferenceRepository.findByUserId(inviter.getId()).orElse(null);
+        UserPreference pref2 = userPreferenceRepository.findByUserId(acceptor.getId()).orElse(null);
+
+        if (pref1 == null || pref2 == null) return;
+
+        StringBuilder diff = new StringBuilder();
+
+        // 결혼 예정일 비교
+        if (pref1.getWeddingDate() != null && pref2.getWeddingDate() != null
+                && !pref1.getWeddingDate().equals(pref2.getWeddingDate())) {
+            diff.append("💍 결혼 예정일이 달라요! ")
+                .append(inviter.getName()).append(": ").append(pref1.getWeddingDate())
+                .append(" / ").append(acceptor.getName()).append(": ").append(pref2.getWeddingDate())
+                .append("\n");
+        }
+
+        // 예산 비교
+        if (pref1.getTotalBudget() != null && pref2.getTotalBudget() != null
+                && !pref1.getTotalBudget().equals(pref2.getTotalBudget())) {
+            diff.append("💰 예산이 달라요! ")
+                .append(inviter.getName()).append(": ").append(pref1.getTotalBudget()).append("만원")
+                .append(" / ").append(acceptor.getName()).append(": ").append(pref2.getTotalBudget()).append("만원")
+                .append("\n");
+        }
+
+        // 하객 수 비교
+        if (pref1.getGuestCount() != null && pref2.getGuestCount() != null
+                && !pref1.getGuestCount().equals(pref2.getGuestCount())) {
+            diff.append("👥 예상 하객 수가 달라요! ")
+                .append(inviter.getName()).append(": ").append(pref1.getGuestCount()).append("명")
+                .append(" / ").append(acceptor.getName()).append(": ").append(pref2.getGuestCount()).append("명")
+                .append("\n");
+        }
+
+        if (diff.isEmpty()) return;
+
+        String message = "🔔 커플 매칭이 완료되었어요!\n\n서로 입력한 정보가 조금 달라요. 한번 이야기해보세요!\n\n" + diff.toString().trim();
+
+        // 채팅방 생성 또는 조회
+        CoupleChatRoom room = chatRoomRepository.findByCoupleId(couple.getId())
+                .orElseGet(() -> chatRoomRepository.save(
+                        CoupleChatRoom.builder().coupleId(couple.getId()).build()
+                ));
+
+        // 시스템 메시지 저장 (senderId = 0으로 시스템 표시)
+        CoupleChatMessage systemMsg = CoupleChatMessage.builder()
+                .coupleChatRoomId(room.getId())
+                .senderUserId(0L)
+                .content(message)
+                .messageType(MessageType.system)
+                .build();
+        chatMessageRepository.save(systemMsg);
+
+        log.info("[Couple] 선호도 차이 시스템 메시지 전송 - coupleId: {}", couple.getId());
     }
 
     private String generateCode() {

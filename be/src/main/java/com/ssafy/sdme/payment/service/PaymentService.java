@@ -2,6 +2,8 @@ package com.ssafy.sdme.payment.service;
 
 import com.ssafy.sdme._global.exception.BadRequestException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.budget.dto.BudgetItemRequest;
+import com.ssafy.sdme.budget.service.BudgetService;
 import com.ssafy.sdme.payment.domain.CardInformation;
 import com.ssafy.sdme.payment.domain.Payment;
 import com.ssafy.sdme.payment.dto.PaymentRequest;
@@ -35,6 +37,7 @@ public class PaymentService {
     private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
     private final TossPaymentService tossPaymentService;
+    private final BudgetService budgetService;
 
     @Transactional
     public PaymentResponse processPayment(Long userId, PaymentRequest request) {
@@ -88,6 +91,18 @@ public class PaymentService {
             }
 
             log.info("[Payment] 결제 성공 - orderId: {}, amount: {}, paymentKey: {}", orderId, request.getAmount(), paymentKey);
+
+            // 계약금 결제 시 예산 항목에 실제 결제 총액(계약금 * 10)으로 추가
+            if (type == Payment.PaymentType.DEPOSIT) {
+                try {
+                    String budgetCategory = mapBudgetCategory(vendor.getCategory());
+                    int totalAmount = request.getAmount() * 10; // 계약금 10% → 총액 역산
+                    budgetService.addItemPaid(userId, new BudgetItemRequest(budgetCategory, vendor.getName(), vendor.getId(), totalAmount));
+                    log.info("[Payment] 예산 항목 자동 추가 - vendor: {}, amount: {}", vendor.getName(), totalAmount);
+                } catch (Exception ex) {
+                    log.warn("[Payment] 예산 항목 자동 추가 실패 - {}", ex.getMessage());
+                }
+            }
         } catch (Exception e) {
             payment.fail();
             log.error("[Payment] 결제 실패 - orderId: {}, error: {}", orderId, e.getMessage());
@@ -144,5 +159,15 @@ public class PaymentService {
                     vendor != null ? vendor.getCategory() : null,
                     vendor != null ? vendor.getImageUrl() : null);
         }).toList();
+    }
+
+    private String mapBudgetCategory(String vendorCategory) {
+        if (vendorCategory == null) return "웨딩홀";
+        return switch (vendorCategory.toUpperCase()) {
+            case "STUDIO" -> "스튜디오";
+            case "DRESS" -> "드레스";
+            case "MAKEUP" -> "메이크업";
+            default -> "웨딩홀";
+        };
     }
 }

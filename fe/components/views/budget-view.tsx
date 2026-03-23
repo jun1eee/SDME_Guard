@@ -27,13 +27,12 @@ interface BudgetViewProps {
 
 // ── 색상 팔레트 (핑크 모노톤) ──────────────────────────────────
 const PALETTE = [
-  { stroke: "#c76a85", bg: "#fce8ef", text: "#a04060" }, // deep rose
-  { stroke: "#e28aa3", bg: "#fdf0f4", text: "#c76a85" }, // rose
-  { stroke: "#f5a8c0", bg: "#fdf4f7", text: "#d4708e" }, // medium pink
-  { stroke: "#a84f6a", bg: "#f5d4df", text: "#803050" }, // darker rose
-  { stroke: "#f9cedd", bg: "#fdf8fa", text: "#e28aa3" }, // pale pink
-  { stroke: "#b86a82", bg: "#f8dde7", text: "#904060" }, // mid rose
-  { stroke: "#8a3a58", bg: "#f0ccd8", text: "#602030" }, // darkest rose
+  { stroke: "#d6336c", bg: "#ffe0ec", text: "#a61e4d" }, // 웨딩홀 - 진한 핫핑크
+  { stroke: "#f06595", bg: "#ffe8f0", text: "#c2255c" }, // 스튜디오 - 코랄 핑크
+  { stroke: "#862e9c", bg: "#f3d9fa", text: "#6a1b7a" }, // 드레스 - 보라 핑크
+  { stroke: "#ff8fab", bg: "#fff0f6", text: "#e64980" }, // 메이크업 - 밝은 핑크
+  { stroke: "#a3004f", bg: "#fce4ec", text: "#880e4f" }, // 허니문 - 딥 마젠타
+  { stroke: "#e8a0bf", bg: "#fdf2f8", text: "#b05080" }, // 기타 - 파스텔 핑크
 ]
 const REMAINING_COLOR = { stroke: "#dfe6e9", bg: "#f5f6fa", text: "#636e72" } // 회색 (남은 예산)
 
@@ -155,10 +154,10 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
     return map
   }, [items])
 
-  // 카테고리별 합산
+  // 카테고리별 합산 (체크된 항목만)
   const categoryTotals = useMemo(() => {
     const acc: Record<string, number> = {}
-    items.forEach((item) => {
+    items.filter((item) => item.isPaid).forEach((item) => {
       acc[item.category] = (acc[item.category] ?? 0) + item.amount
     })
     return Object.entries(acc)
@@ -176,8 +175,9 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
     [categoryTotals, total, totalBudget, colorMap]
   )
 
+  const allItemsTotal = items.reduce((s, i) => s + i.amount, 0)
   const paidAmount = items.filter((i) => i.isPaid).reduce((s, i) => s + i.amount, 0)
-  const budgetUsedPct = totalBudget > 0 ? Math.min(100, (total / totalBudget) * 100) : 0
+  const budgetUsedPct = totalBudget > 0 ? Math.min(100, (paidAmount / totalBudget) * 100) : 0
 
   // ── 핸들러 (API 연동) ─────────────────────────────────────
   const togglePaid = (id: string) =>
@@ -361,9 +361,9 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
         {/* ── 요약 수치 ── */}
         <div className="mb-5 grid grid-cols-3 gap-3">
           {[
-            { label: "총 지출", value: fmtShort(total), sub: "원" },
-            { label: "결제 완료", value: fmtShort(paidAmount), sub: "원" },
-            { label: "남은 예산", value: fmtShort(Math.max(0, totalBudget - total)), sub: "원" },
+            { label: "총 예상", value: fmtShort(allItemsTotal), sub: "원" },
+            { label: "확정 지출", value: fmtShort(paidAmount), sub: "원" },
+            { label: "남은 예산", value: fmtShort(Math.max(0, totalBudget - paidAmount)), sub: "원" },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl bg-card px-4 py-4 shadow-sm">
               <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -448,19 +448,20 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
 
                   {/* 이름 + 금액 편집 */}
                   {editingId === item.id ? (
-                    <div className="flex flex-1 items-center gap-1.5">
-                      {item.isCustom ? (
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="h-7 w-32 text-sm"
-                          placeholder="항목명"
-                          onKeyDown={(e) => e.key === "Enter" && saveEdit(item.id)}
-                          autoFocus
-                        />
-                      ) : (
-                        <p className="flex-1 text-sm text-foreground">{item.name}</p>
-                      )}
+                    <>
+                    {item.isPaid ? (
+                      <p className="flex-1 text-sm text-muted-foreground">{item.name}</p>
+                    ) : (
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-7 flex-1 text-sm"
+                        placeholder="항목명"
+                        onKeyDown={(e) => e.key === "Enter" && saveEdit(item.id)}
+                        autoFocus
+                      />
+                    )}
+                    <div className="flex items-center gap-1">
                       <Input
                         type="text"
                         inputMode="numeric"
@@ -483,6 +484,7 @@ export function BudgetView({ totalBudget: initialBudget }: BudgetViewProps) {
                         취소
                       </button>
                     </div>
+                    </>
                   ) : (
                     <>
                     <p className={`flex-1 text-sm ${item.isPaid ? "text-muted-foreground line-through" : "text-foreground"}`}>

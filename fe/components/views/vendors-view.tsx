@@ -1636,7 +1636,7 @@ export function VendorDetailView({
             setCurrentPaymentStep(1)
             setHasUsedBefore(true)
           } else {
-            setCurrentPaymentStep(step)
+            setCurrentPaymentStep(step as 1 | 2 | 3 | 4 | 5)
             setHasUsedBefore(false)
           }
         }} />
@@ -1662,7 +1662,7 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-t-3xl bg-background p-6 shadow-xl sm:rounded-3xl">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-6 shadow-xl sm:rounded-3xl">
         {children}
       </div>
     </div>
@@ -1693,6 +1693,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   const [loadingTimes, setLoadingTimes] = useState(false)
   const [reservationId, setReservationId] = useState<number | null>(null)
   const [paidDepositAmount, setPaidDepositAmount] = useState(0)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -1743,7 +1744,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   }
 
   const isVenue = vendorCategory === "venue"
-  const isBalancePayment = (paymentStep ?? 1) >= 2
+  const [isBalancePayment] = useState((paymentStep ?? 1) >= 2)
   const hasMultipleChoices = isVenue
     ? (halls && halls.length > 1)
     : (packages && packages.length > 1)
@@ -1833,7 +1834,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
           reservationTime: time,
           memo: notes || undefined,
         })
-        targetReservationId = resReservation.data?.id ?? resReservation.data
+        targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
       }
 
       // 결제 요청
@@ -2054,12 +2055,42 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
             }}>이전</Button>
             <Button
               className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
-              onClick={handlePayment}
+              onClick={() => setShowConfirm(true)}
               disabled={!selectedCardId || cards.length === 0 || isSubmitting}
             >
               {isSubmitting ? "결제 중..." : `${formatPrice(isBalancePayment ? balanceAmount : depositAmount)} 결제하기`}
             </Button>
           </div>
+
+          {/* 결제 확인 모달 */}
+          {showConfirm && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowConfirm(false)}>
+              <div className="mx-4 w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-foreground text-center mb-2">결제 확인</h3>
+                <p className="text-sm text-muted-foreground text-center mb-1">
+                  {isBalancePayment ? "잔금" : "계약금"} 결제를 진행하시겠습니까?
+                </p>
+                <p className="text-2xl font-bold text-foreground text-center mb-1">
+                  {formatPrice(isBalancePayment ? balanceAmount : depositAmount)}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mb-5">
+                  {cards.find(c => c.id === selectedCardId)?.cardBrand || "카드"} •••• {cards.find(c => c.id === selectedCardId)?.cardLast4}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setShowConfirm(false)}>
+                    취소
+                  </Button>
+                  <Button
+                    className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+                    onClick={() => { setShowConfirm(false); handlePayment() }}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "결제 중..." : "결제하기"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : step === "package" ? (
         <>

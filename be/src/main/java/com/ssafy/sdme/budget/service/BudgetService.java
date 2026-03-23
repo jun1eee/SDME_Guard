@@ -142,6 +142,36 @@ public class BudgetService {
     }
 
     @Transactional
+    public BudgetResponse addItemPaid(Long userId, BudgetItemRequest request) {
+        User user = getUser(userId);
+        Budget budget = getOrCreateBudget(user.getCoupleId(), user);
+
+        List<BudgetCategory> categories = categoryRepository.findByBudgetIdOrderByIdAsc(budget.getId());
+        BudgetCategory category = categories.stream()
+                .filter(c -> c.getName().equals(request.getCategory()))
+                .findFirst()
+                .orElseGet(() -> categoryRepository.save(
+                        BudgetCategory.builder()
+                                .budgetId(budget.getId())
+                                .name(request.getCategory())
+                                .allocated(0)
+                                .build()
+                ));
+
+        BudgetItem item = BudgetItem.builder()
+                .budgetCategoryId(category.getId())
+                .vendorId(request.getVendorId() != null ? request.getVendorId() : 0L)
+                .name(request.getName())
+                .amount(request.getAmount())
+                .build();
+        item.markPaid();
+        itemRepository.save(item);
+
+        log.info("[Budget] 결제 항목 자동 추가 (체크됨) - category: {}, name: {}, amount: {}", request.getCategory(), request.getName(), request.getAmount());
+        return getBudget(userId);
+    }
+
+    @Transactional
     public BudgetResponse updateItem(Long userId, Long itemId, BudgetCategoryUpdateRequest request) {
         BudgetItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("예산 항목을 찾을 수 없습니다."));
