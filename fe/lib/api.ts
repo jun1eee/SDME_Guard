@@ -457,6 +457,23 @@ export async function sendAiChat(data: {
   })
 }
 
+export interface AiChatHistoryItem {
+  id: number
+  sessionId: string
+  role: string
+  content: string
+  recommendations: string | null
+  createdAt: string
+}
+
+export async function getAiChatHistory(sessionId: string) {
+  return fetchApi<AiChatHistoryItem[]>(`/chat/ai/history/${sessionId}`)
+}
+
+export async function getAiChatSessions() {
+  return fetchApi<AiChatHistoryItem[]>("/chat/ai/sessions")
+}
+
 // ─── 카드 관리 ──────────────────────────────────────────────────────────
 
 export async function registerCard(data: { authKey: string; customerKey: string }) {
