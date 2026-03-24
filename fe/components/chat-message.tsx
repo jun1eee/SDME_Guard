@@ -12,12 +12,15 @@ interface ChatMessageProps {
   content: string
   isTyping?: boolean
   recommendations?: AiRecommendation[]
+  suggestions?: string[]
   onCardClick?: (rec: AiRecommendation) => void
+  onSuggestionClick?: (text: string) => void
 }
 
-export function ChatMessage({ role, content, isTyping, recommendations, onCardClick }: ChatMessageProps) {
+export function ChatMessage({ role, content, isTyping, recommendations, suggestions, onCardClick, onSuggestionClick }: ChatMessageProps) {
   const isUser = role === "user"
   const hasRecs = recommendations && recommendations.length > 0
+  const hasSuggestions = suggestions && suggestions.length > 0 && !isUser
 
   return (
     <div
@@ -80,7 +83,6 @@ export function ChatMessage({ role, content, isTyping, recommendations, onCardCl
                       <blockquote className="mb-2 border-l-2 border-primary/40 pl-3 text-muted-foreground">{children}</blockquote>
                     ),
                     hr: () => <hr className="my-2 border-border" />,
-                    // 외부 링크 제거 (크롤링 링크 방지)
                     a: ({ children }) => <span className="text-foreground">{children}</span>,
                   }}
                 >
@@ -94,6 +96,21 @@ export function ChatMessage({ role, content, isTyping, recommendations, onCardCl
                   recommendations={recommendations}
                   onCardClick={onCardClick}
                 />
+              )}
+
+              {/* 후속 질문 버튼 */}
+              {hasSuggestions && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {suggestions.map((text, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onSuggestionClick?.(text)}
+                      className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15 hover:border-primary/50 active:scale-95"
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
               )}
             </>
           )}
