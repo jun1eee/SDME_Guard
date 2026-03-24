@@ -7,6 +7,8 @@ import { registerBudgetTools } from "./tools/budget-tools.js"
 import { registerVendorTools } from "./tools/vendor-tools.js"
 import { registerPaymentTools } from "./tools/payment-tools.js"
 import { registerFavoriteTools } from "./tools/favorite-tools.js"
+import { registerVoteTools } from "./tools/vote-tools.js"
+import { registerReviewTools } from "./tools/review-tools.js"
 
 const API_URL = process.env.API_URL || "http://localhost:8080"
 const USER_ID = parseInt(process.env.USER_ID || "9")
@@ -29,6 +31,8 @@ async function main() {
   registerVendorTools(server, api, USER_ID)
   registerPaymentTools(server, api)
   registerFavoriteTools(server, api)
+  registerVoteTools(server, api)
+  registerReviewTools(server, api)
 
   // stdio 트랜스포트로 시작
   const transport = new StdioServerTransport()

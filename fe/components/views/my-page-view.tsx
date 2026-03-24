@@ -903,7 +903,7 @@ function McpTokenSection() {
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const mcpUrl = mcpToken ? `https://j14a105.p.ssafy.io/mcp/sse?token=${mcpToken}` : ""
+  const mcpUrl = mcpToken ? `https://j14a105.p.ssafy.io/mcp/?token=${mcpToken}` : ""
 
   const fetchToken = useCallback(async () => {
     try {

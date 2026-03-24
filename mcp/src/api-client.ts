@@ -34,6 +34,17 @@ export class ApiClient {
     return json.data ?? json
   }
 
+  async patch<T = any>(path: string, body?: any): Promise<T> {
+    const res = await fetch(`${this.baseUrl}/api${path}`, {
+      method: "PATCH",
+      headers: this.headers,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    if (!res.ok) throw new Error(`API 요청 실패: ${res.status} ${res.statusText}`)
+    const json = await res.json()
+    return json.data ?? json
+  }
+
   async put<T = any>(path: string, body?: any): Promise<T> {
     const res = await fetch(`${this.baseUrl}/api${path}`, {
       method: "PUT",

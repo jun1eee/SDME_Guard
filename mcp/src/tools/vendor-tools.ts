@@ -176,4 +176,26 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
       }
     }
   )
+
+  server.tool(
+    "report_vendor",
+    "업체를 신고합니다.",
+    {
+      vendorId: z.number().describe("업체 ID"),
+      reason: z.string().describe("신고 사유"),
+    },
+    async ({ vendorId, reason }) => {
+      try {
+        await api.post(`/vendors/${vendorId}/report`, { reason })
+        return {
+          content: [{
+            type: "text",
+            text: `✅ 업체(ID: ${vendorId})가 신고되었습니다.\n- 사유: ${reason}`,
+          }],
+        }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `업체 신고 실패: ${e.message}` }] }
+      }
+    }
+  )
 }
