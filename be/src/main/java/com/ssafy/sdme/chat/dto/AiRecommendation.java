@@ -19,4 +19,5 @@ public class AiRecommendation {
     private String imageUrl;
     private String contact;
     private String description;
+    private String hashtags;
 }

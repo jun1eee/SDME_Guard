@@ -436,6 +436,7 @@ export interface AiRecommendation {
   imageUrl: string | null
   contact: string | null
   description: string | null
+  hashtags: string | null
 }
 
 export async function sendAiChat(data: {

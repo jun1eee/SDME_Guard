@@ -13,4 +13,4 @@ CREATE TABLE IF NOT EXISTS `REVIEW` (
     INDEX `idx_review_couple_id` (`couple_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE REVIEW ADD COLUMN user_id BIGINT;
+
