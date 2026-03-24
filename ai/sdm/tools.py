@@ -228,6 +228,20 @@ TOOLS_SCHEMA = [
                           "description": "preference=취향, likes=찜목록, all=전체"},
         }, "required": ["info_type"]},
     }},
+    # 9. 웨딩홀/업체 투어 계획
+    {"type": "function", "function": {
+        "name": "plan_tour",
+        "description": "웨딩홀/업체 투어 동선 계획. 반드시 출발지, 교통수단, 방문 목적(단순투어/피팅·테스트)을 사용자에게 확인한 후 호출하세요.",
+        "parameters": {"type": "object", "properties": {
+            "hall_names": {"type": "array", "items": {"type": "string"},
+                           "description": "투어할 웨딩홀/업체 이름 목록"},
+            "start_location": {"type": "string", "description": "출발 위치 (예: 강남역). 필수 - 사용자에게 확인."},
+            "transport": {"type": "string", "enum": ["car", "transit", "walk"],
+                          "description": "이동 수단. 필수 - 사용자에게 확인."},
+            "visit_type": {"type": "string", "enum": ["tour", "fitting"],
+                           "description": "tour=단순 투어/견학(업체당 1시간), fitting=피팅/테스트촬영/메이크업 체험(업체당 2시간30분). 사용자에게 확인."},
+        }, "required": ["hall_names", "start_location", "transport", "visit_type"]},
+    }},
 ]
 
 
@@ -246,6 +260,7 @@ class ToolRegistry:
             "compare": self.compare,
             "filter_sort": self.filter_sort,
             "get_user_info": self.get_user_info,
+            "plan_tour": self.plan_tour,
         }
 
     def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
@@ -278,16 +293,42 @@ class ToolRegistry:
     def _search_hall(self, query: str) -> ToolResult:
         if not self.hall_engine or not self.hall_engine.driver:
             return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
-        from hall.graphrag import HallCriteria
-        criteria = HallCriteria()
+        criteria = self.hall_engine.extract_criteria(query)
         count = _extract_count(query)
-        halls = self.hall_engine.search(query=query, criteria=criteria, limit=count)
+        # 쿼리에서 예산/개수 등 숫자 조건 제거 → tokenizer가 의미없는 토큰 생성 방지
+        clean_query = self._clean_hall_query(query)
+        halls = self.hall_engine.search(query=clean_query, criteria=criteria, limit=count)
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
         records = [self._hall_to_dict(h) for h in halls]
         return ToolResult(result_type="raw",
                           data=json.dumps(records, ensure_ascii=False, default=str),
                           vendors=[h.name for h in halls])
+
+    @staticmethod
+    def _clean_hall_query(query: str) -> str:
+        """Hall 검색용 쿼리 정리: 예산/개수/동사 등 제거, 지역/스타일만 남김.
+        tokenizer가 의미없는 토큰을 생성하지 않도록 함."""
+        cleaned = query
+        # 예산 표현 제거 (예산 3000만원대, 2000만원 이하 등)
+        cleaned = re.sub(r"예산\s*", "", cleaned)
+        cleaned = re.sub(r"\d+\s*(천|백)?\s*만원(대|이하|이상|정도|쯤)?", "", cleaned)
+        # 개수 표현 제거
+        cleaned = re.sub(r"\d+\s*(?:개|곳|군데)", "", cleaned)
+        # 식대 표현 제거
+        cleaned = re.sub(r"식대\s*\d+\s*만원?", "", cleaned)
+        cleaned = re.sub(r"인당\s*\d+\s*만원?", "", cleaned)
+        # 하객수 제거
+        cleaned = re.sub(r"\d+\s*명", "", cleaned)
+        # 의미없는 동사/조사/필러 제거 (tokenizer 오염 방지)
+        filler = r"\b(있어|있나|있나요|있을까|있을까요|알려줘|알려주세요|찾아줘|보여줘|추천해줘|추천해주세요|어때|어떄|어떤|좋은|괜찮은|이하|이상|정도|대|해줘)\b"
+        cleaned = re.sub(filler, "", cleaned)
+        cleaned = re.sub(r"[?\s]+", " ", cleaned).strip()
+        # 정리 후 의미있는 한글이 없으면 빈 쿼리 (tokenizer가 빈 토큰 리스트 → 필터 없음)
+        remaining_words = re.findall(r"[가-힣]{2,}", cleaned)
+        if not remaining_words:
+            return ""
+        return cleaned
 
     # ── 2. search_style: 스타일 검색 ──
 
@@ -321,15 +362,35 @@ class ToolRegistry:
 
     # ── 4. search_related: 연관 추천 ──
 
-    # Hall 태그 → 스드메 스타일 매칭 키워드
-    _HALL_STYLE_MAP = {
-        "밝은": "밝은 화사한 자연광",
-        "어두운": "어두운 시크한 무드",
-        "야외": "야외 가든 로드씬",
-        "하우스": "프라이빗 아늑한 감성",
-        "채플": "클래식 우아한 격식",
-        "호텔": "하이엔드 프리미엄 럭셔리",
-        "일반 컨벤션": "웨딩촬영 일반",
+    # Hall 스타일 → 카테고리별 스드메 검색 키워드
+    _HALL_STYLE_MAP_BY_CAT = {
+        "studio": {
+            "밝은": "밝은 화사한 자연광 촬영",
+            "어두운": "어두운 시크한 무드 촬영",
+            "야외": "야외 가든 로드씬 촬영",
+            "하우스": "프라이빗 감성 웨딩촬영",
+            "채플": "클래식 우아한 웨딩촬영",
+            "호텔": "고급 럭셔리 웨딩촬영",
+            "일반 컨벤션": "웨딩촬영",
+        },
+        "dress": {
+            "밝은": "화이트 로맨틱 드레스",
+            "어두운": "시크 모던 드레스",
+            "야외": "야외 가든 드레스",
+            "하우스": "감성 드레스",
+            "채플": "클래식 우아한 드레스",
+            "호텔": "고급 럭셔리 드레스",
+            "일반 컨벤션": "웨딩 드레스",
+        },
+        "makeup": {
+            "밝은": "화사한 내추럴 메이크업",
+            "어두운": "시크 스모키 메이크업",
+            "야외": "자연스러운 메이크업",
+            "하우스": "감성 메이크업",
+            "채플": "클래식 우아한 메이크업",
+            "호텔": "고급 글래머러스 메이크업",
+            "일반 컨벤션": "웨딩 메이크업",
+        },
     }
 
     def search_related(self, source_name: str, target_category: str, couple_id: int, **_) -> ToolResult:
@@ -342,19 +403,21 @@ class ToolRegistry:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 스타일 키워드를 스드메 검색어로 변환
+        # Hall에서 조회 → 타겟 카테고리에 맞는 키워드로 변환
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
                 region_hint = hall.region
-                # Hall 태그에서 스타일 키워드 추출 → 스드메 검색어 변환
+                cat_map = self._HALL_STYLE_MAP_BY_CAT.get(target_category, {})
                 style_words = []
-                for tag in hall.tags:
-                    mapped = self._HALL_STYLE_MAP.get(tag)
+                for tag in hall.tags + hall.style_filters:
+                    mapped = cat_map.get(tag)
                     if mapped:
                         style_words.append(mapped)
                 if not style_words:
-                    style_words = ["웨딩촬영"]
+                    # 기본 키워드: 타겟 카테고리 자체
+                    default_kw = {"studio": "웨딩촬영", "dress": "웨딩 드레스", "makeup": "웨딩 메이크업"}
+                    style_words = [default_kw.get(target_category, "웨딩")]
                 query_text = " ".join(style_words)
 
         if not query_text:
@@ -433,6 +496,29 @@ class ToolRegistry:
             else:
                 parts.append("찜 목록: 없음")
         return ToolResult(result_type="direct", data="\n\n".join(parts), vendors=[])
+
+    # ── 9. plan_tour: 웨딩홀 투어 계획 ──
+
+    def plan_tour(self, hall_names: list[str], couple_id: int,
+                  start_location: str = None, transport: str = "car",
+                  visit_type: str = "tour", **_) -> ToolResult:
+        if not self.hall_engine or not self.hall_engine.driver:
+            return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
+        # 방문 유형에 따른 소요시간: 단순투어 60분, 피팅/테스트 150분
+        visit_duration = 150 if visit_type == "fitting" else 60
+        result = self.hall_engine.plan_tour(
+            hall_names=hall_names,
+            start_location=start_location,
+            transport=transport,
+            visit_duration=visit_duration,
+        )
+        halls = result.get("ordered_halls", [])
+        vendor_names = [h.get("name", "") for h in halls]
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(result, ensure_ascii=False, default=str),
+            vendors=vendor_names,
+        )
 
     # ── 유틸 ──
 

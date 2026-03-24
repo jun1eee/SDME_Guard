@@ -160,6 +160,7 @@ public class AiChatService {
                         .imageUrl(vendor.getImageUrl())
                         .contact(vendor.getContact())
                         .description(vendor.getDescription())
+                        .hashtags(vendor.getHashtags())
                         .build());
             } else {
                 // MySQL에 없는 경우 (웨딩홀 등) — AI 데이터만으로 구성
