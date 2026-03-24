@@ -2,6 +2,8 @@ package com.ssafy.sdme.reservation.service;
 
 import com.ssafy.sdme._global.exception.BadRequestException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.budget.dto.BudgetItemRequest;
+import com.ssafy.sdme.budget.service.BudgetService;
 import com.ssafy.sdme.payment.domain.Payment;
 import com.ssafy.sdme.payment.repository.PaymentRepository;
 import com.ssafy.sdme.reservation.domain.Reservation;
@@ -40,6 +42,7 @@ public class ReservationService {
     private final PaymentRepository paymentRepository;
     private final ScheduleService scheduleService;
     private final ScheduleRepository scheduleRepository;
+    private final BudgetService budgetService;
 
     @Transactional
     public Reservation createReservation(Long userId, ReservationRequest request) {
@@ -84,6 +87,7 @@ public class ReservationService {
         } catch (Exception e) {
             log.warn("[Reservation] 일정 자동 추가 실패 - {}", e.getMessage());
         }
+
 
         log.info("[Reservation] 예약 생성 - userId: {}, vendorId: {}", userId, request.getVendorId());
         return reservation;
@@ -154,6 +158,16 @@ public class ReservationService {
                 .map(r -> r.getReservationTime() != null ? r.getReservationTime().toString().substring(0, 5) : "")
                 .filter(t -> !t.isEmpty())
                 .toList();
+    }
+
+    private String mapBudgetCategory(String vendorCategory) {
+        if (vendorCategory == null) return "웨딩홀";
+        return switch (vendorCategory.toUpperCase()) {
+            case "STUDIO" -> "스튜디오";
+            case "DRESS" -> "드레스";
+            case "MAKEUP" -> "메이크업";
+            default -> "웨딩홀";
+        };
     }
 
     private Schedule.ScheduleCategory mapCategory(String vendorCategory) {

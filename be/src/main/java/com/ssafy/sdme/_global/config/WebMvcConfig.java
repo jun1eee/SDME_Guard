@@ -24,7 +24,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOrigins(
                         "http://localhost:3000",
                         "http://localhost:5173",
-                        "http://localhost:5174"
+                        "http://localhost:5174",
+                        "http://j14a105.p.ssafy.io",
+                        "https://j14a105.p.ssafy.io"
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
@@ -40,6 +42,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         ApiPath.PATH + "/auth/kakao",
                         ApiPath.PATH + "/auth/reissue",
                         ApiPath.PATH + "/auth/test-login/**",
+                        ApiPath.PATH + "/mcp/auth",
                         ApiPath.PATH + "/vendors",
                         ApiPath.PATH + "/chat/ai",
                         "/swagger-ui/**",

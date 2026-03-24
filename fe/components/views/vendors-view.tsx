@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
-  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck,
+  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,7 +99,7 @@ interface Vendor {
   floor?: string
   rating: number
   reviewCount: number
-  paymentStep: 1 | 2 | 3 | 4 | 5
+  paymentStep: 0 | 1 | 2 | 3 | 4 | 5
   price: string
   isFavorite: boolean
   packages?: VendorPackage[]
@@ -206,7 +206,7 @@ function mapListItemToVendor(item: VendorListItem): Vendor {
     address: "주소 정보 없음",
     rating: Number(((item.rating ?? 0) / 20).toFixed(1)),
     reviewCount: item.reviewCount ?? 0,
-    paymentStep: 1,
+    paymentStep: 0,
     price: item.price != null ? `${item.price.toLocaleString("ko-KR")}원` : "문의",
     isFavorite: false,
     coverUrl: item.imageUrl ?? undefined,
@@ -589,7 +589,29 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
             ...v,
             isFavorite: favoriteVendorIds?.includes(v.id) ?? false,
           }))
-          setVendors(mapped.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i))
+          const deduped = mapped.filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i)
+          // 결제 현황 반영: 실제 결제가 있는 업체만 paymentStep 업데이트
+          import("@/lib/api").then(({ getPayments }) => {
+            getPayments()
+              .then((payRes) => {
+                const paymentMap: Record<string, number> = {}
+                payRes.data.forEach((p: any) => {
+                  if (p.status !== "DONE") return
+                  const vid = String(p.vendorId)
+                  if (p.type === "BALANCE") {
+                    paymentMap[vid] = Math.max(paymentMap[vid] ?? 0, 3) // 잔금 완료
+                  } else if (p.type === "DEPOSIT") {
+                    paymentMap[vid] = Math.max(paymentMap[vid] ?? 0, 1) // 계약금 완료 → 서비스 진행중
+                  }
+                })
+                if (!cancelled) {
+                  setVendors(deduped.map((v) =>
+                    paymentMap[v.id] != null ? { ...v, paymentStep: paymentMap[v.id] as Vendor["paymentStep"] } : v
+                  ))
+                }
+              })
+              .catch(() => { if (!cancelled) setVendors(deduped) })
+          }).catch(() => { if (!cancelled) setVendors(deduped) })
           setNextCursor(cursor)
         }
       } catch (e) {
@@ -924,11 +946,13 @@ function VendorCard({
           ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
           : <div className="flex h-full items-center justify-center text-sm text-muted-foreground/40">{catLabel}</div>
         }
-        <div className="absolute inset-x-3 top-3 flex items-center justify-end">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
-            {stepLabel}
-          </span>
-        </div>
+        {stepLabel && (
+          <div className="absolute inset-x-3 top-3 flex items-center justify-end">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stepBadgeStyle(vendor.paymentStep)}`}>
+              {stepLabel}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -1006,7 +1030,7 @@ export function VendorDetailView({
   const [addrCopied, setAddrCopied] = useState(false)
   const [reviewPage, setReviewPage] = useState(5)
   const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
-  const [currentPaymentStep, setCurrentPaymentStep] = useState(vendor.paymentStep)
+  const [currentPaymentStep, setCurrentPaymentStep] = useState<number>(vendor.paymentStep)
   const [reservationDate, setReservationDate] = useState<string | null>(null)
   const [hasUsedBefore, setHasUsedBefore] = useState(false)
   const vendorId = vendor.id
@@ -1263,20 +1287,26 @@ export function VendorDetailView({
               <h2 className="mb-4 text-sm font-semibold text-foreground">용도별 패키지</h2>
 
               {vendor.packages.length > 1 && (
-                <div className="mb-4 flex gap-1.5 rounded-xl bg-muted p-1">
-                  {vendor.packages.map((pkg) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setSelectedPkgId(pkg.id)}
-                      className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
-                        selectedPkgId === pkg.id
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground"
-                      }`}
+                <div className="mb-4">
+                  <div className="relative">
+                    <select
+                      value={selectedPkgId ?? ""}
+                      onChange={(e) => setSelectedPkgId(e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-border bg-muted px-4 py-2.5 pr-9 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      {pkg.name}
-                    </button>
-                  ))}
+                      {vendor.packages.map((pkg) => (
+                        <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <svg className="size-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-right text-xs text-muted-foreground">
+                    {vendor.packages.findIndex(p => p.id === selectedPkgId) + 1} / {vendor.packages.length}개 패키지
+                  </p>
                 </div>
               )}
 
@@ -1706,7 +1736,7 @@ export function VendorDetailView({
             setCurrentPaymentStep(1)
             setHasUsedBefore(true)
           } else {
-            setCurrentPaymentStep(step)
+            setCurrentPaymentStep(step as 1 | 2 | 3 | 4 | 5)
             setHasUsedBefore(false)
           }
         }} />
@@ -1716,7 +1746,10 @@ export function VendorDetailView({
           vendorId={vendor.id}
           vendorName={vendor.name}
           onClose={() => setShowReview(false)}
-          onSuccess={() => { setShowReview(false); void fetchReviews() }}
+          onSuccess={(newReview) => {
+            setShowReview(false)
+            setReviews((prev) => [newReview, ...prev])
+          }}
         />
       )}
       {showReport && (
@@ -1732,7 +1765,7 @@ function ModalShell({ onClose, children }: { onClose: () => void; children: Reac
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-t-3xl bg-background p-6 shadow-xl sm:rounded-3xl">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl bg-background p-6 shadow-xl sm:rounded-3xl">
         {children}
       </div>
     </div>
@@ -1763,6 +1796,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   const [loadingTimes, setLoadingTimes] = useState(false)
   const [reservationId, setReservationId] = useState<number | null>(null)
   const [paidDepositAmount, setPaidDepositAmount] = useState(0)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -1813,7 +1847,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
   }
 
   const isVenue = vendorCategory === "venue"
-  const isBalancePayment = (paymentStep ?? 1) >= 2
+  const [isBalancePayment] = useState((paymentStep ?? 1) >= 2)
   const hasMultipleChoices = isVenue
     ? (halls && halls.length > 1)
     : (packages && packages.length > 1)
@@ -1880,6 +1914,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
     setStep("payment")
   }
 
+
   // 최종 결제 (계약금: 예약 생성 → 결제 / 잔금: 기존 예약으로 결제)
   const handlePayment = async () => {
     if (!selectedCardId || isSubmitting) return
@@ -1903,7 +1938,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
           reservationTime: time,
           memo: notes || undefined,
         })
-        targetReservationId = resReservation.data?.id ?? resReservation.data
+        targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
       }
 
       // 결제 요청
@@ -1962,7 +1997,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         <div className="py-8 text-center">
           <CalendarCheck className="mx-auto size-12 text-primary mb-3" />
           <p className="text-lg font-semibold text-foreground">
-            {isBalancePayment ? "잔금 결제가 완료되었습니다!" : "예약 및 결제가 완료되었습니다!"}
+            {isBalancePayment ? "잔금 결제가 완료되었습니다!" : "계약금 결제가 완료되었습니다!"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">{date} {time}</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -1976,17 +2011,34 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         </div>
       ) : step === "payment" ? (
         <>
-          <div className="overflow-y-auto max-h-[70vh] space-y-5 pr-1">
-            {/* 선택된 패키지/홀 - 계약금 결제일 때만 */}
-            {!isBalancePayment && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">{isVenue ? "선택 홀" : "선택 패키지"}</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                  <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
+          <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
+
+            {/* 주문 정보 */}
+            <div className="rounded-xl bg-muted/30 p-4 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">주문 정보</p>
+
+              {/* 선택 상품 */}
+              {!isBalancePayment && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-background">
+                      <Building2 className="size-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{isVenue ? (selectedHall?.name ?? "선택 없음") : (selectedPkg?.name ?? "기본 패키지")}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* 예약 일시 */}
+              {(date || time) && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarCheck className="size-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{date}</span>
+                  {time && <span className="text-muted-foreground">{time}</span>}
+                </div>
+              )}
+            </div>
 
             {/* 추가상품 - 계약금 결제일 때만 */}
             {!isBalancePayment && addons && addons.length > 0 && (
@@ -2040,96 +2092,173 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
               )}
             </div>
 
-            {/* 결제 금액 요약 */}
-            <div className="rounded-xl bg-muted p-4 space-y-2">
-              {isBalancePayment ? (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">총 금액</span>
-                    <span className="font-medium">{paidDepositAmount > 0 ? formatPrice(paidDepositAmount * 10) : "—"}</span>
+            {/* 결제 금액 */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/30 px-4 py-2.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">결제 금액</p>
+              </div>
+              <div className="p-4 space-y-2.5">
+                {isBalancePayment ? (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">총 서비스 금액</span>
+                      <span className="font-medium">{paidDepositAmount > 0 ? formatPrice(paidDepositAmount * 10) : "—"}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">납입 계약금</span>
+                      <span className="font-medium text-emerald-600">-{formatPrice(paidDepositAmount)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">서비스 금액</span>
+                      <span className="font-medium">{formatPrice(totalPrice)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">계약금 비율</span>
+                      <span className="font-medium">10%</span>
+                    </div>
+                  </>
+                )}
+                <div className="border-t border-border pt-2.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold text-foreground">결제할 금액</span>
+                    <span className="text-xl font-bold text-primary">{formatPrice(isBalancePayment ? balanceAmount : depositAmount)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">납입 계약금 (10%)</span>
-                    <span className="font-medium text-emerald-600">-{formatPrice(paidDepositAmount)}</span>
-                  </div>
-                  <div className="border-t border-border pt-2 mt-1" />
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold text-foreground">잔금 (90%)</span>
-                    <span className="text-lg font-bold text-foreground">{formatPrice(balanceAmount)}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{isVenue ? (selectedHall?.name ?? "홀") : (selectedPkg?.name ?? "기본 패키지")}</span>
-                    <span className="font-medium">{basePrice ? formatPrice(basePrice) : "가격 문의"}</span>
-                  </div>
-                  {selectedAddons.map(id => {
-                    const addon = addons?.find(a => a.id === id)
-                    if (!addon) return null
-                    return (
-                      <div key={id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{addon.name}</span>
-                        <span className="font-medium">{formatPrice(addon.price)}</span>
-                      </div>
-                    )
-                  })}
-                  <div className="border-t border-border pt-2 mt-1" />
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold text-foreground">총 금액</span>
-                    <span className="font-bold text-foreground">{formatPrice(totalPrice)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">계약금 (10%)</span>
-                    <span className="text-lg font-bold text-foreground">{formatPrice(depositAmount)}</span>
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
             {/* 결제 수단 */}
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">결제 수단</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">결제 수단</p>
               {loadingCards ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">카드 정보 불러오는 중...</p>
               ) : cards.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">등록된 카드가 없습니다</p>
-                  <p className="text-xs text-muted-foreground">마이페이지에서 카드를 먼저 등록해주세요</p>
+                  <CreditCard className="mx-auto mb-2 size-8 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground mb-1">등록된 카드가 없습니다</p>
+                  <p className="text-xs text-muted-foreground mb-3">결제하려면 카드를 먼저 등록해주세요</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { getTossClientKey } = await import("@/lib/api")
+                        const keyRes = await getTossClientKey()
+                        const clientKey = keyRes.data.clientKey
+                        const customerKey = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8)
+                        const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk")
+                        const toss = await loadTossPayments(clientKey)
+                        const payment = toss.payment({ customerKey })
+                        await payment.requestBillingAuth({
+                          method: "CARD",
+                          successUrl: window.location.origin + "/cards/success",
+                          failUrl: window.location.origin + "/cards/fail",
+                        })
+                      } catch {}
+                    }}
+                    className="rounded-lg bg-foreground px-4 py-2 text-xs font-medium text-background hover:bg-foreground/90"
+                  >
+                    카드 등록하기
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {cards.map((card) => (
-                    <button
-                      key={card.id}
-                      onClick={() => setSelectedCardId(card.id)}
-                      className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                        selectedCardId === card.id
-                          ? "border-primary bg-primary/5 text-foreground"
-                          : "border-border text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      {card.cardBrand || "카드"} •••• {card.cardLast4}
-                    </button>
-                  ))}
+                  {cards.map((card) => {
+                    const BRANDS: Record<string, string> = {
+                      "11": "KB국민", "41": "신한", "51": "삼성", "21": "하나", "61": "현대",
+                      "33": "우리", "W1": "우리", "71": "롯데", "91": "NH농협", "31": "BC",
+                      "15": "카카오뱅크", "24": "토스뱅크", "3A": "케이뱅크",
+                    }
+                    const BRAND_COLORS: Record<string, string> = {
+                      "11": "from-amber-400 to-amber-600", "41": "from-blue-400 to-blue-600",
+                      "51": "from-blue-500 to-indigo-700", "21": "from-teal-400 to-teal-600",
+                      "61": "from-gray-700 to-gray-900", "33": "from-sky-400 to-sky-600",
+                      "W1": "from-sky-400 to-sky-600", "71": "from-red-400 to-red-600",
+                      "91": "from-green-500 to-green-700", "31": "from-rose-400 to-rose-600",
+                      "15": "from-yellow-300 to-yellow-500", "24": "from-blue-300 to-blue-500",
+                    }
+                    const brandName = BRANDS[card.cardBrand] || card.cardBrand || "카드"
+                    const brandColor = BRAND_COLORS[card.cardBrand] || "from-slate-500 to-slate-700"
+                    const selected = selectedCardId === card.id
+                    return (
+                      <button
+                        key={card.id}
+                        onClick={() => setSelectedCardId(card.id)}
+                        className={`flex w-full items-center gap-3.5 rounded-xl border-2 px-3.5 py-3 text-left transition-all ${
+                          selected
+                            ? "border-primary shadow-sm"
+                            : "border-transparent bg-muted/40 hover:bg-muted/60"
+                        }`}
+                      >
+                        {/* 미니 카드 */}
+                        <div className={`relative h-10 w-14 shrink-0 rounded-lg bg-gradient-to-br ${brandColor} p-1.5 shadow-sm`}>
+                          <div className="absolute top-1.5 left-1.5 size-2.5 rounded-sm bg-yellow-200/70" />
+                          <div className="absolute bottom-1.5 right-1.5 flex gap-0.5">
+                            <div className="size-2 rounded-full bg-white/40" />
+                            <div className="size-2 rounded-full bg-white/25 -ml-1" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{brandName}</p>
+                          <p className="text-xs text-muted-foreground">{card.cardLast4}</p>
+                        </div>
+                        <div className={`flex size-5 items-center justify-center rounded-full border-2 transition-colors ${
+                          selected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                        }`}>
+                          {selected && <Check className="size-3 text-primary-foreground" />}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mt-5 flex gap-2">
-            <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => {
-              if (packages && packages.length > 1) setStep("package")
-              else setStep("schedule")
-            }}>이전</Button>
+          <div className="mt-5 space-y-2">
             <Button
-              className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
-              onClick={handlePayment}
+              className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 text-base font-semibold"
+              onClick={() => setShowConfirm(true)}
               disabled={!selectedCardId || cards.length === 0 || isSubmitting}
             >
               {isSubmitting ? "결제 중..." : `${formatPrice(isBalancePayment ? balanceAmount : depositAmount)} 결제하기`}
             </Button>
+            <Button variant="ghost" className="w-full h-9 text-sm text-muted-foreground" onClick={() => {
+              if (packages && packages.length > 1) setStep("package")
+              else setStep("schedule")
+            }}>이전으로 돌아가기</Button>
           </div>
+
+          {/* 결제 확인 모달 */}
+          {showConfirm && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={() => setShowConfirm(false)}>
+              <div className="mx-4 w-full max-w-sm rounded-2xl bg-background p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-foreground text-center mb-2">결제 확인</h3>
+                <p className="text-sm text-muted-foreground text-center mb-1">
+                  {isBalancePayment ? "잔금" : "계약금"} 결제를 진행하시겠습니까?
+                </p>
+                <p className="text-2xl font-bold text-foreground text-center mb-1">
+                  {formatPrice(isBalancePayment ? balanceAmount : depositAmount)}
+                </p>
+                <p className="text-xs text-muted-foreground text-center mb-5">
+                  {cards.find(c => c.id === selectedCardId)?.cardBrand || "카드"} •••• {cards.find(c => c.id === selectedCardId)?.cardLast4}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setShowConfirm(false)}>
+                    취소
+                  </Button>
+                  <Button
+                    className="flex-1 h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90"
+                    onClick={() => { setShowConfirm(false); handlePayment() }}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "결제 중..." : "결제하기"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       ) : step === "package" ? (
         <>
@@ -2286,7 +2415,7 @@ function ReviewModal({
   vendorId: string
   vendorName: string
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (review: VendorReview) => void
 }) {
   const [rating, setRating] = useState(5)
   const [hover, setHover] = useState(0)
@@ -2299,8 +2428,14 @@ function ReviewModal({
     setIsSubmitting(true)
     setError(null)
     try {
-      await createReview(Number(vendorId), { rating, content: content.trim() })
-      onSuccess()
+      const res = await createReview(Number(vendorId), { rating, content: content.trim() })
+      onSuccess({
+        id: String(res.data.id),
+        authorName: res.data.authorName ?? "나",
+        rating: res.data.rating,
+        content: res.data.content,
+        date: res.data.reviewedAt?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : ""
       if (msg.includes("400") || msg.toLowerCase().includes("already") || msg.includes("이미")) {

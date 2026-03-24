@@ -8,6 +8,7 @@ spring:
     show-sql: false
   flyway:
     enabled: true
+    validate-on-migrate: false
 
 logging:
   level:
@@ -21,3 +22,8 @@ server:
 
 ai:
   server-url: http://ai:8000
+
+toss:
+  payments:
+    secret-key: test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R
+    client-key: test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq

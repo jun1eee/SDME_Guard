@@ -12,9 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -40,6 +38,18 @@ public class  CoupleChatController {
     public void notify(ChatMessageRequest request) {
         String payload = "{\"type\":\"vendor_unshare\",\"vendorId\":\"" + request.getVendorId() + "\",\"senderId\":" + request.getSenderId() + "}";
         messagingTemplate.convertAndSend("/topic/couple/" + request.getCoupleId(), payload);
+    }
+
+    // REST: 채팅 메시지 전송 (MCP 등 외부에서 사용)
+    @Operation(summary = "채팅 메시지 전송", description = "REST API로 커플 채팅 메시지를 전송합니다.")
+    @PostMapping("/couple/messages")
+    public ApiResponse<ChatMessageResponse> sendMessageRest(@RequestBody ChatMessageRequest request,
+                                                             HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        ChatMessageResponse response = chatService.saveAndCreateResponse(request);
+        messagingTemplate.convertAndSend("/topic/couple/" + request.getCoupleId(), response);
+        log.info("[CoupleChatController] REST 채팅 전송 - userId: {}, type: {}", userId, request.getMessageType());
+        return ApiResponse.ok(response);
     }
 
     // REST: 채팅 히스토리 조회

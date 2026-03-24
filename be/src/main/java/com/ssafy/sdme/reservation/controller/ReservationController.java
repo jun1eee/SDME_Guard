@@ -24,6 +24,14 @@ public class ReservationController {
 
     private final ReservationService reservationService;
 
+    @Operation(summary = "예약 생성", description = "업체에 예약을 생성합니다.")
+    @PostMapping
+    public ApiResponse<Reservation> createReservation(@RequestBody ReservationRequest reservationRequest,
+                                                       HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        return ApiResponse.ok(reservationService.createReservation(userId, reservationRequest));
+    }
+
     @Operation(summary = "예약 내역 조회", description = "커플의 예약 내역을 조회합니다.")
     @GetMapping
     public ApiResponse<List<ReservationResponse>> getReservations(HttpServletRequest request) {

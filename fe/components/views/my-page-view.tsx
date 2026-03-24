@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -842,6 +842,9 @@ export function MyPageView({
           </div>
         )}
 
+        {/* AI 어시스턴트 연동 */}
+        <McpTokenSection />
+
         {/* 회원탈퇴 */}
         <div className={`${coupleConnected ? "mt-6" : "mt-10"} border-t border-border pt-6`}>
           {!deleteConfirm ? (
@@ -893,7 +896,230 @@ export function MyPageView({
   )
 }
 
+// ─── AI 어시스턴트 연동 섹션 ──────────────────────────────────────────
+
+function McpTokenSection() {
+  const [mcpToken, setMcpToken] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const mcpUrl = mcpToken ? `https://j14a105.p.ssafy.io/mcp/?token=${mcpToken}` : ""
+
+  const fetchToken = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await getMcpToken()
+      setMcpToken(res.data.token)
+    } catch {
+      // 토큰 없음
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchToken()
+  }, [fetchToken])
+
+  const handleRefresh = async () => {
+    try {
+      setLoading(true)
+      const res = await refreshMcpToken()
+      setMcpToken(res.data.token)
+    } catch {
+      alert("토큰 재발급에 실패했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(mcpUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="mt-6 border-t border-border pt-6">
+      <h2 className="mb-3 text-lg font-semibold text-foreground">AI 어시스턴트 연동</h2>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Claude Desktop에서 SDM Guard를 자연어로 사용할 수 있습니다.
+      </p>
+
+      {mcpToken ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">내 MCP 연동 URL</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-background px-3 py-2 text-xs text-foreground">
+                {mcpUrl}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copied ? "복사됨" : "복사"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              토큰이 유출된 경우 재발급하세요.
+            </p>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {loading ? "발급 중..." : "재발급"}
+            </button>
+          </div>
+
+          <details className="rounded-xl border border-border bg-muted/10 p-4">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">연동 방법 보기</summary>
+            <ol className="mt-3 space-y-2 text-xs text-muted-foreground">
+              <li>1. <a href="https://claude.ai/download" target="_blank" rel="noopener noreferrer" className="text-primary underline">Claude Desktop</a>을 설치하세요</li>
+              <li>2. 위 URL을 복사하세요</li>
+              <li>3. Claude Desktop → 설정 → 커넥터 → 커스텀 커넥터 추가</li>
+              <li>4. 이름: <strong>SDM Guard</strong>, URL: 복사한 URL 붙여넣기</li>
+              <li>5. &quot;내 예약 보여줘&quot; 라고 말해보세요!</li>
+            </ol>
+          </details>
+        </div>
+      ) : (
+        <button
+          onClick={fetchToken}
+          disabled={loading}
+          className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          {loading ? "발급 중..." : "토큰 발급하기"}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── 카드 관리 섹션 ──────────────────────────────────────────────────
+
+const CARD_BRANDS: Record<string, string> = {
+  "3K": "기업BC", "46": "광주", "71": "롯데", "30": "산업", "31": "BC", "51": "삼성",
+  "38": "새마을", "41": "신한", "62": "신협", "36": "씨티", "33": "우리", "W1": "우리",
+  "37": "우체국", "39": "저축", "35": "전북", "42": "제주", "15": "카카오뱅크",
+  "3A": "케이뱅크", "24": "토스뱅크", "21": "하나", "61": "현대", "11": "KB국민",
+  "91": "NH농협", "34": "Sh수협",
+}
+
+const CARD_GRADIENTS: Record<string, string> = {
+  "41": "from-[#0052CC] to-[#0073E6]",       // 신한
+  "11": "from-[#FFB800] to-[#FF8C00]",       // KB국민
+  "51": "from-[#1A1A2E] to-[#16213E]",       // 삼성
+  "61": "from-[#2C3E50] to-[#1A252F]",       // 현대
+  "71": "from-[#C0392B] to-[#922B21]",       // 롯데
+  "21": "from-[#00847F] to-[#005F5B]",       // 하나
+  "33": "from-[#003087] to-[#001F5B]",       // 우리
+  "W1": "from-[#003087] to-[#001F5B]",       // 우리
+  "15": "from-[#FAE100] to-[#F0CC00]",       // 카카오뱅크
+  "24": "from-[#0064FF] to-[#0040CC]",       // 토스뱅크
+  "91": "from-[#009B4E] to-[#006B36]",       // NH농협
+  "36": "from-[#003DA5] to-[#002580]",       // 씨티
+  "3A": "from-[#00A3E0] to-[#0077A8]",       // 케이뱅크
+}
+
+function getCardGradient(brand: string): string {
+  return CARD_GRADIENTS[brand] ?? "from-[#7C3AED] to-[#5B21B6]"
+}
+
+function getCardTextColor(brand: string): string {
+  return brand === "15" ? "text-gray-800" : "text-white"
+}
+
+function CreditCardVisual({ card, onDelete }: {
+  card: { id: number; cardBrand: string; cardLast4: string; ownerName: string; createdAt: string }
+  onDelete: () => void
+}) {
+  const [showDelete, setShowDelete] = useState(false)
+  const brandName = CARD_BRANDS[card.cardBrand] || card.cardBrand || "카드"
+  const gradient = getCardGradient(card.cardBrand)
+  const textColor = getCardTextColor(card.cardBrand)
+  const isKakao = card.cardBrand === "15"
+  const registeredYear = card.createdAt ? card.createdAt.substring(2, 4) : "25"
+  const registeredMonth = card.createdAt ? card.createdAt.substring(5, 7) : "01"
+
+  return (
+    <div className="relative">
+      <div
+        className={`relative w-full overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 shadow-lg`}
+        style={{ aspectRatio: "1.586 / 1" }}
+        onClick={() => setShowDelete((v) => !v)}
+      >
+        {/* 배경 장식 원 */}
+        <div className="absolute -right-8 -top-8 size-36 rounded-full bg-white/10" />
+        <div className="absolute -bottom-10 -right-4 size-48 rounded-full bg-white/5" />
+
+        {/* 상단: 칩 + 브랜드명 */}
+        <div className="relative flex items-start justify-between">
+          {/* IC 칩 */}
+          <div className="flex flex-col gap-px">
+            <div className={`h-5 w-7 rounded-sm border ${isKakao ? "border-gray-400 bg-gray-300" : "border-yellow-300/60 bg-yellow-200/80"}`}>
+              <div className={`mx-auto mt-1 h-px w-5 ${isKakao ? "bg-gray-500/40" : "bg-yellow-400/40"}`} />
+              <div className={`mx-auto mt-0.5 h-px w-5 ${isKakao ? "bg-gray-500/40" : "bg-yellow-400/40"}`} />
+              <div className={`mx-auto mt-0.5 h-px w-5 ${isKakao ? "bg-gray-500/40" : "bg-yellow-400/40"}`} />
+            </div>
+          </div>
+          {/* NFC 아이콘 */}
+          <svg viewBox="0 0 24 24" className={`size-5 ${isKakao ? "text-gray-600/50" : "text-white/40"}`} fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M8.25 9a3.75 3.75 0 0 1 0 6M12 7.5a6 6 0 0 1 0 9M15.75 6a9.75 9.75 0 0 1 0 12" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        {/* 카드번호 */}
+        <div className={`relative mt-4 font-mono text-lg font-semibold tracking-widest ${textColor}`}>
+          •••• •••• •••• {card.cardLast4}
+        </div>
+
+        {/* 하단: 소유자 + 유효기간 + 브랜드 */}
+        <div className="relative mt-3 flex items-end justify-between">
+          <div>
+            <p className={`text-[10px] font-medium uppercase tracking-widest ${isKakao ? "text-gray-500" : "text-white/50"}`}>CARD HOLDER</p>
+            <p className={`mt-0.5 text-sm font-semibold tracking-wide ${textColor}`}>
+              {card.ownerName || "—"}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className={`text-[10px] font-medium uppercase tracking-widest ${isKakao ? "text-gray-500" : "text-white/50"}`}>REGISTERED</p>
+            <p className={`mt-0.5 text-sm font-semibold ${textColor}`}>{registeredMonth} / {registeredYear}</p>
+          </div>
+        </div>
+
+        {/* 브랜드명 워터마크 */}
+        <div className={`absolute bottom-4 right-5 text-xs font-bold tracking-wider ${isKakao ? "text-gray-600/40" : "text-white/20"}`}>
+          {brandName}
+        </div>
+
+        {/* 삭제 오버레이 */}
+        {showDelete && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 backdrop-blur-sm">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="flex items-center gap-2 rounded-xl bg-red-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-red-600"
+            >
+              <Trash2 className="size-4" />
+              카드 삭제
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 카드 정보 레이블 */}
+      <div className="mt-2 flex items-center justify-between px-1">
+        <span className="text-sm font-medium text-foreground">{brandName} 카드</span>
+        <span className="text-xs text-muted-foreground">탭하여 삭제</span>
+      </div>
+    </div>
+  )
+}
 
 function CardManagementSection() {
   const [cards, setCards] = useState<{ id: number; cardBrand: string; cardLast4: string; ownerName: string; createdAt: string }[]>([])
@@ -942,62 +1168,56 @@ function CardManagementSection() {
     }
   }
 
-  const CARD_BRANDS: Record<string, string> = {
-    "3K": "기업BC", "46": "광주", "71": "롯데", "30": "산업", "31": "BC", "51": "삼성",
-    "38": "새마을", "41": "신한", "62": "신협", "36": "씨티", "33": "우리", "W1": "우리",
-    "37": "우체국", "39": "저축", "35": "전북", "42": "제주", "15": "카카오뱅크",
-    "3A": "케이뱅크", "24": "토스뱅크", "21": "하나", "61": "현대", "11": "KB국민",
-    "91": "NH농협", "34": "Sh수협",
-  }
-
   return (
     <div className="mt-6 rounded-2xl bg-card p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CreditCard className="size-5 text-primary" />
           <h2 className="text-lg font-semibold text-foreground">결제 수단</h2>
+          {!loading && cards.length > 0 && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{cards.length}장</span>
+          )}
         </div>
         <button
           onClick={handleRegister}
           disabled={registering}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
         >
           <Plus className="size-3.5" />
-          {registering ? "등록 중..." : "카드 등록"}
+          {registering ? "등록 중..." : "카드 추가"}
         </button>
       </div>
 
       {loading ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">불러오는 중...</p>
-      ) : cards.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-8 text-center">
-          <CreditCard className="mx-auto mb-2 size-8 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">등록된 카드가 없습니다</p>
-          <p className="mt-1 text-xs text-muted-foreground/70">카드를 등록하면 간편하게 결제할 수 있어요</p>
+        <div className="flex items-center justify-center py-10">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
-      ) : (
-        <div className="space-y-2">
-          {cards.map((card) => (
-            <div key={card.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
-              <div className="flex items-center gap-3">
-                <CreditCard className="size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {CARD_BRANDS[card.cardBrand] || card.cardBrand || "카드"} •••• {card.cardLast4}
-                  </p>
-                  {card.ownerName && (
-                    <p className="text-xs text-muted-foreground">{card.ownerName}</p>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => handleDelete(card.id)}
-                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="size-4" />
-              </button>
+      ) : cards.length === 0 ? (
+        <button
+          onClick={handleRegister}
+          disabled={registering}
+          className="group w-full"
+        >
+          <div className="flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border py-10 transition-colors hover:border-primary/40 hover:bg-primary/5">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
+              <CreditCard className="size-7 text-muted-foreground/50 transition-colors group-hover:text-primary/60" />
             </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">등록된 카드가 없어요</p>
+              <p className="mt-1 text-xs text-muted-foreground">탭하여 카드를 등록하고 간편하게 결제하세요</p>
+            </div>
+          </div>
+        </button>
+      ) : (
+        <div className="space-y-4">
+          {cards.map((card) => (
+            <CreditCardVisual
+              key={card.id}
+              card={card}
+              onDelete={() => handleDelete(card.id)}
+            />
           ))}
+          <p className="text-center text-xs text-muted-foreground">카드를 탭하면 삭제할 수 있어요</p>
         </div>
       )}
     </div>

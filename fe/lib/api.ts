@@ -600,3 +600,11 @@ export async function updateBudgetItem(itemId: number, data: { name?: string; am
 export async function deleteBudgetItem(itemId: number) {
   return fetchApi(`/budgets/category/${itemId}`, { method: "DELETE" })
 }
+
+export async function getMcpToken() {
+  return fetchApi("/mcp/token", { method: "POST" })
+}
+
+export async function refreshMcpToken() {
+  return fetchApi("/mcp/token/refresh", { method: "POST" })
+}
