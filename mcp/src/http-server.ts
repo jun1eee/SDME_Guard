@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { createServer } from "http"
 import { ApiClient } from "./api-client.js"
 import { registerScheduleTools } from "./tools/schedule-tools.js"
@@ -12,7 +12,7 @@ import { registerFavoriteTools } from "./tools/favorite-tools.js"
 const API_URL = process.env.API_URL || "http://localhost:8080"
 const PORT = parseInt(process.env.MCP_PORT || "3100")
 
-async function createMcpServer(api: ApiClient) {
+function createMcpServer(api: ApiClient) {
   const server = new McpServer({
     name: "wedding-planner",
     version: "1.0.0",
@@ -41,11 +41,9 @@ async function authenticateByToken(token: string): Promise<ApiClient> {
 }
 
 async function main() {
-  const sessions: Record<string, { transport: SSEServerTransport; server: McpServer }> = {}
-
   const httpServer = createServer(async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*")
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
     if (req.method === "OPTIONS") {
@@ -56,56 +54,55 @@ async function main() {
 
     const url = new URL(req.url!, `http://localhost:${PORT}`)
 
-    if (url.pathname === "/sse") {
+    // Health check
+    if (req.method === "GET" && url.pathname === "/") {
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ name: "sdm-guard-mcp", status: "running" }))
+      return
+    }
+
+    // MCP endpoint (Streamable HTTP)
+    if (url.pathname === "/mcp") {
       const token = url.searchParams.get("token")
       if (!token) {
         res.writeHead(401, { "Content-Type": "application/json" })
-        res.end(JSON.stringify({ error: "MCP 토큰이 필요합니다. URL에 ?token=YOUR_TOKEN을 추가하세요." }))
+        res.end(JSON.stringify({ error: "MCP 토큰이 필요합니다." }))
         return
       }
 
-      try {
-        const api = await authenticateByToken(token)
-        const server = await createMcpServer(api)
-        const transport = new SSEServerTransport("/messages", res)
+      // Read request body
+      let body = ""
+      req.on("data", (chunk) => { body += chunk })
+      req.on("end", async () => {
+        try {
+          const api = await authenticateByToken(token)
+          const server = createMcpServer(api)
+          const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
 
-        sessions[transport.sessionId] = { transport, server }
+          await server.connect(transport)
+          await transport.handleRequest(req, res, body ? JSON.parse(body) : undefined)
 
-        res.on("close", () => {
-          delete sessions[transport.sessionId]
-        })
-
-        await server.connect(transport)
-      } catch (e: any) {
-        res.writeHead(401, { "Content-Type": "application/json" })
-        res.end(JSON.stringify({ error: e.message }))
-      }
-    } else if (url.pathname === "/messages") {
-      const sessionId = url.searchParams.get("sessionId")
-      if (sessionId && sessions[sessionId]) {
-        let body = ""
-        req.on("data", (chunk) => { body += chunk })
-        req.on("end", async () => {
-          try {
-            await sessions[sessionId].transport.handlePostMessage(req, res, body)
-          } catch {
-            res.writeHead(500)
-            res.end("Error")
+          res.on("close", () => {
+            transport.close()
+            server.close()
+          })
+        } catch (e: any) {
+          if (!res.headersSent) {
+            res.writeHead(401, { "Content-Type": "application/json" })
+            res.end(JSON.stringify({ error: e.message }))
           }
-        })
-      } else {
-        res.writeHead(404)
-        res.end("Session not found")
-      }
-    } else {
-      res.writeHead(200, { "Content-Type": "application/json" })
-      res.end(JSON.stringify({ name: "sdm-guard-mcp", status: "running" }))
+        }
+      })
+      return
     }
+
+    res.writeHead(404)
+    res.end("Not found")
   })
 
   httpServer.listen(PORT, () => {
     console.log(`🚀 SDM Guard MCP Server running at http://localhost:${PORT}`)
-    console.log(`   SSE endpoint: http://localhost:${PORT}/sse?token=YOUR_MCP_TOKEN`)
+    console.log(`   MCP endpoint: http://localhost:${PORT}/mcp?token=YOUR_MCP_TOKEN`)
   })
 }
 
