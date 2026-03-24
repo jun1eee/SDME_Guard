@@ -660,6 +660,86 @@ class ToolRegistry:
         return ToolResult(result_type="direct",
                           data="지원하지 않는 계산 유형입니다.", vendors=[])
 
+    # ── 12. get_timeline: 결혼 준비 타임라인 ──
+
+    def get_timeline(self, scope: str, wedding_date: str, couple_id: int,
+                     category: str | None = None, **_) -> ToolResult:
+        from datetime import datetime, timedelta
+        try:
+            w_date = datetime.strptime(wedding_date, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return ToolResult(result_type="direct",
+                              data="결혼식 날짜를 YYYY-MM-DD 형식으로 알려주세요.", vendors=[])
+
+        today = datetime.now()
+        days_left = (w_date - today).days
+
+        timeline = [
+            {"period": "12~10개월 전", "items": ["예산 설정", "웨딩홀 투어 및 예약", "스드메 업체 리서치"]},
+            {"period": "10~8개월 전", "items": ["스튜디오 예약", "드레스 피팅 시작", "메이크업 상담"]},
+            {"period": "8~6개월 전", "items": ["드레스 결정 및 계약", "메이크업 리허설", "청첩장 준비"]},
+            {"period": "6~4개월 전", "items": ["본식 스냅/영상 예약", "허니문 예약", "예물/예단 준비"]},
+            {"period": "4~2개월 전", "items": ["청첩장 발송", "혼수 준비", "최종 피팅"]},
+            {"period": "2개월~당일", "items": ["최종 리허설", "하객 확정", "세부 일정 확인"]},
+        ]
+
+        if scope == "current":
+            months_left = days_left / 30
+            current = [t for t in timeline if self._in_period(months_left, t["period"])]
+            data = {"days_left": days_left, "current_tasks": current or timeline[-1:]}
+        elif scope == "category_deadline" and category:
+            deadlines = {"hall": "10개월 전", "studio": "8개월 전", "dress": "6개월 전", "makeup": "6개월 전"}
+            data = {"category": category, "recommended_deadline": deadlines.get(category, "6개월 전")}
+        else:
+            data = {"days_left": days_left, "wedding_date": wedding_date, "timeline": timeline}
+
+        return ToolResult(result_type="raw",
+                          data=json.dumps(data, ensure_ascii=False, default=str), vendors=[])
+
+    @staticmethod
+    def _in_period(months_left: float, period: str) -> bool:
+        ranges = {"12~10": (10, 12), "10~8": (8, 10), "8~6": (6, 8),
+                  "6~4": (4, 6), "4~2": (2, 4), "2개월": (0, 2)}
+        for key, (lo, hi) in ranges.items():
+            if key in period and lo <= months_left <= hi:
+                return True
+        return False
+
+    # ── 13. get_checklist: 결혼 준비 체크리스트 ──
+
+    def get_checklist(self, action: str, couple_id: int,
+                      wedding_date: str | None = None,
+                      completed_item: str | None = None, **_) -> ToolResult:
+        checklist = [
+            {"category": "웨딩홀", "items": ["웨딩홀 투어", "웨딩홀 계약", "식사 메뉴 결정"]},
+            {"category": "스튜디오", "items": ["스튜디오 상담", "촬영 컨셉 결정", "스튜디오 계약"]},
+            {"category": "드레스", "items": ["드레스 피팅", "드레스 결정", "악세서리 준비"]},
+            {"category": "메이크업", "items": ["메이크업 상담", "리허설 메이크업", "메이크업 계약"]},
+            {"category": "기타", "items": ["청첩장 제작", "예물 준비", "허니문 예약", "혼수 준비"]},
+        ]
+
+        completed = self._checklist_completed.get(couple_id, [])
+
+        if action == "complete" and completed_item:
+            if completed_item not in completed:
+                completed.append(completed_item)
+                self._checklist_completed[couple_id] = completed
+            return ToolResult(result_type="direct",
+                              data=f"'{completed_item}' 항목이 완료 처리되었습니다!", vendors=[])
+
+        if action == "status":
+            all_items = [item for cat in checklist for item in cat["items"]]
+            done = [i for i in all_items if i in completed]
+            remaining = [i for i in all_items if i not in completed]
+            data = {"total": len(all_items), "done": len(done), "done_items": done, "remaining": remaining}
+        else:
+            for cat in checklist:
+                cat["items"] = [{"name": i, "done": i in completed} for i in cat["items"]]
+            data = {"checklist": checklist}
+
+        return ToolResult(result_type="raw",
+                          data=json.dumps(data, ensure_ascii=False, default=str), vendors=[])
+
     # ── 14. get_budget_summary: 예산 현황 조회 ──
 
     def get_budget_summary(self, couple_id: int, **_) -> ToolResult:
