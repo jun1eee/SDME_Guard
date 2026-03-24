@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor} from "@/lib/api"
+import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor, type AiRecommendation} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -522,13 +522,14 @@ function stepBadgeStyle(step: number): string {
 
 // ─── Main Export ──────────────────────────────────────────────────────────
 
-export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds }: {
+export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds, aiRecommendations }: {
   onShareVendor?: (vendor: Vendor) => void
   onAddToVote?: (vendor: Vendor) => void
   currentUser?: "groom" | "bride"
   onFavoriteChange?: (vendor: Vendor, isFavorite: boolean) => void
   initialVendorId?: string | null
   favoriteVendorIds?: string[]
+  aiRecommendations?: AiRecommendation[]
 }) {
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -538,6 +539,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>("all")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [showAiOnly, setShowAiOnly] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const detailAbortRef = useRef<AbortController | null>(null)
@@ -673,7 +675,41 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
     )
   }, [favoriteVendorIds])
 
-  const filtered = vendors.filter((v) => {
+  // AI 추천 업체를 Vendor 형식으로 변환 (중복 제거, 최신순)
+  const aiVendors: Vendor[] = (() => {
+    if (!aiRecommendations?.length) return []
+    const catMap: Record<string, Vendor["category"]> = {
+      studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+    }
+    const seen = new Set<string>()
+    const result: Vendor[] = []
+    // 역순으로 순회해서 최신 추천이 앞에 오도록
+    for (let i = aiRecommendations.length - 1; i >= 0; i--) {
+      const rec = aiRecommendations[i]
+      const key = rec.name
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      result.push({
+        id: rec.id != null ? String(rec.id) : `ai-${i}`,
+        category: catMap[rec.category] ?? "studio",
+        name: rec.name,
+        tags: rec.hashtags?.split(",").map((t) => t.trim()).filter(Boolean) ?? [],
+        description: rec.description ?? "",
+        contact: rec.contact ?? "문의 필요",
+        address: "주소 정보 없음",
+        rating: rec.rating != null ? Number((rec.rating / 20).toFixed(1)) : 0,
+        reviewCount: rec.reviewCount ?? 0,
+        paymentStep: 0,
+        price: rec.price != null ? `${rec.price.toLocaleString("ko-KR")}원` : "문의",
+        isFavorite: favoriteVendorIds?.includes(String(rec.id)) ?? false,
+        coverUrl: rec.imageUrl ?? undefined,
+        logoUrl: rec.imageUrl ?? undefined,
+      })
+    }
+    return result
+  })()
+
+  const filtered = (showAiOnly ? aiVendors : vendors).filter((v) => {
     const catOk = selectedCategory === "all" || v.category === selectedCategory
     const styleOk = !selectedStyle || (v.styleFilter?.includes(selectedStyle) ?? false)
     return catOk && styleOk
@@ -711,9 +747,29 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       <div className="sticky top-0 z-10 bg-background">
         <div className="mx-auto w-full max-w-4xl px-4 pt-6">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-foreground">업체</h1>
-            <p className="mt-1 text-muted-foreground">AI가 엄선한 최고의 웨딩 업체</p>
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">업체</h1>
+              <p className="mt-1 text-muted-foreground">AI가 엄선한 최고의 웨딩 업체</p>
+            </div>
+            {(aiRecommendations?.length ?? 0) > 0 && (
+              <button
+                onClick={() => setShowAiOnly(!showAiOnly)}
+                className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  showAiOnly
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "border border-border bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <Sparkles className="size-4" />
+                AI추천
+                <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-xs font-bold ${
+                  showAiOnly ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/10 text-primary"
+                }`}>
+                  {aiVendors.length}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Category Tabs */}
@@ -767,7 +823,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
         </div>
 
         {/* Card Grid */}
-        {isLoading ? (
+        {isLoading && !showAiOnly ? (
           <div className="py-12 text-center">
             <p className="text-muted-foreground">업체 목록을 불러오는 중...</p>
           </div>
@@ -786,12 +842,26 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
             </div>
             {filtered.length === 0 && (
               <div className="py-12 text-center">
-                <p className="text-muted-foreground">해당 카테고리에 업체가 없습니다</p>
+                <div className="flex flex-col items-center gap-2">
+                  {showAiOnly ? (
+                    <>
+                      <Sparkles className="size-8 text-muted-foreground/40" />
+                      <p className="text-muted-foreground">AI 추천 업체가 없습니다</p>
+                      <p className="text-sm text-muted-foreground/60">채팅에서 업체를 추천받으면 여기에 누적됩니다</p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">해당 카테고리에 업체가 없습니다</p>
+                  )}
+                </div>
               </div>
             )}
-            <div ref={loadMoreRef} className="h-4" />
-            {isFetchingMore && (
-              <div className="py-4 text-center text-sm text-muted-foreground">더 불러오는 중...</div>
+            {!showAiOnly && (
+              <>
+                <div ref={loadMoreRef} className="h-4" />
+                {isFetchingMore && (
+                  <div className="py-4 text-center text-sm text-muted-foreground">더 불러오는 중...</div>
+                )}
+              </>
             )}
           </>
         )}
