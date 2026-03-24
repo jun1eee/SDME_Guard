@@ -15,12 +15,14 @@ public class VendorShareResponse {
     private final Long price;
     private final Double rating;
     private final String imageUrl;
+    private final Long coupleId;
     private final Long sharedUserId;
     private final String message;
     private final LocalDateTime sharedAt;
 
     private VendorShareResponse(VendorShare share, Vendor vendor) {
         this.id = share.getId();
+        this.coupleId = share.getCoupleId();
         this.vendorId = share.getVendorId();
         this.vendorName = vendor != null ? vendor.getName() : null;
         this.category = vendor != null ? vendor.getCategory() : null;
