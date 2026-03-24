@@ -192,7 +192,9 @@ public class AiChatService {
                 (List<Map<String, Object>>) data.getOrDefault("recommendations", Collections.emptyList())
         );
 
-        return AiChatResponse.of(answer, returnedSessionId, recommendations);
+        List<String> suggestions = (List<String>) data.getOrDefault("suggestions", Collections.emptyList());
+
+        return AiChatResponse.of(answer, returnedSessionId, recommendations, suggestions);
     }
 
     private List<AiRecommendation> enrichRecommendations(List<Map<String, Object>> aiRecs) {

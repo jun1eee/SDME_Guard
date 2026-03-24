@@ -52,6 +52,7 @@ interface Message {
   role: "assistant" | "user"
   content: string
   recommendations?: import("@/lib/api").AiRecommendation[]
+  suggestions?: string[]
 }
 
 export default function ChatPage() {
@@ -485,6 +486,7 @@ export default function ChatPage() {
         role: "assistant",
         content: res.data.answer,
         recommendations: res.data.recommendations || [],
+        suggestions: res.data.suggestions || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -542,6 +544,7 @@ export default function ChatPage() {
         role: "assistant",
         content: res.data.answer,
         recommendations: res.data.recommendations || [],
+        suggestions: res.data.suggestions || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -1575,11 +1578,13 @@ function ChatPanelWithDrop({
               role={message.role}
               content={message.content}
               recommendations={message.recommendations}
+              suggestions={message.suggestions}
               onCardClick={(rec) => {
                 if (rec.id) {
                   onCardVendorClick?.(String(rec.id))
                 }
               }}
+              onSuggestionClick={(text) => onSend(text)}
             />
           ))}
           {isTyping && <ChatMessage role="assistant" content="" isTyping />}

@@ -449,6 +449,7 @@ export async function sendAiChat(data: {
     sessionId: string
     success: boolean
     recommendations: AiRecommendation[]
+    suggestions: string[]
   }>("/chat/ai", {
     method: "POST",
     body: JSON.stringify({
