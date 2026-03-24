@@ -45,6 +45,7 @@ class ChatPayload(BaseModel):
     trace_id: str
     vendors: list[str] = Field(default_factory=list)
     recommendations: list[RecommendationCard] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)  # 후속 질문 버튼 (2~4개)
     debug_log: str | None = None
 
 
