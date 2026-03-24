@@ -10,6 +10,7 @@ from sdm.graphrag import SdmGraphRagEngine, NO_RESULT_PHRASES
 from sdm.knowledge import (
     WEDDING_KB, _get_venue_size_guide, _get_meal_cost_guide, _get_guest_estimate_guide,
 )
+from sdm.budget import allocate_budget, get_hidden_costs, HIDDEN_COSTS
 
 
 @dataclass
@@ -268,6 +269,54 @@ TOOLS_SCHEMA = [
             "meal_price": {"type": "integer", "description": "인당 식대 (meal_cost에 필요, 기본 80000원)"},
         }, "required": ["calc_type"]},
     }},
+    # 12. 결혼 준비 타임라인
+    {"type": "function", "function": {
+        "name": "get_timeline",
+        "description": "결혼 준비 타임라인/일정 조회. 전체 일정, 현재 해야 할 일, 카테고리별 예약 마감일. '일정', '언제까지', '뭐 해야 돼' 등.",
+        "parameters": {"type": "object", "properties": {
+            "scope": {"type": "string", "enum": ["full", "current", "monthly", "category_deadline"],
+                      "description": "full=전체 일정, current=지금 할 일, monthly=이번달, category_deadline=카테고리 마감일"},
+            "category": {"type": "string", "enum": ["studio", "dress", "makeup", "hall"],
+                         "description": "카테고리 마감일 조회 시 (선택)"},
+            "wedding_date": {"type": "string", "description": "결혼식 날짜 YYYY-MM-DD. 모르면 사용자에게 확인."},
+        }, "required": ["scope", "wedding_date"]},
+    }},
+    # 13. 체크리스트
+    {"type": "function", "function": {
+        "name": "get_checklist",
+        "description": "결혼 준비 체크리스트 생성/조회/완료 처리. '체크리스트', '할 일 목록', '~예약했어(완료 보고)' 등.",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": ["generate", "status", "complete"],
+                       "description": "generate=체크리스트 생성, status=진행현황, complete=항목 완료"},
+            "wedding_date": {"type": "string", "description": "결혼식 날짜 YYYY-MM-DD"},
+            "completed_item": {"type": "string", "description": "완료한 항목명 (complete 시)"},
+        }, "required": ["action"]},
+    }},
+    # 14. 예산 현황 조회
+    {"type": "function", "function": {
+        "name": "get_budget_summary",
+        "description": "현재 내 웨딩 예산 현황 조회. 총예산, 카테고리별 배분, 지출 현황, 잔여 금액.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    }},
+    # 15. 예산 배분 추천
+    {"type": "function", "function": {
+        "name": "suggest_budget",
+        "description": "총 예산을 카테고리별로 배분 추천. 숨은 비용 안내 포함. '예산 배분', '얼마씩', '숨은 비용' 등.",
+        "parameters": {"type": "object", "properties": {
+            "total_budget": {"type": "integer", "description": "총 예산 (원)"},
+            "priorities": {"type": "array", "items": {"type": "string"}, "description": "우선 투자할 카테고리 (선택)"},
+        }, "required": ["total_budget"]},
+    }},
+    # 16. 예산 항목 추가
+    {"type": "function", "function": {
+        "name": "add_budget_item",
+        "description": "예산에 항목/업체 비용 추가 기록. '예산에 넣어줘', '비용 추가' 등.",
+        "parameters": {"type": "object", "properties": {
+            "category": {"type": "string", "description": "카테고리 (웨딩홀/스튜디오/드레스/메이크업/기타)"},
+            "name": {"type": "string", "description": "항목명/업체명"},
+            "amount": {"type": "integer", "description": "금액 (원)"},
+        }, "required": ["category", "name", "amount"]},
+    }},
 ]
 
 
@@ -289,7 +338,13 @@ class ToolRegistry:
             "plan_tour": self.plan_tour,
             "knowledge_qa": self.knowledge_qa,
             "guest_calc": self.guest_calc,
+            "get_timeline": self.get_timeline,
+            "get_checklist": self.get_checklist,
+            "get_budget_summary": self.get_budget_summary,
+            "suggest_budget": self.suggest_budget,
+            "add_budget_item": self.add_budget_item,
         }
+        self._checklist_completed: dict[int, list[str]] = {}  # couple_id → 완료 항목
 
     def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
         fn = self.tool_map.get(tool_name)
@@ -604,6 +659,81 @@ class ToolRegistry:
 
         return ToolResult(result_type="direct",
                           data="지원하지 않는 계산 유형입니다.", vendors=[])
+
+    # ── 14. get_budget_summary: 예산 현황 조회 ──
+
+    def get_budget_summary(self, couple_id: int, **_) -> ToolResult:
+        try:
+            resp = http_requests.get(
+                f"{settings.spring_url}/api/budgets",
+                params={"coupleId": couple_id},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return ToolResult(result_type="raw",
+                                  data=json.dumps(data, ensure_ascii=False, default=str),
+                                  vendors=[])
+        except Exception:
+            pass
+        return ToolResult(
+            result_type="raw",
+            data="예산 정보를 불러올 수 없습니다. 웨딩 예산 페이지에서 예산을 먼저 설정해주세요.",
+            vendors=[],
+        )
+
+    # ── 15. suggest_budget: 예산 배분 추천 ──
+
+    def suggest_budget(self, total_budget: int, couple_id: int,
+                       priorities: list[str] | None = None, **_) -> ToolResult:
+        allocation = allocate_budget(total_budget, priorities)
+
+        # 숨은 비용 안내 추가
+        hidden_info = {}
+        for cat_ko in ["스튜디오", "드레스", "메이크업", "웨딩홀"]:
+            costs = get_hidden_costs(cat_ko)
+            if costs:
+                hidden_info[cat_ko] = costs
+
+        result = {
+            "allocation": allocation,
+            "hidden_costs": hidden_info,
+            "tip": "숨은 비용까지 고려하면 카테고리별 예산에 10~20% 여유를 두는 것이 좋습니다.",
+        }
+        return ToolResult(
+            result_type="raw",
+            data=json.dumps(result, ensure_ascii=False, default=str),
+            vendors=[],
+        )
+
+    # ── 16. add_budget_item: 예산 항목 추가 ──
+
+    def add_budget_item(self, category: str, name: str, amount: int,
+                        couple_id: int, **_) -> ToolResult:
+        try:
+            resp = http_requests.post(
+                f"{settings.spring_url}/api/budgets/items",
+                json={
+                    "coupleId": couple_id,
+                    "category": category,
+                    "name": name,
+                    "amount": amount,
+                },
+                timeout=5,
+            )
+            if resp.status_code in (200, 201):
+                return ToolResult(
+                    result_type="direct",
+                    data=f"'{name}' ({category}) {amount:,}원이 예산에 추가되었습니다.",
+                    vendors=[],
+                )
+        except Exception:
+            pass
+        return ToolResult(
+            result_type="direct",
+            data=f"예산 항목 추가에 실패했습니다. 웨딩 예산 페이지에서 직접 '{name}' ({category}) {amount:,}원을 추가해주세요.",
+            vendors=[],
+        )
 
     # ── 유틸 ──
 
