@@ -112,17 +112,19 @@ public class AiChatService {
 
     private void saveMessages(Long coupleId, Long userId, String sessionId,
                               String userMessage, AiChatResponse response) {
+        if (coupleId == null) {
+            log.warn("[AiChat] coupleId가 null이므로 메시지 저장 skip (userId={})", userId);
+            return;
+        }
         try {
-            // 사용자 메시지 저장
             aiChatMessageRepository.save(AiChatMessage.builder()
-                    .coupleId(coupleId != null ? coupleId : 0L)
+                    .coupleId(coupleId)
                     .userId(userId)
                     .sessionId(sessionId)
                     .role("user")
                     .content(userMessage)
                     .build());
 
-            // AI 응답 저장
             String recsJson = null;
             if (response.getRecommendations() != null && !response.getRecommendations().isEmpty()) {
                 try {
@@ -133,13 +135,14 @@ public class AiChatService {
             }
 
             aiChatMessageRepository.save(AiChatMessage.builder()
-                    .coupleId(coupleId != null ? coupleId : 0L)
-                    .userId(null)
+                    .coupleId(coupleId)
+                    .userId(userId)
                     .sessionId(sessionId)
                     .role("assistant")
                     .content(response.getAnswer())
                     .recommendations(recsJson)
                     .build());
+            log.info("[AiChat] 메시지 저장 완료 - coupleId: {}, sessionId: {}", coupleId, sessionId);
         } catch (Exception e) {
             log.error("[AiChat] 메시지 저장 실패 (채팅은 정상 진행)", e);
         }

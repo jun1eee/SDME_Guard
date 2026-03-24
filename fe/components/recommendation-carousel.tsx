@@ -42,13 +42,21 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
     return `${price.toLocaleString()}원`
   }
 
-  /** hashtags 또는 reason에서 태그 추출 */
+  /** hashtags 또는 reason에서 의미있는 태그만 추출 */
   const parseTags = (rec: AiRecommendation): string[] => {
     const src = rec.hashtags || rec.reason || ""
+    const isValidTag = (tag: string): boolean => {
+      if (/^\d+$/.test(tag)) return false                    // 순수 숫자 (60, 90)
+      if (/^\d{1,3}(,\d{3})+$/.test(tag)) return false      // 숫자+콤마 (60,000)
+      if (/식대\s*\d/.test(tag)) return false                // 식대 60,000
+      if (/\d+원/.test(tag)) return false                    // ~원
+      if (tag.length < 2 || tag.length > 15) return false    // 너무 짧거나 긴 태그
+      return true
+    }
     return src
       .split(",")
       .map((t) => t.trim())
-      .filter((t) => t.length > 0 && t.length <= 20)
+      .filter(isValidTag)
       .slice(0, 6)
   }
 
