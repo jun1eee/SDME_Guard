@@ -251,6 +251,7 @@ class SdmChatService:
                 category=self._map_category(r.get("category")),
                 title=r.get("name") or "추천 업체",
                 reason=", ".join(list(r.get("tags") or [])[:4]) or None,
+                address=r.get("address") or r.get("region") or None,
             )
             for r in records
         ]
