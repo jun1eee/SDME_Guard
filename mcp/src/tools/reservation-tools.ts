@@ -18,7 +18,7 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
         if (reservationDate) body.reservationDate = reservationDate
         if (reservationTime) body.reservationTime = reservationTime + ":00"
         if (memo) body.memo = memo
-        const data = await api.put(`/reservations/${reservationId}`, body)
+        await api.put(`/reservations/${reservationId}`, body)
         return {
           content: [{
             type: "text",
@@ -146,7 +146,7 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
           return { content: [{ type: "text", text: "등록된 예약이 없습니다." }] }
         }
         const list = data.map((r: any) =>
-          `- ${r.vendorName ?? "업체"} | ${r.reservationDate ?? "미정"}${r.reservationTime ? " " + r.reservationTime : ""} | ${r.status} | ${r.progress ?? ""}`
+          `- [예약ID:${r.id}] ${r.vendorName ?? "업체"} | ${r.reservationDate ?? "미정"}${r.reservationTime ? " " + r.reservationTime : ""} | ${r.status} | ${r.progress ?? ""}`
         ).join("\n")
         return { content: [{ type: "text", text: `📋 예약 목록:\n${list}` }] }
       } catch (e: any) {

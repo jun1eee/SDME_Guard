@@ -14,7 +14,7 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
           return { content: [{ type: "text", text: "등록된 일정이 없습니다." }] }
         }
         const list = data.map((s: any) =>
-          `- ${s.title} | ${s.date ?? "미정"}${s.time ? " " + s.time : ""} | ${s.category ?? ""} | ${s.status ?? ""}`
+          `- [ID:${s.id}] ${s.title} | ${s.date ?? "미정"}${s.time ? " " + s.time : ""} | ${s.category ?? ""} | ${s.status ?? ""}`
         ).join("\n")
         return { content: [{ type: "text", text: `📅 일정 목록:\n${list}` }] }
       } catch (e: any) {
@@ -48,6 +48,57 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
         }
       } catch (e: any) {
         return { content: [{ type: "text", text: `일정 등록 실패: ${e.message}` }] }
+      }
+    }
+  )
+
+  server.tool(
+    "update_schedule",
+    "일정을 수정합니다.",
+    {
+      scheduleId: z.number().describe("일정 ID"),
+      title: z.string().optional().describe("변경할 제목"),
+      date: z.string().optional().describe("변경할 날짜 (YYYY-MM-DD)"),
+      time: z.string().optional().describe("변경할 시간 (HH:mm)"),
+      memo: z.string().optional().describe("변경할 메모"),
+    },
+    async ({ scheduleId, title, date, time, memo }) => {
+      try {
+        const body: any = {}
+        if (title) body.title = title
+        if (date) body.date = date
+        if (time) body.time = time
+        if (memo) body.memo = memo
+        await api.patch(`/schedules/${scheduleId}`, body)
+        return {
+          content: [{
+            type: "text",
+            text: `✅ 일정(ID: ${scheduleId})이 수정되었습니다!`,
+          }],
+        }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `일정 수정 실패: ${e.message}` }] }
+      }
+    }
+  )
+
+  server.tool(
+    "delete_schedule",
+    "일정을 삭제합니다.",
+    {
+      scheduleId: z.number().describe("일정 ID"),
+    },
+    async ({ scheduleId }) => {
+      try {
+        await api.delete(`/schedules/${scheduleId}`)
+        return {
+          content: [{
+            type: "text",
+            text: `✅ 일정(ID: ${scheduleId})이 삭제되었습니다!`,
+          }],
+        }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `일정 삭제 실패: ${e.message}` }] }
       }
     }
   )
