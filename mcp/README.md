@@ -61,6 +61,11 @@ Claude Desktop 채팅에서 바로 사용하세요:
 | 일정 관리 | "3월 26일에 드레스 피팅 일정 추가해줘" |
 | 예산 관리 | "총 예산 5000만원으로 설정해줘" |
 | 결제 내역 조회 | "결제 내역 보여줘" |
+| 투표 조회/생성 | "투표 항목 보여줘" |
+| 투표하기 | "이 업체에 최고로 투표해줘" |
+| 리뷰 조회 | "이 업체 리뷰 보여줘" |
+| 리뷰 작성 | "별점 5점으로 리뷰 남겨줘" |
+| 업체 신고 | "이 업체 신고해줘" |
 
 ### 주의사항
 
@@ -88,7 +93,7 @@ Claude Desktop 채팅에서 바로 사용하세요:
 └─────────────────┘                      └─────────────────┘                    └─────────────────┘
                                                │                                       │
                                          tools 등록                              MySQL / 토스페이먼츠
-                                         (21개 도구)
+                                         (34개 도구)
 ```
 
 ### 통신 방식
@@ -135,17 +140,19 @@ mcp/
     ├── http-server.ts        # Streamable HTTP 서버 (Claude Desktop 원격 연동)
     ├── api-client.ts         # 백엔드 REST API 클라이언트
     └── tools/
-        ├── schedule-tools.ts     # 일정 관리 (2개)
+        ├── schedule-tools.ts     # 일정 관리 (4개)
         ├── reservation-tools.ts  # 예약 관리 (4개)
-        ├── vendor-tools.ts       # 업체 검색/공유 (5개)
+        ├── vendor-tools.ts       # 업체 검색/공유/신고 (6개)
         ├── payment-tools.ts      # 결제 관리 (3개)
         ├── budget-tools.ts       # 예산 관리 (5개)
-        └── favorite-tools.ts     # 찜 관리 (3개)
+        ├── favorite-tools.ts     # 찜 관리 (3개)
+        ├── vote-tools.ts         # 투표 관리 (5개)
+        └── review-tools.ts       # 리뷰 관리 (5개)
 ```
 
 ---
 
-## 구현된 도구 목록 (21개)
+## 구현된 도구 목록 (34개)
 
 ### 일정 관리 (`schedule-tools.ts`)
 
@@ -153,6 +160,8 @@ mcp/
 |--------|------|-----|
 | `get_schedules` | 일정 목록 조회 | `GET /api/schedules` |
 | `create_schedule` | 일정 등록 (카테고리: STUDIO/DRESS/MAKEUP/HALL) | `POST /api/schedules` |
+| `update_schedule` | 일정 수정 (제목/날짜/시간/메모) | `PATCH /api/schedules/{id}` |
+| `delete_schedule` | 일정 삭제 | `DELETE /api/schedules/{id}` |
 
 ### 예약 관리 (`reservation-tools.ts`)
 
@@ -172,6 +181,7 @@ mcp/
 | `get_vendor_booked_times` | 업체별 예약 가능 시간 조회 (크롤링 데이터 기반) | `GET /api/vendors/{id}` + `GET /api/vendors/{id}/reservations?date=` |
 | `share_vendor` | 업체를 커플에게 공유 + 채팅 메시지 전송 | `POST /api/vendors/{id}/share` + `POST /api/chat/couple/messages` |
 | `get_shared_vendors` | 공유된 업체 목록 조회 | `GET /api/vendors/shared` |
+| `report_vendor` | 업체 신고 | `POST /api/vendors/{id}/report` |
 
 ### 결제 관리 (`payment-tools.ts`)
 
@@ -198,6 +208,26 @@ mcp/
 | `get_favorites` | 커플 찜 목록 조회 | `GET /api/couple/favorites/all` |
 | `add_favorite` | 업체 찜 추가 | `POST /api/personal/favorites/{id}` |
 | `remove_favorite` | 업체 찜 삭제 | `DELETE /api/personal/favorites/{id}` |
+
+### 투표 관리 (`vote-tools.ts`)
+
+| 도구명 | 설명 | API |
+|--------|------|-----|
+| `get_vote_items` | 투표 항목 목록 조회 | `GET /api/votes/items` |
+| `create_vote_item` | 투표 항목 추가 | `POST /api/votes/items` |
+| `vote` | 투표하기 (great/good/neutral/bad/notinterested) | `POST /api/votes/{id}/votes` |
+| `delete_vote` | 투표 취소 | `DELETE /api/votes/{id}/votes` |
+| `delete_vote_item` | 투표 항목 삭제 | `DELETE /api/votes/items/{id}` |
+
+### 리뷰 관리 (`review-tools.ts`)
+
+| 도구명 | 설명 | API |
+|--------|------|-----|
+| `get_vendor_reviews` | 업체 리뷰 조회 | `GET /api/vendors/{id}/reviews` |
+| `get_my_reviews` | 내 리뷰 조회 | `GET /api/vendors/my` |
+| `create_review` | 리뷰 작성 | `POST /api/vendors/{id}/reviews` |
+| `update_review` | 리뷰 수정 | `PUT /api/reviews/{id}` |
+| `delete_review` | 리뷰 삭제 | `DELETE /api/reviews/{id}` |
 
 ---
 
