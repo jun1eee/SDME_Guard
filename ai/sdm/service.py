@@ -227,6 +227,21 @@ class SdmChatService:
                             "sourceId": hall.partner_id, "name": hall.name,
                             "category": "hall", "tags": hall.tags[:3],
                         })
+        # 같은 이름 업체 중복 제거 (패키지 다른 레코드 합침)
+        seen: dict[str, dict] = {}
+        deduped: list[dict] = []
+        for r in records:
+            name = r.get("name", "")
+            if name in seen:
+                # 태그 합침
+                existing = seen[name]
+                existing_tags = set(existing.get("tags") or [])
+                new_tags = set(r.get("tags") or [])
+                existing["tags"] = list(existing_tags | new_tags)[:6]
+            else:
+                seen[name] = r
+                deduped.append(r)
+        records = deduped
         if limit:
             records = records[:limit]
         return [
