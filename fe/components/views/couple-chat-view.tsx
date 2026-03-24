@@ -29,7 +29,7 @@ export interface VendorShare {
 
 interface Message {
   id: string
-  role: "assistant" | "user" | "groom" | "bride"
+  role: "assistant" | "user" | "groom" | "bride" | "system"
   content: string
   sender?: string
   vendorShare?: VendorShare
@@ -123,6 +123,15 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 createdAt: m.createdAt,
               }
             } catch { /* fall through */ }
+          }
+          if (m.messageType === "system") {
+            return {
+              id: m.id.toString(),
+              role: "system",
+              content: m.content,
+              sender: "시스템",
+              createdAt: m.createdAt,
+            }
           }
           return {
             id: m.id.toString(),
@@ -235,6 +244,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: getCoupleChatResponse(content, currentUser, groomName, brideName),
+        createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, aiResponse])
     }, 1500)
@@ -247,7 +257,6 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
   const handleSend = (content: string) => {
     if (!content.trim()) return
-    if (aiMode) return // AI 모드에서는 커플 채팅 불가
     const isAiMention = content.trimStart().toLowerCase().startsWith("@ai")
     const cleanContent = isAiMention ? content.trimStart().slice(3).trim() : content
     const senderName = currentUser === "groom" ? groomName : brideName
@@ -295,7 +304,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   }
 
   const inputPlaceholder = aiMode
-    ? "AI 모드에서는 커플 채팅을 사용할 수 없습니다. AI OFF로 전환하세요."
+    ? "AI에게 무엇이든 물어보세요..."
     : `${currentUser === "groom" ? groomName : brideName}(으)로 메시지 보내기... (@AI 로 AI 호출)`
 
   return (
@@ -376,10 +385,16 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 // 날짜 구분선
                 let dateSeparator = null
                 if (message.createdAt) {
-                  const msgDate = new Date(message.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })
+                  const msgDateObj = new Date(message.createdAt)
+                  const msgDateKey = `${msgDateObj.getFullYear()}-${msgDateObj.getMonth()}-${msgDateObj.getDate()}`
+                  const msgDate = msgDateObj.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })
                   const prevMsg = messages[index - 1]
-                  const prevDate = prevMsg?.createdAt ? new Date(prevMsg.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }) : null
-                  if (msgDate !== prevDate) {
+                  let prevDateKey = ""
+                  if (prevMsg?.createdAt) {
+                    const prevDateObj = new Date(prevMsg.createdAt)
+                    prevDateKey = `${prevDateObj.getFullYear()}-${prevDateObj.getMonth()}-${prevDateObj.getDate()}`
+                  }
+                  if (msgDateKey !== prevDateKey) {
                     dateSeparator = (
                       <div className="flex items-center gap-3 py-2">
                         <div className="flex-1 border-t border-border" />
@@ -422,7 +437,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
           {/* Input */}
           <ChatInput
         onSend={handleSend}
-        disabled={isTyping || aiMode}
+        disabled={isTyping}
         placeholder={inputPlaceholder}
         onVendorDrop={(vendor) => handleVendorDrop(vendor)}
         extraButton={
@@ -697,7 +712,7 @@ function CoupleChatMessage({
   isMine = false,
   onUnshare,
 }: {
-  role: "assistant" | "user" | "groom" | "bride"
+  role: "assistant" | "user" | "groom" | "bride" | "system"
   content: string
   sender?: string
   currentUser?: "groom" | "bride"
@@ -712,9 +727,20 @@ function CoupleChatMessage({
   isMine?: boolean
   onUnshare?: (vendorId: string) => void
 }) {
+  const isSystem = role === "system"
   const isAssistant = role === "assistant"
   const isGroom = role === "groom"
   const isMe = role === currentUser
+
+  if (isSystem) {
+    return (
+      <div className="flex justify-center py-2">
+        <div className="max-w-sm rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4 text-center">
+          <p className="text-sm text-amber-800 whitespace-pre-line">{content}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`flex gap-3 ${isAssistant ? "" : isMe ? "flex-row-reverse" : ""}`}>

@@ -1,0 +1,20 @@
+{
+  "name": "wedding-planner-mcp",
+  "version": "1.0.0",
+  "description": "웨딩 플래닝 서비스 MCP 서버",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "serve": "tsx src/http-server.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

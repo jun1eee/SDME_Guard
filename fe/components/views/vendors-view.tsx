@@ -1927,7 +1927,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         <div className="py-8 text-center">
           <CalendarCheck className="mx-auto size-12 text-primary mb-3" />
           <p className="text-lg font-semibold text-foreground">
-            {isBalancePayment ? "잔금 결제가 완료되었습니다!" : "예약 및 결제가 완료되었습니다!"}
+            {isBalancePayment ? "잔금 결제가 완료되었습니다!" : "계약금 결제가 완료되었습니다!"}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">{date} {time}</p>
           <p className="mt-1 text-sm text-muted-foreground">

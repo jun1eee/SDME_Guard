@@ -1062,8 +1062,6 @@ export default function ChatPage() {
                     bridePhoto: b?.profileImage || prev.bridePhoto,
                   }))
                 } catch {}
-              } catch {
-                toast.error("연결 실패", { description: "초대코드를 확인해주세요." })
               } catch (err: any) {
                 toast.error("연결 실패", { description: err.message || "초대코드를 확인해주세요." })
               }
