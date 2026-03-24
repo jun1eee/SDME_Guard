@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -842,6 +842,9 @@ export function MyPageView({
           </div>
         )}
 
+        {/* AI 어시스턴트 연동 */}
+        <McpTokenSection />
+
         {/* 회원탈퇴 */}
         <div className={`${coupleConnected ? "mt-6" : "mt-10"} border-t border-border pt-6`}>
           {!deleteConfirm ? (
@@ -889,6 +892,111 @@ export function MyPageView({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── AI 어시스턴트 연동 섹션 ──────────────────────────────────────────
+
+function McpTokenSection() {
+  const [mcpToken, setMcpToken] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const mcpUrl = mcpToken ? `https://j14a105.p.ssafy.io/mcp/sse?token=${mcpToken}` : ""
+
+  const fetchToken = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await getMcpToken()
+      setMcpToken(res.data.token)
+    } catch {
+      // 토큰 없음
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchToken()
+  }, [fetchToken])
+
+  const handleRefresh = async () => {
+    try {
+      setLoading(true)
+      const res = await refreshMcpToken()
+      setMcpToken(res.data.token)
+    } catch {
+      alert("토큰 재발급에 실패했습니다.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(mcpUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="mt-6 border-t border-border pt-6">
+      <h2 className="mb-3 text-lg font-semibold text-foreground">AI 어시스턴트 연동</h2>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Claude Desktop에서 SDM Guard를 자연어로 사용할 수 있습니다.
+      </p>
+
+      {mcpToken ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">내 MCP 연동 URL</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-background px-3 py-2 text-xs text-foreground">
+                {mcpUrl}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copied ? "복사됨" : "복사"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              토큰이 유출된 경우 재발급하세요.
+            </p>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {loading ? "발급 중..." : "재발급"}
+            </button>
+          </div>
+
+          <details className="rounded-xl border border-border bg-muted/10 p-4">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">연동 방법 보기</summary>
+            <ol className="mt-3 space-y-2 text-xs text-muted-foreground">
+              <li>1. <a href="https://claude.ai/download" target="_blank" rel="noopener noreferrer" className="text-primary underline">Claude Desktop</a>을 설치하세요</li>
+              <li>2. 위 URL을 복사하세요</li>
+              <li>3. Claude Desktop → 설정 → 커넥터 → 커스텀 커넥터 추가</li>
+              <li>4. 이름: <strong>SDM Guard</strong>, URL: 복사한 URL 붙여넣기</li>
+              <li>5. &quot;내 예약 보여줘&quot; 라고 말해보세요!</li>
+            </ol>
+          </details>
+        </div>
+      ) : (
+        <button
+          onClick={fetchToken}
+          disabled={loading}
+          className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          {loading ? "발급 중..." : "토큰 발급하기"}
+        </button>
+      )}
     </div>
   )
 }
