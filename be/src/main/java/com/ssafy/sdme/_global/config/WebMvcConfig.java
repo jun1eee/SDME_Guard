@@ -42,6 +42,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         ApiPath.PATH + "/auth/kakao",
                         ApiPath.PATH + "/auth/reissue",
                         ApiPath.PATH + "/auth/test-login/**",
+                        ApiPath.PATH + "/mcp/auth",
                         ApiPath.PATH + "/vendors",
                         ApiPath.PATH + "/chat/ai",
                         "/swagger-ui/**",
