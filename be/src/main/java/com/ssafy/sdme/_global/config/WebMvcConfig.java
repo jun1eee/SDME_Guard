@@ -44,7 +44,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         ApiPath.PATH + "/auth/test-login/**",
                         ApiPath.PATH + "/mcp/auth",
                         ApiPath.PATH + "/vendors",
-                        ApiPath.PATH + "/chat/ai",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
                         "/error"

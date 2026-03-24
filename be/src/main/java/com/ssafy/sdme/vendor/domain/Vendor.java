@@ -44,6 +44,9 @@ public class Vendor extends BaseTimeEntity {
     @Column(nullable = false)
     private Long price;
 
+    @Column(length = 500)
+    private String address;
+
     @Column(length = 255)
     private String contact;
 
@@ -61,6 +64,7 @@ public class Vendor extends BaseTimeEntity {
         String description,
         String hashtags,
         Long price,
+        String address,
         String contact,
         LocalDateTime crawledAt
     ) {
@@ -73,6 +77,7 @@ public class Vendor extends BaseTimeEntity {
         this.description = description;
         this.hashtags = hashtags;
         this.price = price;
+        this.address = address;
         this.contact = contact;
         this.crawledAt = crawledAt;
     }

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat, getAiChatHistory } from "@/lib/api"
+import type { AiRecommendation } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -249,11 +250,45 @@ export default function ChatPage() {
   }, [router])
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [aiSessionId, setAiSessionId] = useState<string | null>(null)
+  const [aiSessionId, setAiSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("aiSessionId")
+  })
   const [isTyping, setIsTyping] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<DroppedVendor[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
+
+  // sessionId 변경 시 localStorage 저장
+  useEffect(() => {
+    if (aiSessionId) {
+      localStorage.setItem("aiSessionId", aiSessionId)
+    }
+  }, [aiSessionId])
+
+  // 페이지 로드 시 이전 대화 복원
+  useEffect(() => {
+    const savedSessionId = localStorage.getItem("aiSessionId")
+    if (!savedSessionId) return
+    getAiChatHistory(savedSessionId)
+      .then((items) => {
+        if (!items || items.length === 0) return
+        const restored = items.map((item, idx) => ({
+          id: `restored-${idx}`,
+          role: item.role as "user" | "assistant",
+          content: item.content,
+          recommendations: item.role === "assistant" && item.recommendations
+            ? (JSON.parse(item.recommendations) as AiRecommendation[])
+            : undefined,
+        }))
+        setMessages(restored)
+        setAiSessionId(savedSessionId)
+        setShowWelcome(false)
+      })
+      .catch(() => {
+        // 복원 실패해도 정상 동작
+      })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [currentView, setCurrentView] = useState<ViewType | null>(() => {
     if (typeof window === "undefined") return null
     const path = window.location.pathname
@@ -540,6 +575,8 @@ export default function ChatPage() {
       setChatHistory((prev) => [session, ...prev])
     }
     setMessages([])
+    setAiSessionId(null)
+    localStorage.removeItem("aiSessionId")
     setShowWelcome(true)
     setActiveSessionId(null)
     addPanelTab("chat", "left")

@@ -437,6 +437,7 @@ export interface AiRecommendation {
   contact: string | null
   description: string | null
   hashtags: string | null
+  address: string | null
 }
 
 export async function sendAiChat(data: {

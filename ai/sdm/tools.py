@@ -691,14 +691,19 @@ class ToolRegistry:
             remaining.remove(nearest)
             current_coord = nearest["coord"]
 
-        # 구간별 이동 계산
+        # 구간별 이동 계산 (transit은 driving 기준 1.3배 보정)
         total_dist, total_time = 0.0, 0.0
         legs = []
         prev_label = "출발지" if start_coord else ordered[0]["name"]
         prev_coord = start_coord or ordered[0]["coord"]
         start_idx = 0 if start_coord else 1
         for p in ordered[start_idx:]:
-            dist, dur = self.hall_engine._get_travel_metrics(prev_coord, p["coord"], transport)
+            # transit/walk도 카카오 driving API 결과 기반으로 보정
+            dist, dur = self.hall_engine._get_travel_metrics(prev_coord, p["coord"], "car")
+            if transport == "transit":
+                dur = round(dur * 1.3, 1)  # 대중교통 = 자동차 × 1.3
+            elif transport == "walk":
+                dur = round(dist / 4 * 60, 1)  # 도보 = 4km/h
             legs.append({"from": prev_label, "to": p["name"], "distance_km": dist, "duration_min": dur})
             total_dist += dist
             total_time += dur
@@ -709,7 +714,11 @@ class ToolRegistry:
         if end_loc and prev_coord:
             end_coord = self.hall_engine._geocode_place(end_loc)
             if end_coord:
-                dist, dur = self.hall_engine._get_travel_metrics(prev_coord, end_coord, transport)
+                dist, dur = self.hall_engine._get_travel_metrics(prev_coord, end_coord, "car")
+                if transport == "transit":
+                    dur = round(dur * 1.3, 1)
+                elif transport == "walk":
+                    dur = round(dist / 4 * 60, 1)
                 legs.append({"from": prev_label, "to": f"귀가({end_loc})", "distance_km": dist, "duration_min": dur})
                 total_dist += dist
                 total_time += dur

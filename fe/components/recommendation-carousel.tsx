@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, ChevronRight, Star, Phone } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star, Phone, MapPin } from "lucide-react"
 import type { AiRecommendation } from "@/lib/api"
 
 interface RecommendationCarouselProps {
@@ -42,26 +42,32 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
     return `${price.toLocaleString()}원`
   }
 
-  /** hashtags 또는 reason에서 태그 추출 */
   const parseTags = (rec: AiRecommendation): string[] => {
     const src = rec.hashtags || rec.reason || ""
+    const isValidTag = (tag: string): boolean => {
+      if (/^\d+$/.test(tag)) return false
+      if (/^\d{1,3}(,\d{3})+$/.test(tag)) return false
+      if (/식대\s*\d/.test(tag)) return false
+      if (/\d+원/.test(tag)) return false
+      if (tag.length < 2 || tag.length > 15) return false
+      return true
+    }
     return src
       .split(",")
       .map((t) => t.trim())
-      .filter((t) => t.length > 0 && t.length <= 20)
-      .slice(0, 6)
+      .filter(isValidTag)
+      .slice(0, 5)
   }
 
-  /** description 정리: 이모지/특수기호 제거, 핵심 정보만 */
   const cleanDescription = (desc: string | null): string | null => {
     if (!desc) return null
     let cleaned = desc
-      .replace(/[\u{1F3F0}\u{1F4CB}\u{2728}\u{1F389}\u{1F490}\u{1F48D}]/gu, "")  // 이모지 제거
+      .replace(/[\u{1F3F0}\u{1F4CB}\u{2728}\u{1F389}\u{1F490}\u{1F48D}]/gu, "")
       .replace(/[🏰📋✨🎉💐💍🏠🌿🌸💒👰🤵]/g, "")
-      .replace(/\s*-\s*/g, " · ")           // 대시 → 가운데점
-      .replace(/\s{2,}/g, " ")              // 다중 공백 정리
+      .replace(/\s*-\s*/g, " · ")
+      .replace(/\s{2,}/g, " ")
       .trim()
-    if (cleaned.length > 120) cleaned = cleaned.slice(0, 120) + "..."
+    if (cleaned.length > 150) cleaned = cleaned.slice(0, 150) + "..."
     return cleaned || null
   }
 
@@ -124,7 +130,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                       />
                     )}
 
-                    <div className="p-4 space-y-2.5">
+                    <div className="p-3.5 space-y-2">
                       {/* 상단: 카테고리 + 평점 */}
                       <div className="flex items-center justify-between">
                         <span className={cn(
@@ -144,15 +150,21 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                         )}
                       </div>
 
-                      {/* 이름 + 가격 */}
-                      <div>
-                        <h3 className="text-[15px] font-bold text-foreground leading-tight">
-                          {rec.name}
-                        </h3>
+                      {/* 업체명 */}
+                      <h3 className="text-[15px] font-bold text-foreground leading-tight">
+                        {rec.name}
+                      </h3>
+
+                      {/* 가격 + 위치 (한 줄에) */}
+                      <div className="flex items-center justify-between gap-2">
                         {priceStr && (
-                          <p className="mt-0.5 text-sm font-semibold text-primary">
-                            {priceStr}
-                          </p>
+                          <span className="text-sm font-semibold text-primary">{priceStr}</span>
+                        )}
+                        {rec.address && (
+                          <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground truncate">
+                            <MapPin className="size-3 flex-shrink-0" />
+                            {rec.address}
+                          </span>
                         )}
                       </div>
 
@@ -172,14 +184,14 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
 
                       {/* 설명 */}
                       {desc && (
-                        <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-2">
+                        <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-3">
                           {desc}
                         </p>
                       )}
 
                       {/* 연락처 */}
                       {rec.contact && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1.5 border-t border-border/40">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t border-border/40">
                           <Phone className="size-3 flex-shrink-0" />
                           <span>{rec.contact}</span>
                         </div>

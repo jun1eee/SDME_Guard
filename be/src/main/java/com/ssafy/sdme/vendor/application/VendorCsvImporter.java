@@ -84,9 +84,10 @@ public class VendorCsvImporter {
             .rating(detail.path("rating").asDouble(0.0))
             .reviewCount(detail.path("reviewCnt").asInt(0))
             .imageUrl(detail.path("coverUrl").asText(""))
-            .description(blankToNull(detail.path("address").asText(null)))
+            .description(blankToNull(detail.path("profile").asText(null)))
             .hashtags(buildHashtags(detail.path("tags")))
             .price(price)
+            .address(blankToNull(detail.path("address").asText(null)))
             .contact(blankToNull(detail.path("tel").asText(null)))
             .crawledAt(null)
             .build();
