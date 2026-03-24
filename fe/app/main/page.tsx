@@ -888,6 +888,7 @@ export default function ChatPage() {
             onFavoriteChange={handleFavoriteChange}
             initialVendorId={openVendorId}
             favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            aiRecommendations={messages.flatMap((m) => m.recommendations ?? [])}
           />
         )
 
