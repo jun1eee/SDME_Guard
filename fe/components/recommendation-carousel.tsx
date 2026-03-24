@@ -53,7 +53,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
       return true
     }
     return src
-      .split(",")
+      .split(/[|,]/)
       .map((t) => t.trim())
       .filter(isValidTag)
       .slice(0, 5)
