@@ -169,11 +169,11 @@ if __name__ == "__main__":
             if not Path(DRESS_PATH).exists():
                 raise FileNotFoundError(f"DRESS_PATH 파일이 없습니다: {DRESS_PATH}")
 
-            #generate_dress_only()
+            generate_dress_only()
             generate_final_result()
 
             print("\n🎉 전체 작업 완료")
-            #print(f"- 1차 드레스 결과: {DRESS_ONLY_PATH}")
+            print(f"- 1차 드레스 결과: {DRESS_ONLY_PATH}")
             print(f"- 최종 합성 결과: {OUTPUT_PATH}")
 
         except Exception as e:
