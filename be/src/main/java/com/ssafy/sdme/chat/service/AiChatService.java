@@ -229,6 +229,7 @@ public class AiChatService {
             String reason = (String) rec.get("reason");
             String source = (String) rec.getOrDefault("source", "sdm");
             String category = (String) rec.getOrDefault("category", "studio");
+            String address = (String) rec.get("address");
 
             Long mysqlSourceId = null;
             try {
@@ -254,6 +255,7 @@ public class AiChatService {
                         .contact(vendor.getContact())
                         .description(vendor.getDescription())
                         .hashtags(vendor.getHashtags())
+                        .address(address)
                         .build());
             } else {
                 enriched.add(AiRecommendation.builder()
@@ -262,6 +264,7 @@ public class AiChatService {
                         .category(category)
                         .name(title)
                         .reason(reason)
+                        .address(address)
                         .build());
             }
         }
