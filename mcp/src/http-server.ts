@@ -54,15 +54,13 @@ async function main() {
 
     const url = new URL(req.url!, `http://localhost:${PORT}`)
 
-    // Health check
-    if (req.method === "GET" && url.pathname === "/") {
-      res.writeHead(200, { "Content-Type": "application/json" })
-      res.end(JSON.stringify({ name: "sdm-guard-mcp", status: "running" }))
-      return
-    }
-
-    // MCP endpoint (Streamable HTTP)
-    if (url.pathname === "/mcp") {
+    // MCP endpoint (Streamable HTTP) - POST handles MCP, GET handles health check
+    if (url.pathname === "/") {
+      if (req.method === "GET" && !url.searchParams.get("token")) {
+        res.writeHead(200, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ name: "sdm-guard-mcp", status: "running" }))
+        return
+      }
       const token = url.searchParams.get("token")
       if (!token) {
         res.writeHead(401, { "Content-Type": "application/json" })
