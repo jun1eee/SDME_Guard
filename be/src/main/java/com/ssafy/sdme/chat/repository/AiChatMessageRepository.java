@@ -12,4 +12,6 @@ public interface AiChatMessageRepository extends JpaRepository<AiChatMessage, Lo
     List<AiChatMessage> findByCoupleIdOrderByCreatedAtDesc(Long coupleId);
 
     List<AiChatMessage> findTop50ByCoupleIdOrderByCreatedAtDesc(Long coupleId);
+
+    List<AiChatMessage> findTop50ByUserIdOrderByCreatedAtDesc(Long userId);
 }

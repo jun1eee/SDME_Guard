@@ -18,7 +18,7 @@ public class AiChatMessage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "couple_id", nullable = false)
+    @Column(name = "couple_id")
     private Long coupleId;
 
     @Column(name = "user_id")

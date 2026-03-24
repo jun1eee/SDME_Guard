@@ -99,11 +99,15 @@ public class AiChatService {
     }
 
     public List<AiChatHistoryResponse> getRecentMessages(Long userId) {
-        Long coupleId = resolveCoupleId(userId);
-        if (coupleId == null) return Collections.emptyList();
+        if (userId == null) return Collections.emptyList();
 
-        return aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId)
-                .stream()
+        // coupleId로 조회 시도, 없으면 userId로 fallback
+        Long coupleId = resolveCoupleId(userId);
+        List<AiChatMessage> messages = coupleId != null
+                ? aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId)
+                : aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
+
+        return messages.stream()
                 .map(AiChatHistoryResponse::from)
                 .collect(Collectors.toList());
     }
@@ -112,10 +116,6 @@ public class AiChatService {
 
     private void saveMessages(Long coupleId, Long userId, String sessionId,
                               String userMessage, AiChatResponse response) {
-        if (coupleId == null) {
-            log.warn("[AiChat] coupleId가 null이므로 메시지 저장 skip (userId={})", userId);
-            return;
-        }
         try {
             aiChatMessageRepository.save(AiChatMessage.builder()
                     .coupleId(coupleId)
