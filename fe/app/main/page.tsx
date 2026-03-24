@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat, getAiChatHistory } from "@/lib/api"
-import type { AiRecommendation } from "@/lib/api"
+import {AiRecommendation, getAiChatHistory} from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getPreference, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -173,6 +173,21 @@ export default function ChatPage() {
             const g = coupleRes.data.groom
             const b = coupleRes.data.bride
             setCoupleConnected(coupleRes.data.status === "MATCHED" && g != null && b != null)
+            // D-day 계산 (커플 테이블 또는 선호도에서)
+            let dDay = 0
+            let wDate = coupleRes.data.weddingDate
+            if (!wDate) {
+              try {
+                const prefRes = await getPreference()
+                wDate = prefRes.data.weddingDate
+              } catch {}
+            }
+            if (wDate) {
+              const wedding = new Date(wDate + "T00:00:00")
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            }
             setWeddingConfig((prev) => ({
               ...prev,
               groomName: g?.name || "",
@@ -181,6 +196,7 @@ export default function ChatPage() {
               brideNickname: b?.nickname || "",
               groomPhoto: g?.profileImage || "",
               bridePhoto: b?.profileImage || "",
+              dDay,
             }))
             if (coupleRes.data.status !== "MATCHED" || !g || !b) {
               createInviteCode()
@@ -189,6 +205,16 @@ export default function ChatPage() {
             }
           } catch {
             // 커플 정보 없음 → 본인 정보만 세팅
+            let dDay = 0
+            try {
+              const prefRes = await getPreference()
+              if (prefRes.data.weddingDate) {
+                const wedding = new Date(prefRes.data.weddingDate + "T00:00:00")
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              }
+            } catch {}
             setWeddingConfig((prev) => ({
               ...prev,
               groomName: r === "groom" ? (res.data.name || "") : "",
@@ -197,6 +223,7 @@ export default function ChatPage() {
               brideNickname: r === "bride" ? (res.data.nickname || "") : "",
               groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
               bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+              dDay,
             }))
             createInviteCode()
               .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
@@ -204,6 +231,17 @@ export default function ChatPage() {
           }
         } else {
           // coupleId 없음 → 본인 정보만 세팅
+          // 본인 선호도에서 D-day 가져오기
+          let dDay = 0
+          try {
+            const prefRes = await getPreference()
+            if (prefRes.data.weddingDate) {
+              const wedding = new Date(prefRes.data.weddingDate + "T00:00:00")
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            }
+          } catch {}
           setWeddingConfig((prev) => ({
             ...prev,
             groomName: r === "groom" ? (res.data.name || "") : "",
@@ -212,6 +250,7 @@ export default function ChatPage() {
             brideNickname: r === "bride" ? (res.data.nickname || "") : "",
             groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
             bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+            dDay,
           }))
           createInviteCode()
             .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
@@ -239,6 +278,48 @@ export default function ChatPage() {
         ;(window as any).__favInterval = favInterval
 
         setAuthChecked(true)
+
+        // 5초마다 커플 상태 확인 (매칭/해제 실시간 감지)
+        let wasConnected = coupleConnected
+        const coupleCheckInterval = setInterval(async () => {
+          try {
+            const checkRes = await getCoupleProfile()
+            const isNowConnected = !!(checkRes.data && checkRes.data.groom && checkRes.data.bride)
+            if (!wasConnected && isNowConnected) {
+              // 매칭됨
+              wasConnected = true
+              setCoupleConnected(true)
+              setCoupleId(checkRes.data.coupleId)
+              const g = checkRes.data.groom
+              const b = checkRes.data.bride
+              setWeddingConfig((prev) => ({
+                ...prev,
+                groomName: g?.name || prev.groomName,
+                brideName: b?.name || prev.brideName,
+                groomNickname: g?.nickname || prev.groomNickname,
+                brideNickname: b?.nickname || prev.brideNickname,
+                groomPhoto: g?.profileImage || prev.groomPhoto,
+                bridePhoto: b?.profileImage || prev.bridePhoto,
+              }))
+              reloadFavorites()
+            } else if (wasConnected && !isNowConnected) {
+              // 매칭 해제됨 - 본인 정보 유지
+              wasConnected = false
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.info("커플 매칭이 해제되었습니다.")
+            }
+          } catch {
+            // 에러 시 해제로 간주
+            if (wasConnected) {
+              wasConnected = false
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.info("커플 매칭이 해제되었습니다.")
+            }
+          }
+        }, 5000)
+        ;(window as any).__coupleCheckInterval = coupleCheckInterval
       } catch {
         clearAccessToken()
         router.replace("/login")
@@ -272,9 +353,10 @@ export default function ChatPage() {
     const savedSessionId = localStorage.getItem("aiSessionId")
     if (!savedSessionId) return
     getAiChatHistory(savedSessionId)
-      .then((items) => {
-        if (!items || items.length === 0) return
-        const restored = items.map((item, idx) => ({
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) return
+        const restored = items.map((item: any, idx: number) => ({
           id: `restored-${idx}`,
           role: item.role as "user" | "assistant",
           content: item.content,
@@ -476,7 +558,6 @@ export default function ChatPage() {
     setMessages([userMessage])
     setAttachedVendors([])
     setIsTyping(true)
-    autoOpenRelatedTab(content)
 
     try {
       const res = await sendAiChat({ message: content, sessionId: null })
@@ -502,18 +583,6 @@ export default function ChatPage() {
   }
 
   // 사용자 메시지 키워드 기반 관련 탭 자동 오픈
-  const autoOpenRelatedTab = (userText: string) => {
-    const lower = userText.toLowerCase()
-    if (lower.includes("예산") || lower.includes("비용") || lower.includes("견적")) {
-      addPanelTab("budget", "right")
-    } else if (lower.includes("일정") || lower.includes("스케줄") || lower.includes("날짜")) {
-      addPanelTab("schedule", "right")
-    } else if (lower.includes("업체") || lower.includes("스튜디오") || lower.includes("드레스") || lower.includes("메이크업") || lower.includes("웨딩홀")) {
-      addPanelTab("vendors", "right")
-    } else if (lower.includes("투표") || lower.includes("의견")) {
-      addPanelTab("vote", "right")
-    }
-  }
 
   const handleVendorDrop = (vendor: DroppedVendor) => {
     setAttachedVendors((prev) =>
@@ -534,7 +603,6 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage])
     setAttachedVendors([])
     setIsTyping(true)
-    autoOpenRelatedTab(content)
 
     try {
       const res = await sendAiChat({ message: content, sessionId: aiSessionId })
@@ -1087,12 +1155,14 @@ export default function ChatPage() {
               try {
                 const res = await connectCouple(inviteCode)
                 setCoupleConnected(true)
-                toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
+                setCoupleId(res.data.coupleId)
+                toast.success("파트너와 연결되었습니다!")
                 // 커플 프로필 즉시 반영
                 try {
                   const coupleRes = await getCoupleProfile()
                   const g = coupleRes.data.groom
                   const b = coupleRes.data.bride
+                  setCoupleId(coupleRes.data.coupleId)
                   setWeddingConfig((prev) => ({
                     ...prev,
                     groomName: g?.name || prev.groomName,
@@ -1102,6 +1172,8 @@ export default function ChatPage() {
                     groomPhoto: g?.profileImage || prev.groomPhoto,
                     bridePhoto: b?.profileImage || prev.bridePhoto,
                   }))
+                  // 찜 목록도 로드
+                  reloadFavorites()
                 } catch {}
               } catch (err: any) {
                 toast.error("연결 실패", { description: err.message || "초대코드를 확인해주세요." })
@@ -1109,6 +1181,11 @@ export default function ChatPage() {
             }}
             onUpdateProfile={handleUpdateProfile}
             onDeleteAccount={handleLogout}
+            onCoupleDisconnect={() => {
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.success("커플 매칭이 해제되었습니다.")
+            }}
           />
         )
       case "wishlist":

@@ -1471,39 +1471,6 @@ export function VendorDetailView({
             )
           })()}
 
-          {/* Addons */}
-          {vendor.addons && vendor.addons.length > 0 && (
-            <div className="mt-3 overflow-hidden rounded-2xl bg-card">
-              <button
-                onClick={() => setShowAddons(!showAddons)}
-                className="flex w-full items-center justify-between p-5"
-              >
-                <span className="font-semibold text-foreground">추가상품</span>
-                {showAddons ? (
-                  <ChevronUp className="size-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-5 text-muted-foreground" />
-                )}
-              </button>
-              {showAddons && (
-                <div className="border-t border-border px-5 pb-5">
-                  <div className="mt-4 space-y-3">
-                    {vendor.addons.map((addon) => (
-                      <div key={addon.id} className="flex justify-between text-sm">
-                        <div>
-                          <span className="font-medium text-foreground">{addon.name}</span>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="font-medium text-foreground">{formatPrice(addon.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Memo Content (e.g. hall info) */}
           {vendor.memoContent && (
@@ -2011,7 +1978,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         </div>
       ) : step === "payment" ? (
         <>
-          <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
+          <div className="space-y-4">
 
             {/* 주문 정보 */}
             <div className="rounded-xl bg-muted/30 p-4 space-y-3">
@@ -2039,40 +2006,6 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
                 </div>
               )}
             </div>
-
-            {/* 추가상품 - 계약금 결제일 때만 */}
-            {!isBalancePayment && addons && addons.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
-                <div className="space-y-2">
-                  {addons.map((addon) => {
-                    const checked = selectedAddons.includes(addon.id)
-                    return (
-                      <button
-                        key={addon.id}
-                        className="flex w-full items-center gap-3 text-left"
-                        onClick={() => toggleAddon(addon.id)}
-                      >
-                        <div className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                          checked ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                        }`}>
-                          {checked && <Check className="size-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-foreground">{addon.name}</span>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-foreground shrink-0">
-                          {formatPrice(addon.price)}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 예약 정보 */}
             <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">

@@ -63,6 +63,7 @@ const CATEGORIES = [
   { value: "DRESS", label: "드레스" },
   { value: "MAKEUP", label: "메이크업" },
   { value: "HALL", label: "웨딩홀" },
+  { value: "ETC", label: "기타" },
 ] as const
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -70,6 +71,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   DRESS: "bg-pink-100 text-pink-700",
   MAKEUP: "bg-violet-100 text-violet-700",
   HALL: "bg-amber-100 text-amber-700",
+  ETC: "bg-gray-100 text-gray-700",
 }
 
 const statusColors = {
