@@ -1,289 +1,180 @@
-import base64
-import os
-from typing import Optional
-
 import requests
+import base64
+import mimetypes
+from pathlib import Path
+from dotenv import load_dotenv
+import os
 
-# 선택 기능: 얼굴 복원 후처리
-# 설치:
-# pip install opencv-python mediapipe numpy
-USE_FACE_RESTORE = False
-
-if USE_FACE_RESTORE:
-    import cv2
-    import numpy as np
-    import mediapipe as mp
-
-
-# =========================
+# ==============================
 # 설정
-# =========================
-GMS_KEY = ""
-API_URL = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/images/edits"
+# ==============================
 
-PERSON_IMAGE = "person.jpg"   # 기준 사람 사진
-DRESS_IMAGE = "dress.jpg"     # 드레스 화보 사진
+load_dotenv()
+GMS_KEY = os.getenv("GMS_KEY")
+URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent"
 
-STEP1_OUTPUT = "result_step1.png"   # 옷만 교체
-STEP2_OUTPUT = "result_step2.png"   # 배경까지 변경
-FINAL_OUTPUT = "result_final.png"   # 얼굴 복원까지 적용한 최종본
+PERSON_PATH = "person7.jpg"          # 최종 인물 기준
+DRESS_PATH = "dress.jpg"        # 드레스 참고용
+DRESS_ONLY_PATH = "dress_cleaned.png"  # 1차 결과: 드레스만 남긴 이미지
+OUTPUT_PATH = "result_final.png"     # 2차 결과: 최종 합성 결과
 
-
-# =========================
-# 프롬프트
-# =========================
-STEP1_PROMPT = """
-Use image 1 as the base person.
-
-Preserve the exact identity, face, hairstyle, body shape, proportions, and pose of image 1.
-
-The face must remain EXACTLY the same.
-
-Do not modify the face in any way.
-
-Do not change:
-- eyes
-- nose
-- lips
-- jawline
-- skin tone
-- hairstyle
-
-Do not beautify, retouch, smooth, enhance, or restyle the face.
-
-Only replace the clothing with the wedding dress from image 2.
-
-Preserve the full dress silhouette, skirt volume, neckline, waistline, lace details, and fabric texture from image 2.
-
-Do not change the background.
-
-The final image must look like the same real person from image 1 wearing the dress from image 2.
-"""
-
-STEP2_PROMPT = """
-Keep the person exactly the same as image 1.
-
-Do not change the face, identity, hairstyle, body, or pose.
-
-Do not modify the person in any way.
-
-Only change the background and scene to match the wedding photo style and studio environment of image 2.
-
-Keep the same person unchanged.
-
-The final image must look like the same real person from image 1 placed naturally into the wedding studio background of image 2.
-"""
-
-
-# =========================
+# ==============================
 # 유틸
-# =========================
-def save_b64_image(b64_data: str, output_path: str) -> None:
+# ==============================
+def encode_image(path: str) -> str:
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+def guess_mime_type(path: str) -> str:
+    mime_type, _ = mimetypes.guess_type(path)
+    return mime_type or "image/jpeg"
+
+def extract_generated_image_b64(result_json: dict) -> str | None:
+    for c in result_json.get("candidates", []):
+        content = c.get("content", {})
+        for p in content.get("parts", []):
+            if "inlineData" in p and "data" in p["inlineData"]:
+                return p["inlineData"]["data"]
+            if "inline_data" in p and "data" in p["inline_data"]:
+                return p["inline_data"]["data"]
+    return None
+
+def save_b64_image(image_b64: str, output_path: str):
     with open(output_path, "wb") as f:
-        f.write(base64.b64decode(b64_data))
+        f.write(base64.b64decode(image_b64))
 
-
-def call_image_edit(
-    image1_path: str,
-    image2_path: str,
-    prompt: str,
-    output_path: str,
-    quality: str = "low",
-    size: str = "1024x1024",
-    input_fidelity: str = "high",
-    timeout: int = 180,
-) -> dict:
+def call_gemini_image(prompt: str, image_paths: list[str], output_path: str):
     headers = {
-        "Authorization": f"Bearer {GMS_KEY}"
+        "Content-Type": "application/json",
+        "X-goog-api-key": GMS_KEY
     }
 
-    data = {
-        "model": "gpt-image-1.5",
-        "prompt": prompt,
-        "quality": quality,
-        "input_fidelity": input_fidelity,
-        "size": size,
-    }
+    parts = [{"text": prompt}]
+    for image_path in image_paths:
+        parts.append({
+            "inline_data": {
+                "mime_type": guess_mime_type(image_path),
+                "data": encode_image(image_path)
+            }
+        })
 
-    with open(image1_path, "rb") as img1, open(image2_path, "rb") as img2:
-        files = [
-            ("image[]", (os.path.basename(image1_path), img1, "image/jpeg")),
-            ("image[]", (os.path.basename(image2_path), img2, "image/jpeg")),
+    payload = {
+        "contents": [
+            {
+                "parts": parts
+            }
         ]
+    }
 
-        response = requests.post(
-            API_URL,
-            headers=headers,
-            files=files,
-            data=data,
-            timeout=timeout,
-        )
+    response = requests.post(URL, headers=headers, json=payload, timeout=180)
 
-    print("=" * 60)
-    print("status:", response.status_code)
-    print("body:", response.text[:2000])
+    if response.status_code != 200:
+        print("❌ Gemini 응답 오류:")
+        print(response.text)
+        response.raise_for_status()
 
-    response.raise_for_status()
     result = response.json()
+    image_b64 = extract_generated_image_b64(result)
 
-    print("usage:", result.get("usage"))
+    if not image_b64:
+        raise RuntimeError("Gemini 응답에서 이미지 데이터를 찾지 못했습니다.")
 
-    image_b64 = result["data"][0]["b64_json"]
     save_b64_image(image_b64, output_path)
-    print(f"완료: {output_path}")
+    print(f"✅ 저장 완료: {output_path}")
 
-    return result
-
-
-# =========================
-# 선택 기능: 얼굴 복원 후처리
-# =========================
-def restore_face_from_original(
-    original_person_path: str,
-    generated_path: str,
-    output_path: str,
-) -> None:
-    """
-    원본 얼굴을 결과 이미지에 다시 덮어써서 얼굴 유사도를 높이는 후처리.
-    정면/유사 정면 사진에서 가장 잘 동작.
-    """
-    if not USE_FACE_RESTORE:
-        raise RuntimeError("USE_FACE_RESTORE=False 상태입니다.")
-
-    mp_face = mp.solutions.face_mesh
-    face_mesh = mp_face.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=True,
+# ==============================
+# 1차: 드레스만 남기기
+# ==============================
+def generate_dress_only():
+    prompt = """
+DRESS_PATH에서 사람이나 부수적인것은 모두 지우고 드레스만 남겨라
+"""
+    print("🚀 1차 생성 중... 드레스만 남기는 중")
+    call_gemini_image(
+        prompt=prompt,
+        image_paths=[DRESS_PATH],
+        output_path=DRESS_ONLY_PATH
     )
 
-    src_bgr = cv2.imread(original_person_path)
-    dst_bgr = cv2.imread(generated_path)
+# ==============================
+# 2차: 인물 + 드레스 합성
+# ==============================
+def generate_final_result():
+    prompt = """
+Source A (Subject): PERSON_PATH
+Source B (Dress): DRESS_ONLY_PATH
 
-    if src_bgr is None or dst_bgr is None:
-        raise FileNotFoundError("이미지 파일을 불러오지 못했습니다.")
+1. Identity Lock (Critical)
+- PERSON_PATH is the ONLY person in the result.
+- Keep the exact same face, identity, body shape, proportions, pose, and expression.
+- Do NOT modify or regenerate the face.
+- Do NOT make the body slimmer or different.
 
-    src_rgb = cv2.cvtColor(src_bgr, cv2.COLOR_BGR2RGB)
-    dst_rgb = cv2.cvtColor(dst_bgr, cv2.COLOR_BGR2RGB)
+2. Strict Dress Extraction (From SECOND image)
+- Use DRESS_ONLY_PATH ONLY for the dress design.
+- Completely ignore the person in DRESS_ONLY_PATH.
 
-    src_res = face_mesh.process(src_rgb)
-    dst_res = face_mesh.process(dst_rgb)
+Apply the dress with high fidelity:
+- Preserve the overall design and structure of the dress
+- Preserve key features such as silhouette and general shape
 
-    if not src_res.multi_face_landmarks or not dst_res.multi_face_landmarks:
-        raise RuntimeError("얼굴 랜드마크를 찾지 못했습니다.")
+Important:
+- The dress must NOT be simplified.
+- The dress must NOT be redesigned or reinterpreted.
+- Do not add extra layers or change the skirt style.
+- The dress must match the design from DRESS_ONLY_PATH as closely as possible.
+- The dress must be resized and expanded to properly fit the body.
+- The upper part of the dress (bust, neckline, and straps) must remain consistent with the original design.
+- Do not alter the bust shape, neckline style, or strap structure.
+- The top of the dress must not be redesigned to fit the body.
 
-    src_landmarks = src_res.multi_face_landmarks[0].landmark
-    dst_landmarks = dst_res.multi_face_landmarks[0].landmark
+Veil rule:
+- If a veil exists in DRESS_ONLY_PATH, include it naturally.
+- If no veil exists, do NOT add one.
 
-    h1, w1 = src_bgr.shape[:2]
-    h2, w2 = dst_bgr.shape[:2]
+3. Editing Rules
+- Replace ONLY the clothing on PERSON_PATH.
+- Adapt the dress to the exact body and pose of PERSON_PATH.
+- Even skin-tight clothing must be fully removed before applying the dress.
+- The body shape must be treated as the natural human body, not influenced by previous clothing.
+- Remove any existing accessories (e.g., bag).
+- The body must be reconstructed naturally after removing clothing.
+- Removing clothing must not be blocked by body shape preservation rules.
 
-    # 얼굴 윤곽 근처 주요 점들
-    face_indices = [
-        10, 338, 297, 332, 284, 251, 389, 356, 454, 323,
-        361, 288, 397, 365, 379, 378, 400, 377, 152, 148,
-        176, 149, 150, 136, 172, 58, 132, 93, 234, 127,
-        162, 21, 54, 103, 67, 109
-    ]
+4. Background
+- Use a clean, bright white studio background.
 
-    src_points = []
-    dst_points = []
-
-    for idx in face_indices:
-        sx = int(src_landmarks[idx].x * w1)
-        sy = int(src_landmarks[idx].y * h1)
-        dx = int(dst_landmarks[idx].x * w2)
-        dy = int(dst_landmarks[idx].y * h2)
-        src_points.append([sx, sy])
-        dst_points.append([dx, dy])
-
-    src_points = np.array(src_points, dtype=np.int32)
-    dst_points = np.array(dst_points, dtype=np.int32)
-
-    # 변환 행렬
-    M, _ = cv2.estimateAffinePartial2D(
-        src_points.astype(np.float32),
-        dst_points.astype(np.float32),
-        method=cv2.LMEDS
-    )
-    if M is None:
-        raise RuntimeError("얼굴 정렬 행렬을 계산하지 못했습니다.")
-
-    warped_face = cv2.warpAffine(
-        src_bgr,
-        M,
-        (w2, h2),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_REFLECT
-    )
-
-    # 마스크 생성
-    mask = np.zeros((h2, w2), dtype=np.uint8)
-    hull = cv2.convexHull(dst_points)
-    cv2.fillConvexPoly(mask, hull, 255)
-    mask = cv2.GaussianBlur(mask, (31, 31), 0)
-
-    # seamlessClone용 중심
-    x, y, w, h = cv2.boundingRect(hull)
-    center = (x + w // 2, y + h // 2)
-
-    blended = cv2.seamlessClone(
-        warped_face,
-        dst_bgr,
-        mask,
-        center,
-        cv2.NORMAL_CLONE
+5. Output Constraints
+- EXACTLY ONE person.
+- Same person as FIRST image.
+- Dress must strongly match SECOND image design.
+"""
+    print("🚀 2차 생성 중... 인물 + 드레스 합성")
+    call_gemini_image(
+        prompt=prompt,
+        image_paths=[PERSON_PATH, DRESS_ONLY_PATH],
+        output_path=OUTPUT_PATH
     )
 
-    cv2.imwrite(output_path, blended)
-    print(f"얼굴 복원 완료: {output_path}")
-
-
-# =========================
-# 메인 파이프라인
-# =========================
-def main() -> None:
-    if not GMS_KEY:
-        raise ValueError("GMS_KEY를 입력하세요.")
-
-    if not os.path.exists(PERSON_IMAGE):
-        raise FileNotFoundError(f"{PERSON_IMAGE} 파일이 없습니다.")
-    if not os.path.exists(DRESS_IMAGE):
-        raise FileNotFoundError(f"{DRESS_IMAGE} 파일이 없습니다.")
-
-    # STEP 1: 사람 유지 + 드레스만 교체
-    call_image_edit(
-        image1_path=PERSON_IMAGE,
-        image2_path=DRESS_IMAGE,
-        prompt=STEP1_PROMPT,
-        output_path=STEP1_OUTPUT,
-        quality="low",
-        size="1024x1024",
-        input_fidelity="high",
-    )
-
-    # STEP 2: STEP1 결과 유지 + 배경만 드레스 화보 스타일로 변경
-    call_image_edit(
-        image1_path=STEP1_OUTPUT,
-        image2_path=DRESS_IMAGE,
-        prompt=STEP2_PROMPT,
-        output_path=STEP2_OUTPUT,
-        quality="low",
-        size="1024x1024",
-        input_fidelity="high",
-    )
-
-    # STEP 3: 선택 - 원본 얼굴 복원
-    if USE_FACE_RESTORE:
-        restore_face_from_original(
-            original_person_path=PERSON_IMAGE,
-            generated_path=STEP2_OUTPUT,
-            output_path=FINAL_OUTPUT,
-        )
-    else:
-        print(f"최종 결과: {STEP2_OUTPUT}")
-        print("원본 얼굴까지 더 강하게 유지하려면 USE_FACE_RESTORE = True 로 바꾸세요.")
-
-
+# ==============================
+# 실행
+# ==============================
 if __name__ == "__main__":
-    main()
+    if not GMS_KEY:
+        print("❌ GMS_KEY를 입력하세요.")
+    else:
+        try:
+            if not Path(PERSON_PATH).exists():
+                raise FileNotFoundError(f"PERSON_PATH 파일이 없습니다: {PERSON_PATH}")
+            if not Path(DRESS_PATH).exists():
+                raise FileNotFoundError(f"DRESS_PATH 파일이 없습니다: {DRESS_PATH}")
+
+            #generate_dress_only()
+            generate_final_result()
+
+            print("\n🎉 전체 작업 완료")
+            #print(f"- 1차 드레스 결과: {DRESS_ONLY_PATH}")
+            print(f"- 최종 합성 결과: {OUTPUT_PATH}")
+
+        except Exception as e:
+            print("❌ 오류:", e)
