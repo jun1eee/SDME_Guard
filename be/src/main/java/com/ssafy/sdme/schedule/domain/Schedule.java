@@ -108,7 +108,7 @@ public class Schedule {
     }
 
     public enum ScheduleCategory {
-        STUDIO, DRESS, MAKEUP, HALL
+        STUDIO, DRESS, MAKEUP, HALL, ETC
     }
 
     public enum ScheduleSource {
