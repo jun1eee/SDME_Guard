@@ -118,6 +118,16 @@ def _dedup_vendors(records: list[dict]) -> list[dict]:
     return list(seen.values())
 
 
+# 카테고리별 방문 소요시간 (분)
+VISIT_DURATION = {
+    "hall":    {"tour": 60, "fitting": 60},
+    "studio":  {"tour": 60, "fitting": 150},
+    "dress":   {"tour": 60, "fitting": 90},
+    "makeup":  {"tour": 60, "fitting": 60},
+    "unknown": {"tour": 60, "fitting": 60},
+}
+
+
 def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
     m = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", query)
     return min(int(m.group(1)), maximum) if m else default
@@ -232,19 +242,33 @@ TOOLS_SCHEMA = [
                           "description": "preference=취향, likes=찜목록, all=전체"},
         }, "required": ["info_type"]},
     }},
-    # 9. 웨딩홀/업체 투어 계획
+    # 9. 웨딩홀/업체 투어 계획 (홀+스드메 통합)
     {"type": "function", "function": {
         "name": "plan_tour",
-        "description": "웨딩홀/업체 투어 동선 계획. 반드시 출발지, 교통수단, 방문 목적(단순투어/피팅·테스트)을 사용자에게 확인한 후 호출하세요.",
+        "description": "웨딩홀/스튜디오/드레스/메이크업 업체 투어 동선 계획. 모든 카테고리 가능. 출발지, 교통수단, 방문 목적을 사용자에게 확인 후 호출.",
         "parameters": {"type": "object", "properties": {
-            "hall_names": {"type": "array", "items": {"type": "string"},
-                           "description": "투어할 웨딩홀/업체 이름 목록"},
-            "start_location": {"type": "string", "description": "출발 위치 (예: 강남역). 필수 - 사용자에게 확인."},
+            "venue_names": {"type": "array", "items": {"type": "string"},
+                            "description": "투어할 업체/웨딩홀 이름 목록 (카테고리 무관)"},
+            "start_location": {"type": "string", "description": "출발 위치 (예: 강남역). 필수."},
             "transport": {"type": "string", "enum": ["car", "transit", "walk"],
-                          "description": "이동 수단. 필수 - 사용자에게 확인."},
+                          "description": "이동 수단. 필수."},
             "visit_type": {"type": "string", "enum": ["tour", "fitting"],
-                           "description": "tour=단순 투어/견학(업체당 1시간), fitting=피팅/테스트촬영/메이크업 체험(업체당 2시간30분). 사용자에게 확인."},
-        }, "required": ["hall_names", "start_location", "transport", "visit_type"]},
+                           "description": "tour=단순 견학(1시간), fitting=피팅/테스트(카테고리별 상이). 필수."},
+            "end_location": {"type": "string", "description": "귀가 위치 (미지정 시 출발지, 선택)"},
+        }, "required": ["venue_names", "start_location", "transport", "visit_type"]},
+    }},
+    # 10. 투어 수정
+    {"type": "function", "function": {
+        "name": "modify_tour",
+        "description": "이전 투어 동선 수정. 순서 변경, 업체 추가/제거. '순서 바꿔', '빼줘', '추가해줘' 등.",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": ["swap", "remove", "add"],
+                       "description": "swap=순서 교체, remove=업체 제거, add=업체 추가"},
+            "index_a": {"type": "integer", "description": "swap: 첫번째 인덱스 (0부터)"},
+            "index_b": {"type": "integer", "description": "swap: 두번째 인덱스 (0부터)"},
+            "index": {"type": "integer", "description": "remove: 제거할 인덱스 (0부터)"},
+            "venue_name": {"type": "string", "description": "add: 추가할 업체명"},
+        }, "required": ["action"]},
     }},
     # 10. 웨딩 상식/지식 Q&A
     {"type": "function", "function": {
@@ -336,6 +360,7 @@ class ToolRegistry:
             "filter_sort": self.filter_sort,
             "get_user_info": self.get_user_info,
             "plan_tour": self.plan_tour,
+            "modify_tour": self.modify_tour,
             "knowledge_qa": self.knowledge_qa,
             "guest_calc": self.guest_calc,
             "get_timeline": self.get_timeline,
@@ -345,6 +370,7 @@ class ToolRegistry:
             "add_budget_item": self.add_budget_item,
         }
         self._checklist_completed: dict[int, list[str]] = {}  # couple_id → 완료 항목
+        self._last_tour: dict | None = None  # 마지막 투어 정보 (modify_tour용)
 
     def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
         fn = self.tool_map.get(tool_name)
@@ -580,30 +606,179 @@ class ToolRegistry:
                 parts.append("찜 목록: 없음")
         return ToolResult(result_type="direct", data="\n\n".join(parts), vendors=[])
 
-    # ── 9. plan_tour: 웨딩홀 투어 계획 ──
+    # ── 9. plan_tour: 통합 투어 (홀+스드메) ──
 
-    def plan_tour(self, hall_names: list[str], couple_id: int,
-                  start_location: str = None, transport: str = "car",
-                  visit_type: str = "tour", **_) -> ToolResult:
-        if not self.hall_engine or not self.hall_engine.driver:
-            return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
-        # 방문 유형에 따른 소요시간: 단순투어 60분, 피팅/테스트 150분
-        visit_duration = 150 if visit_type == "fitting" else 60
-        result = self.hall_engine.plan_tour(
-            hall_names=hall_names,
-            start_location=start_location,
-            transport=transport,
-            visit_duration=visit_duration,
-        )
-        halls = result.get("ordered_halls", [])
-        vendor_names = [h.get("name", "") for h in halls]
-        return ToolResult(
-            result_type="raw",
-            data=json.dumps(result, ensure_ascii=False, default=str),
-            vendors=vendor_names,
-        )
+    def _get_vendor_coord(self, name: str) -> tuple[float, float] | None:
+        """Vendor 노드에서 좌표 직접 조회"""
+        if not self.engine.driver:
+            return None
+        with self.engine.driver.session() as session:
+            result = session.run(
+                "MATCH (v:Vendor) WHERE v.name = $name AND v.location IS NOT NULL "
+                "RETURN v.lat AS lat, v.lng AS lng, v.category AS cat LIMIT 1",
+                name=name,
+            ).single()
+        if result and result["lat"] and result["lng"]:
+            return (float(result["lat"]), float(result["lng"]))
+        return None
 
-    # ── 10. knowledge_qa: 웨딩 상식 Q&A ──
+    def _get_vendor_category(self, name: str) -> str | None:
+        if not self.engine.driver:
+            return None
+        with self.engine.driver.session() as session:
+            result = session.run(
+                "MATCH (v:Vendor) WHERE v.name = $name RETURN v.category AS cat LIMIT 1",
+                name=name,
+            ).single()
+        return result["cat"] if result else None
+
+    def _resolve_venue_coordinates(self, venue_names: list[str]) -> list[dict]:
+        """Hall/Vendor 통합 좌표 조회"""
+        points = []
+        for name in venue_names:
+            # 1순위: Vendor (스드메)
+            coord = self._get_vendor_coord(name)
+            if coord:
+                cat = self._get_vendor_category(name) or "studio"
+                points.append({"name": name, "coord": coord, "category": cat})
+                continue
+            # 2순위: Hall
+            if self.hall_engine:
+                hall = self.hall_engine.get_hall_details(name)
+                if hall:
+                    hall_coord = self.hall_engine._resolve_hall_coordinate(hall)
+                    if hall_coord:
+                        points.append({"name": name, "coord": hall_coord, "category": "hall"})
+                        continue
+            # 3순위: geocode fallback
+            lat, lng, _ = geocode_query(name)
+            if lat and lng:
+                points.append({"name": name, "coord": (lat, lng), "category": "unknown"})
+        return points
+
+    def plan_tour(self, couple_id: int, hall_names: list[str] = None,
+                  venue_names: list[str] = None, start_location: str = None,
+                  transport: str = "car", visit_type: str = "tour",
+                  end_location: str = None, **_) -> ToolResult:
+        names = venue_names or hall_names or []
+        if not names:
+            return ToolResult(result_type="direct", data="투어할 업체/웨딩홀 이름을 알려주세요.", vendors=[])
+
+        points = self._resolve_venue_coordinates(names)
+        if not points:
+            return ToolResult(result_type="direct", data="업체 위치를 찾지 못했습니다.", vendors=[])
+
+        if not self.hall_engine:
+            return ToolResult(result_type="direct", data="투어 서비스가 준비되지 않았습니다.", vendors=[])
+
+        # 출발지 좌표
+        start_coord = self.hall_engine._geocode_place(start_location) if start_location else None
+
+        # 경로 최적화 (greedy nearest-neighbor)
+        remaining = [p for p in points if p["coord"]]
+        if not remaining:
+            return ToolResult(result_type="direct", data="업체 좌표를 확인할 수 없습니다.", vendors=[])
+        ordered = []
+        current_coord = start_coord
+        if current_coord is None:
+            first = remaining.pop(0)
+            ordered.append(first)
+            current_coord = first["coord"]
+        while remaining:
+            nearest = min(remaining, key=lambda p: self.hall_engine._haversine_distance(
+                current_coord[0], current_coord[1], p["coord"][0], p["coord"][1]))
+            ordered.append(nearest)
+            remaining.remove(nearest)
+            current_coord = nearest["coord"]
+
+        # 구간별 이동 계산
+        total_dist, total_time = 0.0, 0.0
+        legs = []
+        prev_label = "출발지" if start_coord else ordered[0]["name"]
+        prev_coord = start_coord or ordered[0]["coord"]
+        start_idx = 0 if start_coord else 1
+        for p in ordered[start_idx:]:
+            dist, dur = self.hall_engine._get_travel_metrics(prev_coord, p["coord"], transport)
+            legs.append({"from": prev_label, "to": p["name"], "distance_km": dist, "duration_min": dur})
+            total_dist += dist
+            total_time += dur
+            prev_label, prev_coord = p["name"], p["coord"]
+
+        # 귀가 경로
+        end_loc = end_location or start_location
+        if end_loc and prev_coord:
+            end_coord = self.hall_engine._geocode_place(end_loc)
+            if end_coord:
+                dist, dur = self.hall_engine._get_travel_metrics(prev_coord, end_coord, transport)
+                legs.append({"from": prev_label, "to": f"귀가({end_loc})", "distance_km": dist, "duration_min": dur})
+                total_dist += dist
+                total_time += dur
+
+        # 스케줄 빌드 (카테고리별 소요시간)
+        schedule = self._build_tour_schedule(ordered, legs, visit_type)
+
+        summary = f"추천 동선: {' -> '.join(p['name'] for p in ordered)}. 총 이동 약 {total_dist:.1f}km, {total_time:.0f}분."
+        result = {
+            "ordered_venues": [{"name": p["name"], "category": p["category"]} for p in ordered],
+            "summary": summary, "transport": transport,
+            "total_distance_km": round(total_dist, 2), "total_travel_min": round(total_time, 1),
+            "legs": legs, "schedule": schedule,
+        }
+
+        self._last_tour = {"venue_names": [p["name"] for p in ordered],
+                           "start_location": start_location, "transport": transport, "visit_type": visit_type}
+        return ToolResult(result_type="raw", data=json.dumps(result, ensure_ascii=False, default=str),
+                          vendors=[p["name"] for p in ordered])
+
+    def _build_tour_schedule(self, ordered, legs, visit_type):
+        schedule = []
+        current_min = 10 * 60  # 10:00
+        leg_map = {leg["to"]: leg["duration_min"] for leg in legs}
+        fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"
+        for p in ordered:
+            travel = leg_map.get(p["name"], 0)
+            if travel > 0:
+                arrive = current_min + int(travel)
+                schedule.append({"time": f"{fmt(current_min)}~{fmt(arrive)}", "activity": f"{p['name']}(으)로 이동 (약 {int(travel)}분)"})
+                current_min = arrive
+            cat = p.get("category", "unknown")
+            duration = VISIT_DURATION.get(cat, VISIT_DURATION["unknown"]).get(visit_type, 60)
+            end = current_min + duration
+            schedule.append({"time": f"{fmt(current_min)}~{fmt(end)}", "activity": f"{p['name']} 방문 ({duration}분)"})
+            current_min = end
+        for leg in legs:
+            if "귀가" in str(leg.get("to", "")):
+                travel = int(leg["duration_min"])
+                arrive = current_min + travel
+                schedule.append({"time": f"{fmt(current_min)}~{fmt(arrive)}", "activity": f"귀가 이동 (약 {travel}분)"})
+        return schedule
+
+    # ── 10. modify_tour ──
+
+    def modify_tour(self, action: str, couple_id: int,
+                    index_a: int = None, index_b: int = None,
+                    index: int = None, venue_name: str = None, **_) -> ToolResult:
+        if not self._last_tour:
+            return ToolResult(result_type="direct", data="이전 투어 계획이 없습니다. 먼저 투어를 계획해주세요.", vendors=[])
+        names = list(self._last_tour["venue_names"])
+        if action == "swap" and index_a is not None and index_b is not None:
+            if 0 <= index_a < len(names) and 0 <= index_b < len(names):
+                names[index_a], names[index_b] = names[index_b], names[index_a]
+        elif action == "remove" and index is not None:
+            if 0 <= index < len(names):
+                names.pop(index)
+        elif action == "add" and venue_name:
+            names.append(venue_name)
+        else:
+            return ToolResult(result_type="direct", data="수정 정보가 부족합니다.", vendors=[])
+        if not names:
+            return ToolResult(result_type="direct", data="수정 후 투어할 업체가 없습니다.", vendors=[])
+        return self.plan_tour(couple_id=couple_id, venue_names=names,
+                              start_location=self._last_tour.get("start_location"),
+                              transport=self._last_tour.get("transport", "car"),
+                              visit_type=self._last_tour.get("visit_type", "tour"))
+
+    # ── 11. knowledge_qa: 웨딩 상식 Q&A ──
 
     def knowledge_qa(self, topic: str, query: str, couple_id: int, **_) -> ToolResult:
         if topic == "general":
