@@ -255,7 +255,7 @@ public class AiChatService {
                         .contact(vendor.getContact())
                         .description(vendor.getDescription())
                         .hashtags(vendor.getHashtags())
-                        .address(address)
+                        .address(vendor.getAddress() != null ? vendor.getAddress() : address)
                         .build());
             } else {
                 enriched.add(AiRecommendation.builder()

@@ -73,6 +73,7 @@ VendorJsonImporter {
             .description(node.path("iwedding_product_name").asText(null))
             .hashtags(buildHashtags(node.path("tags")))
             .price(node.path("salePrice").asLong(0L))
+            .address(node.path("address").asText(null))
             .contact(node.path("serviceArea").asText(null))
             .crawledAt(null)
             .build();
