@@ -42,6 +42,25 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
     return `${price.toLocaleString()}원`
   }
 
+  /** 주소를 구/동 수준으로 축약 (건물명/층수 제거) */
+  const shortenAddress = (addr: string | null): string | null => {
+    if (!addr) return null
+    // "서울특별시 강남구 도산대로38길 30 1층" → "서울 강남구 도산대로38길"
+    // "경기도 하남시 미사동로 40번길 124-10" → "경기 하남시 미사동로"
+    let short = addr
+      .replace(/특별시|광역시/g, "")         // 서울특별시 → 서울
+      .replace(/\d+층/g, "")                // 층수 제거
+      .replace(/\s+지하\d?F?/gi, "")        // 지하1F 제거
+      .replace(/\(.*?\)/g, "")              // (동명) 제거
+      .replace(/\d+-\d+/g, "")              // 번지 제거 (124-10)
+      .replace(/\s+\d+$/, "")               // 끝 번호 제거
+      .trim()
+    // 너무 길면 구/동까지만
+    const parts = short.split(/\s+/)
+    if (parts.length > 3) short = parts.slice(0, 3).join(" ")
+    return short || null
+  }
+
   const parseTags = (rec: AiRecommendation): string[] => {
     const src = rec.hashtags || rec.reason || ""
     const isValidTag = (tag: string): boolean => {
@@ -155,18 +174,18 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                         {rec.name}
                       </h3>
 
-                      {/* 가격 + 위치 (한 줄에) */}
-                      <div className="flex items-center justify-between gap-2">
-                        {priceStr && (
-                          <span className="text-sm font-semibold text-primary">{priceStr}</span>
-                        )}
-                        {rec.address && (
-                          <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground truncate">
-                            <MapPin className="size-3 flex-shrink-0" />
-                            {rec.address}
-                          </span>
-                        )}
-                      </div>
+                      {/* 가격 */}
+                      {priceStr && (
+                        <p className="text-sm font-semibold text-primary">{priceStr}</p>
+                      )}
+
+                      {/* 위치 (구/동 수준 축약) */}
+                      {rec.address && (
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <MapPin className="size-3 flex-shrink-0" />
+                          <span className="truncate">{shortenAddress(rec.address)}</span>
+                        </div>
+                      )}
 
                       {/* 태그 뱃지 */}
                       {tags.length > 0 && (
