@@ -528,7 +528,12 @@ class ToolRegistry:
         if target_category == "hall":
             return self._search_hall(query_text)
 
-        # search_semantic with region hint for better results
+        # 1순위: Text2Cypher (태그 기반 multi-hop, 정형 검색)
+        answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
+        if vendors:
+            return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
+
+        # 2순위: VectorCypher (의미 유사도, 비정형 검색)
         answer, vendors = self.engine.search_semantic(
             query=query_text, category=target_category, region=region_hint or None,
         )
