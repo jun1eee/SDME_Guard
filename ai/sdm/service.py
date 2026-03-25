@@ -108,6 +108,8 @@ class SdmChatService:
                         break
             if not all_vendors and answer:
                 all_vendors = self.engine._extract_vendors_from_bold(answer)
+            if not all_vendors and answer:
+                all_vendors = self.engine._extract_vendors_from_list(answer)
 
             self._update_session_from_tools(
                 session=session, tool_results=tool_results,
