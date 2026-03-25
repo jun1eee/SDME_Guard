@@ -1,4 +1,4 @@
-"""통합 웨딩 챗봇 Tool — 8개 tool, 명확한 역할 분리"""
+"""통합 웨딩 챗봇 Tool — 11개 tool, 명확한 역할 분리"""
 import json
 import re
 import requests as http_requests
@@ -7,6 +7,10 @@ from typing import Any
 
 from config import settings
 from sdm.graphrag import SdmGraphRagEngine, NO_RESULT_PHRASES
+from sdm.knowledge import (
+    WEDDING_KB, _get_venue_size_guide, _get_meal_cost_guide, _get_guest_estimate_guide,
+)
+from sdm.budget import allocate_budget, get_hidden_costs, HIDDEN_COSTS
 
 
 @dataclass
@@ -112,6 +116,16 @@ def _dedup_vendors(records: list[dict]) -> list[dict]:
             r["priceMax"] = price
             seen[name] = r
     return list(seen.values())
+
+
+# 카테고리별 방문 소요시간 (분)
+VISIT_DURATION = {
+    "hall":    {"tour": 60, "fitting": 60},
+    "studio":  {"tour": 60, "fitting": 150},
+    "dress":   {"tour": 60, "fitting": 90},
+    "makeup":  {"tour": 60, "fitting": 60},
+    "unknown": {"tour": 60, "fitting": 60},
+}
 
 
 def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
@@ -228,19 +242,104 @@ TOOLS_SCHEMA = [
                           "description": "preference=취향, likes=찜목록, all=전체"},
         }, "required": ["info_type"]},
     }},
-    # 9. 웨딩홀/업체 투어 계획
+    # 9. 웨딩홀/업체 투어 계획 (홀+스드메 통합)
     {"type": "function", "function": {
         "name": "plan_tour",
-        "description": "웨딩홀/업체 투어 동선 계획. 반드시 출발지, 교통수단, 방문 목적(단순투어/피팅·테스트)을 사용자에게 확인한 후 호출하세요.",
+        "description": "웨딩홀/스튜디오/드레스/메이크업 업체 투어 동선 계획. 모든 카테고리 가능. 출발지, 교통수단, 방문 목적을 사용자에게 확인 후 호출.",
         "parameters": {"type": "object", "properties": {
-            "hall_names": {"type": "array", "items": {"type": "string"},
-                           "description": "투어할 웨딩홀/업체 이름 목록"},
-            "start_location": {"type": "string", "description": "출발 위치 (예: 강남역). 필수 - 사용자에게 확인."},
+            "venue_names": {"type": "array", "items": {"type": "string"},
+                            "description": "투어할 업체/웨딩홀 이름 목록 (카테고리 무관)"},
+            "start_location": {"type": "string", "description": "출발 위치 (예: 강남역). 필수."},
             "transport": {"type": "string", "enum": ["car", "transit", "walk"],
-                          "description": "이동 수단. 필수 - 사용자에게 확인."},
+                          "description": "이동 수단. 필수."},
             "visit_type": {"type": "string", "enum": ["tour", "fitting"],
-                           "description": "tour=단순 투어/견학(업체당 1시간), fitting=피팅/테스트촬영/메이크업 체험(업체당 2시간30분). 사용자에게 확인."},
-        }, "required": ["hall_names", "start_location", "transport", "visit_type"]},
+                           "description": "tour=단순 견학(1시간), fitting=피팅/테스트(카테고리별 상이). 필수."},
+            "end_location": {"type": "string", "description": "귀가 위치 (미지정 시 출발지, 선택)"},
+        }, "required": ["venue_names", "start_location", "transport", "visit_type"]},
+    }},
+    # 10. 투어 수정
+    {"type": "function", "function": {
+        "name": "modify_tour",
+        "description": "이전 투어 동선 수정. 순서 변경, 업체 추가/제거. '순서 바꿔', '빼줘', '추가해줘' 등.",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": ["swap", "remove", "add"],
+                       "description": "swap=순서 교체, remove=업체 제거, add=업체 추가"},
+            "index_a": {"type": "integer", "description": "swap: 첫번째 인덱스 (0부터)"},
+            "index_b": {"type": "integer", "description": "swap: 두번째 인덱스 (0부터)"},
+            "index": {"type": "integer", "description": "remove: 제거할 인덱스 (0부터)"},
+            "venue_name": {"type": "string", "description": "add: 추가할 업체명"},
+        }, "required": ["action"]},
+    }},
+    # 10. 웨딩 상식/지식 Q&A
+    {"type": "function", "function": {
+        "name": "knowledge_qa",
+        "description": "웨딩 상식/예절/관습 Q&A. 축의금, 폐백, 결혼식 순서, 예물/예단, 혼인신고, 신혼여행, 웨딩카, 식사(뷔페/코스) 등. 업체 검색이 아닌 지식/정보 질문에 사용.",
+        "parameters": {"type": "object", "properties": {
+            "topic": {"type": "string",
+                      "enum": ["gift_money", "paebaek", "ceremony_order", "wedding_gifts",
+                               "honeymoon", "registration", "wedding_car", "catering", "general"],
+                      "description": "질문 주제"},
+            "query": {"type": "string", "description": "사용자 질문 원문"},
+        }, "required": ["topic", "query"]},
+    }},
+    # 11. 하객 수 기반 계산
+    {"type": "function", "function": {
+        "name": "guest_calc",
+        "description": "하객 수 기반 계산. 홀 규모 추천, 식대 총액 계산, 하객수 추정 가이드. 숫자 계산이 필요한 하객 관련 질문.",
+        "parameters": {"type": "object", "properties": {
+            "calc_type": {"type": "string", "enum": ["venue_size", "meal_cost", "guest_estimate"],
+                          "description": "venue_size=홀 규모 추천, meal_cost=식대 총액 계산, guest_estimate=하객수 추정 가이드"},
+            "guest_count": {"type": "integer", "description": "하객 수 (venue_size, meal_cost에 필요)"},
+            "meal_price": {"type": "integer", "description": "인당 식대 (meal_cost에 필요, 기본 80000원)"},
+        }, "required": ["calc_type"]},
+    }},
+    # 12. 결혼 준비 타임라인
+    {"type": "function", "function": {
+        "name": "get_timeline",
+        "description": "결혼 준비 타임라인/일정 조회. 전체 일정, 현재 해야 할 일, 카테고리별 예약 마감일. '일정', '언제까지', '뭐 해야 돼' 등.",
+        "parameters": {"type": "object", "properties": {
+            "scope": {"type": "string", "enum": ["full", "current", "monthly", "category_deadline"],
+                      "description": "full=전체 일정, current=지금 할 일, monthly=이번달, category_deadline=카테고리 마감일"},
+            "category": {"type": "string", "enum": ["studio", "dress", "makeup", "hall"],
+                         "description": "카테고리 마감일 조회 시 (선택)"},
+            "wedding_date": {"type": "string", "description": "결혼식 날짜 YYYY-MM-DD. 모르면 사용자에게 확인."},
+        }, "required": ["scope", "wedding_date"]},
+    }},
+    # 13. 체크리스트
+    {"type": "function", "function": {
+        "name": "get_checklist",
+        "description": "결혼 준비 체크리스트 생성/조회/완료 처리. '체크리스트', '할 일 목록', '~예약했어(완료 보고)' 등.",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": ["generate", "status", "complete"],
+                       "description": "generate=체크리스트 생성, status=진행현황, complete=항목 완료"},
+            "wedding_date": {"type": "string", "description": "결혼식 날짜 YYYY-MM-DD"},
+            "completed_item": {"type": "string", "description": "완료한 항목명 (complete 시)"},
+        }, "required": ["action"]},
+    }},
+    # 14. 예산 현황 조회
+    {"type": "function", "function": {
+        "name": "get_budget_summary",
+        "description": "현재 내 웨딩 예산 현황 조회. 총예산, 카테고리별 배분, 지출 현황, 잔여 금액.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    }},
+    # 15. 예산 배분 추천
+    {"type": "function", "function": {
+        "name": "suggest_budget",
+        "description": "총 예산을 카테고리별로 배분 추천. 숨은 비용 안내 포함. '예산 배분', '얼마씩', '숨은 비용' 등.",
+        "parameters": {"type": "object", "properties": {
+            "total_budget": {"type": "integer", "description": "총 예산 (원)"},
+            "priorities": {"type": "array", "items": {"type": "string"}, "description": "우선 투자할 카테고리 (선택)"},
+        }, "required": ["total_budget"]},
+    }},
+    # 16. 예산 항목 추가
+    {"type": "function", "function": {
+        "name": "add_budget_item",
+        "description": "예산에 항목/업체 비용 추가 기록. '예산에 넣어줘', '비용 추가' 등.",
+        "parameters": {"type": "object", "properties": {
+            "category": {"type": "string", "description": "카테고리 (웨딩홀/스튜디오/드레스/메이크업/기타)"},
+            "name": {"type": "string", "description": "항목명/업체명"},
+            "amount": {"type": "integer", "description": "금액 (원)"},
+        }, "required": ["category", "name", "amount"]},
     }},
 ]
 
@@ -261,7 +360,17 @@ class ToolRegistry:
             "filter_sort": self.filter_sort,
             "get_user_info": self.get_user_info,
             "plan_tour": self.plan_tour,
+            "modify_tour": self.modify_tour,
+            "knowledge_qa": self.knowledge_qa,
+            "guest_calc": self.guest_calc,
+            "get_timeline": self.get_timeline,
+            "get_checklist": self.get_checklist,
+            "get_budget_summary": self.get_budget_summary,
+            "suggest_budget": self.suggest_budget,
+            "add_budget_item": self.add_budget_item,
         }
+        self._checklist_completed: dict[int, list[str]] = {}  # couple_id → 완료 항목
+        self._last_tour: dict | None = None  # 마지막 투어 정보 (modify_tour용)
 
     def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
         fn = self.tool_map.get(tool_name)
@@ -403,33 +512,32 @@ class ToolRegistry:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 타겟 카테고리에 맞는 키워드로 변환
+        # Hall에서 조회 → 지역 + 카테고리 기반 검색 (추상 스타일 키워드 대신)
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
-                region_hint = hall.region
-                cat_map = self._HALL_STYLE_MAP_BY_CAT.get(target_category, {})
-                style_words = []
-                for tag in hall.tags + hall.style_filters:
-                    mapped = cat_map.get(tag)
-                    if mapped:
-                        style_words.append(mapped)
-                if not style_words:
-                    # 기본 키워드: 타겟 카테고리 자체
-                    default_kw = {"studio": "웨딩촬영", "dress": "웨딩 드레스", "makeup": "웨딩 메이크업"}
-                    style_words = [default_kw.get(target_category, "웨딩")]
-                query_text = " ".join(style_words)
+                region_hint = hall.region or hall.sub_region or ""
+                cat_default = {
+                    "studio": "웨딩 스튜디오 촬영",
+                    "dress": "웨딩 드레스",
+                    "makeup": "웨딩 메이크업 헤어",
+                }
+                query_text = f"{region_hint} {cat_default.get(target_category, '웨딩')}"
 
         if not query_text:
             query_text = source_name
 
         if target_category == "hall":
             return self._search_hall(query_text)
+
+        # search_semantic with region hint for better results
         answer, vendors = self.engine.search_semantic(
             query=query_text, category=target_category, region=region_hint or None,
         )
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self.engine._extract_vendors_from_list(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 5. get_detail: 상세 조회 ──
@@ -497,27 +605,457 @@ class ToolRegistry:
                 parts.append("찜 목록: 없음")
         return ToolResult(result_type="direct", data="\n\n".join(parts), vendors=[])
 
-    # ── 9. plan_tour: 웨딩홀 투어 계획 ──
+    # ── 9. plan_tour: 통합 투어 (홀+스드메) ──
 
-    def plan_tour(self, hall_names: list[str], couple_id: int,
-                  start_location: str = None, transport: str = "car",
-                  visit_type: str = "tour", **_) -> ToolResult:
+    def _get_vendor_coord(self, name: str) -> tuple[float, float] | None:
+        """Vendor 노드에서 좌표 직접 조회"""
+        if not self.engine.driver:
+            return None
+        with self.engine.driver.session() as session:
+            result = session.run(
+                "MATCH (v:Vendor) WHERE v.name = $name AND v.location IS NOT NULL "
+                "RETURN v.lat AS lat, v.lng AS lng, v.category AS cat LIMIT 1",
+                name=name,
+            ).single()
+        if result and result["lat"] and result["lng"]:
+            return (float(result["lat"]), float(result["lng"]))
+        return None
+
+    def _get_hall_coord(self, name: str) -> tuple[float, float] | None:
+        """Hall 노드에서 좌표 직접 조회 (Kakao API 의존 제거)"""
         if not self.hall_engine or not self.hall_engine.driver:
-            return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
-        # 방문 유형에 따른 소요시간: 단순투어 60분, 피팅/테스트 150분
-        visit_duration = 150 if visit_type == "fitting" else 60
-        result = self.hall_engine.plan_tour(
-            hall_names=hall_names,
-            start_location=start_location,
-            transport=transport,
-            visit_duration=visit_duration,
+            return None
+        with self.hall_engine.driver.session() as session:
+            result = session.run(
+                "MATCH (h:Hall) WHERE h.name = $name AND h.lat IS NOT NULL "
+                "RETURN h.lat AS lat, h.lng AS lng LIMIT 1",
+                name=name,
+            ).single()
+        if result and result["lat"] and result["lng"]:
+            return (float(result["lat"]), float(result["lng"]))
+        return None
+
+    def _get_vendor_category(self, name: str) -> str | None:
+        if not self.engine.driver:
+            return None
+        with self.engine.driver.session() as session:
+            result = session.run(
+                "MATCH (v:Vendor) WHERE v.name = $name RETURN v.category AS cat LIMIT 1",
+                name=name,
+            ).single()
+        return result["cat"] if result else None
+
+    def _resolve_venue_coordinates(self, venue_names: list[str]) -> list[dict]:
+        """Hall/Vendor 통합 좌표 조회"""
+        points = []
+        for name in venue_names:
+            # 1순위: Vendor (스드메)
+            coord = self._get_vendor_coord(name)
+            if coord:
+                cat = self._get_vendor_category(name) or "studio"
+                points.append({"name": name, "coord": coord, "category": cat})
+                continue
+            # 2순위: Hall — Neo4j 좌표 직접 조회 (Kakao API 의존 제거)
+            coord = self._get_hall_coord(name)
+            if coord:
+                points.append({"name": name, "coord": coord, "category": "hall"})
+                continue
+            # 3순위: geocode fallback
+            lat, lng, _ = geocode_query(name)
+            if lat and lng:
+                points.append({"name": name, "coord": (lat, lng), "category": "unknown"})
+        return points
+
+    def plan_tour(self, couple_id: int, hall_names: list[str] = None,
+                  venue_names: list[str] = None, start_location: str = None,
+                  transport: str = "car", visit_type: str = "tour",
+                  end_location: str = None, **_) -> ToolResult:
+        names = venue_names or hall_names or []
+        if not names:
+            return ToolResult(result_type="direct", data="투어할 업체/웨딩홀 이름을 알려주세요.", vendors=[])
+
+        points = self._resolve_venue_coordinates(names)
+        if not points:
+            return ToolResult(result_type="direct", data="업체 위치를 찾지 못했습니다.", vendors=[])
+
+        if not self.hall_engine:
+            return ToolResult(result_type="direct", data="투어 서비스가 준비되지 않았습니다.", vendors=[])
+
+        # 출발지 좌표
+        start_coord = self.hall_engine._geocode_place(start_location) if start_location else None
+
+        # 경로 최적화 (greedy nearest-neighbor)
+        remaining = [p for p in points if p["coord"]]
+        if not remaining:
+            return ToolResult(result_type="direct", data="업체 좌표를 확인할 수 없습니다.", vendors=[])
+        ordered = []
+        current_coord = start_coord
+        if current_coord is None:
+            first = remaining.pop(0)
+            ordered.append(first)
+            current_coord = first["coord"]
+        while remaining:
+            nearest = min(remaining, key=lambda p: self.hall_engine._haversine_distance(
+                current_coord[0], current_coord[1], p["coord"][0], p["coord"][1]))
+            ordered.append(nearest)
+            remaining.remove(nearest)
+            current_coord = nearest["coord"]
+
+        # 구간별 이동 계산 (transit은 driving 기준 1.3배 보정)
+        total_dist, total_time = 0.0, 0.0
+        legs = []
+        prev_label = "출발지" if start_coord else ordered[0]["name"]
+        prev_coord = start_coord or ordered[0]["coord"]
+        start_idx = 0 if start_coord else 1
+        for p in ordered[start_idx:]:
+            # transit/walk도 카카오 driving API 결과 기반으로 보정
+            dist, dur = self.hall_engine._get_travel_metrics(prev_coord, p["coord"], "car")
+            if transport == "transit":
+                dur = round(dur * 1.3, 1)  # 대중교통 = 자동차 × 1.3
+            elif transport == "walk":
+                dur = round(dist / 4 * 60, 1)  # 도보 = 4km/h
+            legs.append({"from": prev_label, "to": p["name"], "distance_km": dist, "duration_min": dur})
+            total_dist += dist
+            total_time += dur
+            prev_label, prev_coord = p["name"], p["coord"]
+
+        # 귀가 경로
+        end_loc = end_location or start_location
+        if end_loc and prev_coord:
+            end_coord = self.hall_engine._geocode_place(end_loc)
+            if end_coord:
+                dist, dur = self.hall_engine._get_travel_metrics(prev_coord, end_coord, "car")
+                if transport == "transit":
+                    dur = round(dur * 1.3, 1)
+                elif transport == "walk":
+                    dur = round(dist / 4 * 60, 1)
+                legs.append({"from": prev_label, "to": f"귀가({end_loc})", "distance_km": dist, "duration_min": dur})
+                total_dist += dist
+                total_time += dur
+
+        # 스케줄 빌드 (카테고리별 소요시간)
+        schedule = self._build_tour_schedule(ordered, legs, visit_type, start_location=start_location)
+
+        # 상세 타임라인 텍스트 생성
+        transport_label = {"car": "자동차", "transit": "지하철/대중교통", "walk": "도보"}.get(transport, transport)
+        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
+        timeline_lines = []
+        for item in schedule:
+            timeline_lines.append(f"  {item['time']} {item['activity']}")
+        timeline_text = (
+            f"{start_location or '출발지'}에서 {transport_label}로 {visit_label} 투어:\n\n"
+            + "\n".join(timeline_lines)
+            + f"\n\n총 이동거리: {total_dist:.1f}km | 총 이동시간: {total_time:.0f}분"
         )
-        halls = result.get("ordered_halls", [])
-        vendor_names = [h.get("name", "") for h in halls]
+
+        summary = f"추천 동선: {' -> '.join(p['name'] for p in ordered)}. 총 이동 약 {total_dist:.1f}km, {total_time:.0f}분."
+        result = {
+            "ordered_venues": [{"name": p["name"], "category": p["category"]} for p in ordered],
+            "summary": summary, "transport": transport,
+            "total_distance_km": round(total_dist, 2), "total_travel_min": round(total_time, 1),
+            "legs": legs, "schedule": schedule,
+            "timeline_text": timeline_text,
+        }
+
+        self._last_tour = {"venue_names": [p["name"] for p in ordered],
+                           "start_location": start_location, "transport": transport, "visit_type": visit_type}
+        return ToolResult(result_type="raw", data=json.dumps(result, ensure_ascii=False, default=str),
+                          vendors=[p["name"] for p in ordered])
+
+    def _build_tour_schedule(self, ordered, legs, visit_type, start_location=None):
+        schedule = []
+        current_min = 10 * 60  # 10:00
+        leg_map = {}
+        for leg in legs:
+            leg_map[leg["to"]] = leg
+        fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"
+
+        lunch_inserted = False
+        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
+
+        for i, p in enumerate(ordered):
+            leg = leg_map.get(p["name"])
+
+            # Travel segment
+            if leg:
+                travel_min = int(leg["duration_min"])
+                dist = leg["distance_km"]
+                from_name = leg["from"]
+                arrive = current_min + travel_min
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(arrive)}",
+                    "activity": f"{from_name} -> {p['name']} 이동 ({travel_min}분, {dist}km)",
+                })
+                current_min = arrive
+
+            # Lunch break (if between 11:30-13:30 and not yet inserted)
+            if not lunch_inserted and 11 * 60 + 30 <= current_min <= 13 * 60 + 30:
+                lunch_end = current_min + 60
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(lunch_end)}",
+                    "activity": "점심 식사 (1시간)",
+                })
+                current_min = lunch_end
+                lunch_inserted = True
+
+            # Visit
+            cat = p.get("category", "unknown")
+            duration = VISIT_DURATION.get(cat, VISIT_DURATION["unknown"]).get(visit_type, 60)
+            end = current_min + duration
+            schedule.append({
+                "time": f"{fmt(current_min)}~{fmt(end)}",
+                "activity": f"{p['name']} {visit_label} ({duration}분)",
+            })
+            current_min = end
+
+        # Return trip
+        for leg in legs:
+            if "귀가" in str(leg.get("to", "")):
+                travel_min = int(leg["duration_min"])
+                dist = leg["distance_km"]
+                arrive = current_min + travel_min
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(arrive)}",
+                    "activity": f"귀가 이동 ({travel_min}분, {dist}km)",
+                })
+
+        return schedule
+
+    # ── 10. modify_tour ──
+
+    def modify_tour(self, action: str, couple_id: int,
+                    index_a: int = None, index_b: int = None,
+                    index: int = None, venue_name: str = None, **_) -> ToolResult:
+        if not self._last_tour:
+            return ToolResult(result_type="direct", data="이전 투어 계획이 없습니다. 먼저 투어를 계획해주세요.", vendors=[])
+        names = list(self._last_tour["venue_names"])
+        if action == "swap" and index_a is not None and index_b is not None:
+            if 0 <= index_a < len(names) and 0 <= index_b < len(names):
+                names[index_a], names[index_b] = names[index_b], names[index_a]
+        elif action == "remove" and index is not None:
+            if 0 <= index < len(names):
+                names.pop(index)
+        elif action == "add" and venue_name:
+            names.append(venue_name)
+        else:
+            return ToolResult(result_type="direct", data="수정 정보가 부족합니다.", vendors=[])
+        if not names:
+            return ToolResult(result_type="direct", data="수정 후 투어할 업체가 없습니다.", vendors=[])
+        return self.plan_tour(couple_id=couple_id, venue_names=names,
+                              start_location=self._last_tour.get("start_location"),
+                              transport=self._last_tour.get("transport", "car"),
+                              visit_type=self._last_tour.get("visit_type", "tour"))
+
+    # ── 11. knowledge_qa: 웨딩 상식 Q&A ──
+
+    def knowledge_qa(self, topic: str, query: str, couple_id: int, **_) -> ToolResult:
+        if topic == "general":
+            # 전체 주제 목록 요약
+            topics_summary = "\n".join(
+                f"- {k}: {v['title']}" for k, v in WEDDING_KB.items()
+            )
+            context = f"아래 주제 중 궁금한 것을 골라 질문해주세요:\n{topics_summary}"
+            return ToolResult(result_type="raw", data=context, vendors=[])
+
+        kb_entry = WEDDING_KB.get(topic)
+        if not kb_entry:
+            return ToolResult(result_type="direct",
+                              data="해당 주제의 정보를 찾지 못했습니다.", vendors=[])
+
+        tips_text = "\n".join(f"- {t}" for t in kb_entry["tips"])
+        context = f"# {kb_entry['title']}\n\n{kb_entry['content']}\n\n## 꿀팁\n{tips_text}"
+        return ToolResult(result_type="raw", data=context, vendors=[])
+
+    # ── 11. guest_calc: 하객 수 기반 계산 ──
+
+    def guest_calc(self, calc_type: str, couple_id: int,
+                   guest_count: int = None, meal_price: int = None, **_) -> ToolResult:
+        if calc_type == "venue_size":
+            if not guest_count:
+                return ToolResult(result_type="direct",
+                                  data="홀 규모 추천을 위해 예상 하객 수를 알려주세요.", vendors=[])
+            context = _get_venue_size_guide(guest_count)
+            return ToolResult(result_type="raw", data=context, vendors=[])
+
+        if calc_type == "meal_cost":
+            if not guest_count:
+                return ToolResult(result_type="direct",
+                                  data="식대 계산을 위해 예상 하객 수를 알려주세요.", vendors=[])
+            price = meal_price or 80000
+            total = guest_count * price
+            dining_count = int(guest_count * 0.93)  # 실제 식사 인원 약 93%
+            actual_total = dining_count * price
+            context = (
+                f"## 식대 계산 결과\n\n"
+                f"- 하객 수: {guest_count}명\n"
+                f"- 인당 식대: {price:,}원\n"
+                f"- 전체 기준 식대: {total:,}원\n"
+                f"- 실제 식사 인원(약 93%): {dining_count}명\n"
+                f"- 실제 예상 식대: {actual_total:,}원\n\n"
+                f"{_get_meal_cost_guide()}"
+            )
+            return ToolResult(result_type="raw", data=context, vendors=[])
+
+        if calc_type == "guest_estimate":
+            context = _get_guest_estimate_guide()
+            return ToolResult(result_type="raw", data=context, vendors=[])
+
+        return ToolResult(result_type="direct",
+                          data="지원하지 않는 계산 유형입니다.", vendors=[])
+
+    # ── 12. get_timeline: 결혼 준비 타임라인 ──
+
+    def get_timeline(self, scope: str, wedding_date: str, couple_id: int,
+                     category: str | None = None, **_) -> ToolResult:
+        from datetime import datetime, timedelta
+        try:
+            w_date = datetime.strptime(wedding_date, "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return ToolResult(result_type="direct",
+                              data="결혼식 날짜를 YYYY-MM-DD 형식으로 알려주세요.", vendors=[])
+
+        today = datetime.now()
+        days_left = (w_date - today).days
+
+        timeline = [
+            {"period": "12~10개월 전", "items": ["예산 설정", "웨딩홀 투어 및 예약", "스드메 업체 리서치"]},
+            {"period": "10~8개월 전", "items": ["스튜디오 예약", "드레스 피팅 시작", "메이크업 상담"]},
+            {"period": "8~6개월 전", "items": ["드레스 결정 및 계약", "메이크업 리허설", "청첩장 준비"]},
+            {"period": "6~4개월 전", "items": ["본식 스냅/영상 예약", "허니문 예약", "예물/예단 준비"]},
+            {"period": "4~2개월 전", "items": ["청첩장 발송", "혼수 준비", "최종 피팅"]},
+            {"period": "2개월~당일", "items": ["최종 리허설", "하객 확정", "세부 일정 확인"]},
+        ]
+
+        if scope == "current":
+            months_left = days_left / 30
+            current = [t for t in timeline if self._in_period(months_left, t["period"])]
+            data = {"days_left": days_left, "current_tasks": current or timeline[-1:]}
+        elif scope == "category_deadline" and category:
+            deadlines = {"hall": "10개월 전", "studio": "8개월 전", "dress": "6개월 전", "makeup": "6개월 전"}
+            data = {"category": category, "recommended_deadline": deadlines.get(category, "6개월 전")}
+        else:
+            data = {"days_left": days_left, "wedding_date": wedding_date, "timeline": timeline}
+
+        return ToolResult(result_type="raw",
+                          data=json.dumps(data, ensure_ascii=False, default=str), vendors=[])
+
+    @staticmethod
+    def _in_period(months_left: float, period: str) -> bool:
+        ranges = {"12~10": (10, 12), "10~8": (8, 10), "8~6": (6, 8),
+                  "6~4": (4, 6), "4~2": (2, 4), "2개월": (0, 2)}
+        for key, (lo, hi) in ranges.items():
+            if key in period and lo <= months_left <= hi:
+                return True
+        return False
+
+    # ── 13. get_checklist: 결혼 준비 체크리스트 ──
+
+    def get_checklist(self, action: str, couple_id: int,
+                      wedding_date: str | None = None,
+                      completed_item: str | None = None, **_) -> ToolResult:
+        checklist = [
+            {"category": "웨딩홀", "items": ["웨딩홀 투어", "웨딩홀 계약", "식사 메뉴 결정"]},
+            {"category": "스튜디오", "items": ["스튜디오 상담", "촬영 컨셉 결정", "스튜디오 계약"]},
+            {"category": "드레스", "items": ["드레스 피팅", "드레스 결정", "악세서리 준비"]},
+            {"category": "메이크업", "items": ["메이크업 상담", "리허설 메이크업", "메이크업 계약"]},
+            {"category": "기타", "items": ["청첩장 제작", "예물 준비", "허니문 예약", "혼수 준비"]},
+        ]
+
+        completed = self._checklist_completed.get(couple_id, [])
+
+        if action == "complete" and completed_item:
+            if completed_item not in completed:
+                completed.append(completed_item)
+                self._checklist_completed[couple_id] = completed
+            return ToolResult(result_type="direct",
+                              data=f"'{completed_item}' 항목이 완료 처리되었습니다!", vendors=[])
+
+        if action == "status":
+            all_items = [item for cat in checklist for item in cat["items"]]
+            done = [i for i in all_items if i in completed]
+            remaining = [i for i in all_items if i not in completed]
+            data = {"total": len(all_items), "done": len(done), "done_items": done, "remaining": remaining}
+        else:
+            for cat in checklist:
+                cat["items"] = [{"name": i, "done": i in completed} for i in cat["items"]]
+            data = {"checklist": checklist}
+
+        return ToolResult(result_type="raw",
+                          data=json.dumps(data, ensure_ascii=False, default=str), vendors=[])
+
+    # ── 14. get_budget_summary: 예산 현황 조회 ──
+
+    def get_budget_summary(self, couple_id: int, **_) -> ToolResult:
+        try:
+            resp = http_requests.get(
+                f"{settings.spring_url}/api/budgets",
+                params={"coupleId": couple_id},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return ToolResult(result_type="raw",
+                                  data=json.dumps(data, ensure_ascii=False, default=str),
+                                  vendors=[])
+        except Exception:
+            pass
+        return ToolResult(
+            result_type="raw",
+            data="예산 정보를 불러올 수 없습니다. 웨딩 예산 페이지에서 예산을 먼저 설정해주세요.",
+            vendors=[],
+        )
+
+    # ── 15. suggest_budget: 예산 배분 추천 ──
+
+    def suggest_budget(self, total_budget: int, couple_id: int,
+                       priorities: list[str] | None = None, **_) -> ToolResult:
+        allocation = allocate_budget(total_budget, priorities)
+
+        # 숨은 비용 안내 추가
+        hidden_info = {}
+        for cat_ko in ["스튜디오", "드레스", "메이크업", "웨딩홀"]:
+            costs = get_hidden_costs(cat_ko)
+            if costs:
+                hidden_info[cat_ko] = costs
+
+        result = {
+            "allocation": allocation,
+            "hidden_costs": hidden_info,
+            "tip": "숨은 비용까지 고려하면 카테고리별 예산에 10~20% 여유를 두는 것이 좋습니다.",
+        }
         return ToolResult(
             result_type="raw",
             data=json.dumps(result, ensure_ascii=False, default=str),
-            vendors=vendor_names,
+            vendors=[],
+        )
+
+    # ── 16. add_budget_item: 예산 항목 추가 ──
+
+    def add_budget_item(self, category: str, name: str, amount: int,
+                        couple_id: int, **_) -> ToolResult:
+        try:
+            resp = http_requests.post(
+                f"{settings.spring_url}/api/budgets/items",
+                json={
+                    "coupleId": couple_id,
+                    "category": category,
+                    "name": name,
+                    "amount": amount,
+                },
+                timeout=5,
+            )
+            if resp.status_code in (200, 201):
+                return ToolResult(
+                    result_type="direct",
+                    data=f"'{name}' ({category}) {amount:,}원이 예산에 추가되었습니다.",
+                    vendors=[],
+                )
+        except Exception:
+            pass
+        return ToolResult(
+            result_type="direct",
+            data=f"예산 항목 추가에 실패했습니다. 웨딩 예산 페이지에서 직접 '{name}' ({category}) {amount:,}원을 추가해주세요.",
+            vendors=[],
         )
 
     # ── 유틸 ──

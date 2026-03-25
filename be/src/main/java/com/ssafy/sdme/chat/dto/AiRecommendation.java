@@ -20,4 +20,5 @@ public class AiRecommendation {
     private String contact;
     private String description;
     private String hashtags;
+    private String address;
 }

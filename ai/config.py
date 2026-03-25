@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = ""
-    openai_chat_model: str = "gpt-4o"
+    openai_chat_model: str = "gpt-4.1"
     openai_embedding_model: str = "text-embedding-3-small"
 
     # GMS (OpenAI 프록시)

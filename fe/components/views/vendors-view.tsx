@@ -216,10 +216,10 @@ function mapListItemToVendor(item: VendorListItem): Vendor {
 }
 
 const STYLE_FILTERS: Record<string, string[]> = {
-  studio: ["다양한컨셉", "인물중심", "배경중심", "클래식", "트렌디", "내추럴", "러블리", "그리너리", "심플한"],
-  venue: ["호텔예식", "채플", "일반컨벤션", "밝은", "어두운"],
-  dress: ["화려한", "심플한", "러블리", "유니크", "세련된", "클래식", "트렌디"],
-  makeup: ["러블리", "포인트", "스모키", "깨끗한", "화려한", "내추럴", "음영"],
+  studio: ["인물중심", "인물+배경", "프라이빗촬영", "캐쥬얼씬", "흑백씬", "야간씬", "로드씬", "한복씬"],
+  venue: ["호텔 예식", "채플", "일반 컨벤션", "하우스", "야외", "밝은", "어두운", "소규모"],
+  dress: ["심플", "화려한", "우아한", "러블리", "레이스", "실크", "비즈"],
+  makeup: ["내추럴", "깨끗/화사", "러블리", "윤곽강조", "피부메이크업", "음영"],
 }
 
 // ─── Sample Data ──────────────────────────────────────────────────────────
@@ -734,14 +734,14 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
 
   const filtered = (showAiOnly ? aiVendors : vendors).filter((v) => {
     const catOk = selectedCategory === "all" || v.category === selectedCategory
-    const styleOk = !selectedStyle || (v.styleFilter?.includes(selectedStyle) ?? false)
+    const styleOk = !selectedStyle || (v.tags?.some((t) => t.includes(selectedStyle)) ?? false)
     return catOk && styleOk
   })
 
   const currentStyleFilters = selectedCategory !== "all" ? (STYLE_FILTERS[selectedCategory] ?? []) : []
 
   const toggleFavorite = (id: string) => {
-    const vendor = vendors.find((v) => v.id === id)
+    const vendor = vendors.find((v) => v.id === id) || aiVendors.find((v) => v.id === id)
     if (vendor) {
       const newFav = !vendor.isFavorite
       onFavoriteChange?.(vendor, newFav)
@@ -2113,7 +2113,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         </div>
       ) : step === "payment" ? (
         <>
-          <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
+          <div className="space-y-4">
 
             {/* 주문 정보 */}
             <div className="rounded-xl bg-muted/30 p-4 space-y-3">
@@ -2141,40 +2141,6 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
                 </div>
               )}
             </div>
-
-            {/* 추가상품 - 계약금 결제일 때만 */}
-            {!isBalancePayment && addons && addons.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
-                <div className="space-y-2">
-                  {addons.map((addon) => {
-                    const checked = selectedAddons.includes(addon.id)
-                    return (
-                      <button
-                        key={addon.id}
-                        className="flex w-full items-center gap-3 text-left"
-                        onClick={() => toggleAddon(addon.id)}
-                      >
-                        <div className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                          checked ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                        }`}>
-                          {checked && <Check className="size-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-foreground">{addon.name}</span>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-foreground shrink-0">
-                          {formatPrice(addon.price)}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 예약 정보 */}
             <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">

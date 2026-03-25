@@ -3,6 +3,7 @@ package com.ssafy.sdme.chat.controller;
 import com.ssafy.sdme._global.ApiResponse;
 import com.ssafy.sdme.chat.dto.AiChatRequest;
 import com.ssafy.sdme.chat.dto.AiChatResponse;
+import com.ssafy.sdme.chat.dto.AiChatHistoryResponse;
 import com.ssafy.sdme.chat.service.AiChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,6 +11,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -26,11 +29,33 @@ public class AiChatController {
             @Valid @RequestBody AiChatRequest request,
             @RequestAttribute(value = "userId", required = false) Long userId
     ) {
-        log.info("[AiChatController] AI 채팅 요청 - userId: {}", userId);
-        if (userId != null) {
-            // userId를 request에 주입할 수 없으므로 (immutable) 로깅만
-        }
-        AiChatResponse response = aiChatService.chat(request);
+        log.info("[AiChat] userId: {}, message: {}", userId, request.getMessage());
+        AiChatResponse response = aiChatService.chat(request, userId);
         return ApiResponse.ok(response);
+    }
+
+    @GetMapping("/ai/history/{sessionId}")
+    @Operation(summary = "AI 채팅 히스토리 조회", description = "세션별 AI 대화 내역을 조회합니다")
+    public ApiResponse<List<AiChatHistoryResponse>> getHistory(
+            @PathVariable String sessionId
+    ) {
+        List<AiChatHistoryResponse> history = aiChatService.getHistory(sessionId);
+        return ApiResponse.ok(history);
+    }
+
+    @GetMapping("/ai/sessions")
+    @Operation(summary = "AI 채팅 세션 목록", description = "사용자의 AI 채팅 세션 목록을 조회합니다")
+    public ApiResponse<List<AiChatHistoryResponse>> getSessions(
+            @RequestAttribute(value = "userId", required = false) Long userId
+    ) {
+        List<AiChatHistoryResponse> sessions = aiChatService.getRecentMessages(userId);
+        return ApiResponse.ok(sessions);
+    }
+
+    @DeleteMapping("/ai/sessions/{sessionId}")
+    @Operation(summary = "AI 채팅 세션 삭제", description = "세션의 모든 메시지를 삭제합니다")
+    public ApiResponse<Void> deleteSession(@PathVariable String sessionId) {
+        aiChatService.deleteSession(sessionId);
+        return ApiResponse.ok(null);
     }
 }

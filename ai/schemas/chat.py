@@ -35,6 +35,7 @@ class RecommendationCard(BaseModel):
     category: str                    # "studio" | "dress" | "makeup" | "venue"
     title: str                       # 업체/홀 이름
     reason: str | None = None        # 추천 사유 (태그, 특징 요약)
+    address: str | None = None       # 위치/주소
 
 
 class ChatPayload(BaseModel):
@@ -44,6 +45,7 @@ class ChatPayload(BaseModel):
     trace_id: str
     vendors: list[str] = Field(default_factory=list)
     recommendations: list[RecommendationCard] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)  # 후속 질문 버튼 (2~4개)
     debug_log: str | None = None
 
 

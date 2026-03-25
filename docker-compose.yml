@@ -12,6 +12,12 @@ services:
       - neo4j_data:/data
     environment:
       - NEO4J_AUTH=neo4j/password123
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo 'RETURN 1' | cypher-shell -u neo4j -p password123 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     networks:
       - weddirect-net
 
@@ -21,7 +27,8 @@ services:
     container_name: ai
     restart: unless-stopped
     depends_on:
-      - neo4j
+      neo4j:
+        condition: service_healthy
     env_file:
       - ./ai/.env
     environment:

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { getMyInfo, getCoupleProfile, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
+import {AiRecommendation, getAiChatHistory, getAiChatSessions, deleteAiChatSession} from "@/lib/api"
+import { getMyInfo, getCoupleProfile, getPreference, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
 import { ChatInput, type DroppedVendor } from "@/components/chat-input"
@@ -51,6 +52,23 @@ interface Message {
   role: "assistant" | "user"
   content: string
   recommendations?: import("@/lib/api").AiRecommendation[]
+  suggestions?: string[]
+}
+
+/** 첫 user 메시지 → ChatGPT 스타일 짧은 제목 */
+function generateChatTitle(msg: string): string {
+  let t = msg.trim()
+  // 긴 문장이면 첫 문장만
+  const firstSentence = t.split(/[.!?\n]/)[0].trim()
+  if (firstSentence) t = firstSentence
+  // 한국어 어미/조사 제거 → 명사구 형태로
+  t = t
+    .replace(/\s*(해줘|해주세요|해 줘|해 주세요|알려줘|알려주세요|추천해줘|추천해주세요|보여줘|보여주세요|찾아줘|찾아주세요|검색해줘|검색해주세요|만들어줘|만들어주세요|설명해줘|설명해주세요|확인해줘|확인해주세요|가르쳐줘|가르쳐주세요)\s*$/g, "")
+    .replace(/\s*(있어\??|있나\??|있을까\??|없어\??|없나\??|뭐야\??|뭐에요\??|할까\??|될까\??|일까\??)\s*$/g, "")
+    .replace(/\s*(좀|요|ㅋ+|ㅎ+|~+|\.+)\s*$/g, "")
+    .trim()
+  if (t.length > 40) t = t.slice(0, 40) + "…"
+  return t || msg.slice(0, 40)
 }
 
 export default function ChatPage() {
@@ -171,6 +189,21 @@ export default function ChatPage() {
             const g = coupleRes.data.groom
             const b = coupleRes.data.bride
             setCoupleConnected(coupleRes.data.status === "MATCHED" && g != null && b != null)
+            // D-day 계산 (커플 테이블 또는 선호도에서)
+            let dDay = 0
+            let wDate = coupleRes.data.weddingDate
+            if (!wDate) {
+              try {
+                const prefRes = await getPreference()
+                wDate = prefRes.data.weddingDate
+              } catch {}
+            }
+            if (wDate) {
+              const wedding = new Date(wDate + "T00:00:00")
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            }
             setWeddingConfig((prev) => ({
               ...prev,
               groomName: g?.name || "",
@@ -179,6 +212,7 @@ export default function ChatPage() {
               brideNickname: b?.nickname || "",
               groomPhoto: g?.profileImage || "",
               bridePhoto: b?.profileImage || "",
+              dDay,
             }))
             if (coupleRes.data.status !== "MATCHED" || !g || !b) {
               createInviteCode()
@@ -187,6 +221,16 @@ export default function ChatPage() {
             }
           } catch {
             // 커플 정보 없음 → 본인 정보만 세팅
+            let dDay = 0
+            try {
+              const prefRes = await getPreference()
+              if (prefRes.data.weddingDate) {
+                const wedding = new Date(prefRes.data.weddingDate + "T00:00:00")
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              }
+            } catch {}
             setWeddingConfig((prev) => ({
               ...prev,
               groomName: r === "groom" ? (res.data.name || "") : "",
@@ -195,6 +239,7 @@ export default function ChatPage() {
               brideNickname: r === "bride" ? (res.data.nickname || "") : "",
               groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
               bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+              dDay,
             }))
             createInviteCode()
               .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
@@ -202,6 +247,17 @@ export default function ChatPage() {
           }
         } else {
           // coupleId 없음 → 본인 정보만 세팅
+          // 본인 선호도에서 D-day 가져오기
+          let dDay = 0
+          try {
+            const prefRes = await getPreference()
+            if (prefRes.data.weddingDate) {
+              const wedding = new Date(prefRes.data.weddingDate + "T00:00:00")
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            }
+          } catch {}
           setWeddingConfig((prev) => ({
             ...prev,
             groomName: r === "groom" ? (res.data.name || "") : "",
@@ -210,6 +266,7 @@ export default function ChatPage() {
             brideNickname: r === "bride" ? (res.data.nickname || "") : "",
             groomPhoto: r === "groom" ? (res.data.profileImage || "") : "",
             bridePhoto: r === "bride" ? (res.data.profileImage || "") : "",
+            dDay,
           }))
           createInviteCode()
             .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
@@ -237,6 +294,48 @@ export default function ChatPage() {
         ;(window as any).__favInterval = favInterval
 
         setAuthChecked(true)
+
+        // 5초마다 커플 상태 확인 (매칭/해제 실시간 감지)
+        let wasConnected = coupleConnected
+        const coupleCheckInterval = setInterval(async () => {
+          try {
+            const checkRes = await getCoupleProfile()
+            const isNowConnected = !!(checkRes.data && checkRes.data.groom && checkRes.data.bride)
+            if (!wasConnected && isNowConnected) {
+              // 매칭됨
+              wasConnected = true
+              setCoupleConnected(true)
+              setCoupleId(checkRes.data.coupleId)
+              const g = checkRes.data.groom
+              const b = checkRes.data.bride
+              setWeddingConfig((prev) => ({
+                ...prev,
+                groomName: g?.name || prev.groomName,
+                brideName: b?.name || prev.brideName,
+                groomNickname: g?.nickname || prev.groomNickname,
+                brideNickname: b?.nickname || prev.brideNickname,
+                groomPhoto: g?.profileImage || prev.groomPhoto,
+                bridePhoto: b?.profileImage || prev.bridePhoto,
+              }))
+              reloadFavorites()
+            } else if (wasConnected && !isNowConnected) {
+              // 매칭 해제됨 - 본인 정보 유지
+              wasConnected = false
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.info("커플 매칭이 해제되었습니다.")
+            }
+          } catch {
+            // 에러 시 해제로 간주
+            if (wasConnected) {
+              wasConnected = false
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.info("커플 매칭이 해제되었습니다.")
+            }
+          }
+        }, 5000)
+        ;(window as any).__coupleCheckInterval = coupleCheckInterval
       } catch {
         clearAccessToken()
         router.replace("/login")
@@ -249,11 +348,83 @@ export default function ChatPage() {
   }, [router])
 
   const [messages, setMessages] = useState<Message[]>([])
-  const [aiSessionId, setAiSessionId] = useState<string | null>(null)
+  const [aiSessionId, setAiSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem("aiSessionId")
+  })
   const [isTyping, setIsTyping] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<DroppedVendor[]>([])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showWelcome, setShowWelcome] = useState(true)
+
+  // sessionId 변경 시 localStorage 저장
+  useEffect(() => {
+    if (aiSessionId) {
+      localStorage.setItem("aiSessionId", aiSessionId)
+    }
+  }, [aiSessionId])
+
+  // 인증 완료 후 이전 대화 복원
+  useEffect(() => {
+    if (!authChecked) return
+    const savedSessionId = localStorage.getItem("aiSessionId")
+    if (!savedSessionId) return
+    getAiChatHistory(savedSessionId)
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) return
+        const restored = items.map((item: any, idx: number) => ({
+          id: `restored-${idx}`,
+          role: item.role as "user" | "assistant",
+          content: item.content,
+          recommendations: item.role === "assistant" && item.recommendations
+            ? (JSON.parse(item.recommendations) as AiRecommendation[])
+            : undefined,
+        }))
+        setMessages(restored)
+        setAiSessionId(savedSessionId)
+        setActiveSessionId(savedSessionId)
+        setShowWelcome(false)
+      })
+      .catch(() => {
+        // 복원 실패해도 정상 동작
+      })
+  }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 인증 완료 후 AI 채팅 세션 목록 불러오기
+  useEffect(() => {
+    if (!authChecked) return
+    const pinnedSet = new Set<string>(JSON.parse(localStorage.getItem("pinnedChats") || "[]"))
+    getAiChatSessions()
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) return
+        // sessionId별로 그룹핑
+        const sessionMap = new Map<string, typeof items>()
+        for (const item of items) {
+          const sid = item.sessionId
+          if (!sessionMap.has(sid)) sessionMap.set(sid, [])
+          sessionMap.get(sid)!.push(item)
+        }
+        const sessions: ChatSession[] = []
+        sessionMap.forEach((msgs, sid) => {
+          const firstUser = msgs.find((m: any) => m.role === "user")
+          const title = generateChatTitle(firstUser?.content ?? "새 채팅")
+          const lastMsg = msgs[msgs.length - 1]
+          sessions.push({
+            id: sid,
+            title,
+            preview: lastMsg?.content?.slice(0, 60) ?? "",
+            createdAt: new Date(msgs[0]?.createdAt ?? Date.now()),
+            isPinned: pinnedSet.has(sid),
+            messages: [],
+          })
+        })
+        sessions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        setChatHistory(sessions)
+      })
+      .catch(() => {})
+  }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
   const [currentView, setCurrentView] = useState<ViewType | null>(() => {
     if (typeof window === "undefined") return null
     const path = window.location.pathname
@@ -440,7 +611,6 @@ export default function ChatPage() {
     setMessages([userMessage])
     setAttachedVendors([])
     setIsTyping(true)
-    autoOpenRelatedTab(content)
 
     try {
       const res = await sendAiChat({ message: content, sessionId: null })
@@ -450,6 +620,7 @@ export default function ChatPage() {
         role: "assistant",
         content: res.data.answer,
         recommendations: res.data.recommendations || [],
+        suggestions: res.data.suggestions || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -465,18 +636,6 @@ export default function ChatPage() {
   }
 
   // 사용자 메시지 키워드 기반 관련 탭 자동 오픈
-  const autoOpenRelatedTab = (userText: string) => {
-    const lower = userText.toLowerCase()
-    if (lower.includes("예산") || lower.includes("비용") || lower.includes("견적")) {
-      addPanelTab("budget", "right")
-    } else if (lower.includes("일정") || lower.includes("스케줄") || lower.includes("날짜")) {
-      addPanelTab("schedule", "right")
-    } else if (lower.includes("업체") || lower.includes("스튜디오") || lower.includes("드레스") || lower.includes("메이크업") || lower.includes("웨딩홀")) {
-      addPanelTab("vendors", "right")
-    } else if (lower.includes("투표") || lower.includes("의견")) {
-      addPanelTab("vote", "right")
-    }
-  }
 
   const handleVendorDrop = (vendor: DroppedVendor) => {
     setAttachedVendors((prev) =>
@@ -497,7 +656,6 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage])
     setAttachedVendors([])
     setIsTyping(true)
-    autoOpenRelatedTab(content)
 
     try {
       const res = await sendAiChat({ message: content, sessionId: aiSessionId })
@@ -507,6 +665,7 @@ export default function ChatPage() {
         role: "assistant",
         content: res.data.answer,
         recommendations: res.data.recommendations || [],
+        suggestions: res.data.suggestions || [],
       }
       setMessages((prev) => [...prev, aiResponse])
     } catch {
@@ -522,24 +681,26 @@ export default function ChatPage() {
   }
 
   const handleNewChat = () => {
-    if (messages.length > 0) {
-      const firstUser = messages.find((m) => m.role === "user")
-      const rawTitle = firstUser?.content ?? "새 채팅"
-      const title = rawTitle.length > 28 ? rawTitle.slice(0, 28) + "…" : rawTitle
-      const lastMsg = messages[messages.length - 1]
-      const preview = lastMsg.content.slice(0, 60)
-
-      const session: ChatSession = {
-        id: Date.now().toString(),
-        title,
-        preview,
-        createdAt: new Date(),
-        isPinned: false,
-        messages: [...messages] as SessionMessage[],
-      }
-      setChatHistory((prev) => [session, ...prev])
+    if (messages.length > 0 && aiSessionId) {
+      // 현재 대화를 사이드바 목록에 저장 (이미 있으면 스킵)
+      setChatHistory((prev) => {
+        if (prev.some((s) => s.id === aiSessionId)) return prev
+        const firstUser = messages.find((m) => m.role === "user")
+        const title = generateChatTitle(firstUser?.content ?? "새 채팅")
+        const lastMsg = messages[messages.length - 1]
+        return [{
+          id: aiSessionId,
+          title,
+          preview: lastMsg?.content?.slice(0, 60) ?? "",
+          createdAt: new Date(),
+          isPinned: false,
+          messages: [],
+        }, ...prev]
+      })
     }
     setMessages([])
+    setAiSessionId(null)
+    localStorage.removeItem("aiSessionId")
     setShowWelcome(true)
     setActiveSessionId(null)
     addPanelTab("chat", "left")
@@ -548,24 +709,57 @@ export default function ChatPage() {
   const handleLoadChat = (id: string) => {
     const session = chatHistory.find((s) => s.id === id)
     if (!session) return
-    setMessages(session.messages as Message[])
     setActiveSessionId(id)
+    setAiSessionId(id)
     setShowWelcome(false)
-
-    // AI 채팅 탭이 패널에 있으면 활성화, 없으면 추가
     addPanelTab("chat", "left", session.title)
+
+    // API에서 메시지 불러오기
+    getAiChatHistory(id)
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) {
+          setMessages([])
+          return
+        }
+        const restored = items.map((item: any, idx: number) => ({
+          id: `restored-${idx}`,
+          role: item.role as "user" | "assistant",
+          content: item.content,
+          recommendations: item.role === "assistant" && item.recommendations
+            ? (JSON.parse(item.recommendations) as AiRecommendation[])
+            : undefined,
+        }))
+        setMessages(restored)
+      })
+      .catch(() => {
+        setMessages([])
+      })
   }
 
   const handlePinChat = (id: string) => {
-    setChatHistory((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isPinned: !s.isPinned } : s))
-    )
+    setChatHistory((prev) => {
+      const updated = prev.map((s) => (s.id === id ? { ...s, isPinned: !s.isPinned } : s))
+      // localStorage에 고정 목록 저장
+      const pinned = updated.filter((s) => s.isPinned).map((s) => s.id)
+      localStorage.setItem("pinnedChats", JSON.stringify(pinned))
+      return updated
+    })
   }
 
   const handleDeleteChat = (id: string) => {
     setChatHistory((prev) => prev.filter((s) => s.id !== id))
+    // 서버에서도 삭제
+    deleteAiChatSession(id).catch(() => {})
+    // 고정 목록에서도 제거
+    try {
+      const pinned = JSON.parse(localStorage.getItem("pinnedChats") || "[]") as string[]
+      localStorage.setItem("pinnedChats", JSON.stringify(pinned.filter((p) => p !== id)))
+    } catch {}
     if (activeSessionId === id) {
       setActiveSessionId(null)
+      setAiSessionId(null)
+      localStorage.removeItem("aiSessionId")
       setMessages([])
       setShowWelcome(true)
     }
@@ -1047,12 +1241,14 @@ export default function ChatPage() {
               try {
                 const res = await connectCouple(inviteCode)
                 setCoupleConnected(true)
-                toast.success("파트너와 연결되었습니다!", { description: res.data.partnerNickname })
+                setCoupleId(res.data.coupleId)
+                toast.success("파트너와 연결되었습니다!")
                 // 커플 프로필 즉시 반영
                 try {
                   const coupleRes = await getCoupleProfile()
                   const g = coupleRes.data.groom
                   const b = coupleRes.data.bride
+                  setCoupleId(coupleRes.data.coupleId)
                   setWeddingConfig((prev) => ({
                     ...prev,
                     groomName: g?.name || prev.groomName,
@@ -1062,6 +1258,8 @@ export default function ChatPage() {
                     groomPhoto: g?.profileImage || prev.groomPhoto,
                     bridePhoto: b?.profileImage || prev.bridePhoto,
                   }))
+                  // 찜 목록도 로드
+                  reloadFavorites()
                 } catch {}
               } catch (err: any) {
                 toast.error("연결 실패", { description: err.message || "초대코드를 확인해주세요." })
@@ -1069,6 +1267,11 @@ export default function ChatPage() {
             }}
             onUpdateProfile={handleUpdateProfile}
             onDeleteAccount={handleLogout}
+            onCoupleDisconnect={() => {
+              setCoupleConnected(false)
+              setCoupleId(null)
+              toast.success("커플 매칭이 해제되었습니다.")
+            }}
           />
         )
       case "wishlist":
@@ -1538,11 +1741,13 @@ function ChatPanelWithDrop({
               role={message.role}
               content={message.content}
               recommendations={message.recommendations}
+              suggestions={message.suggestions}
               onCardClick={(rec) => {
                 if (rec.id) {
                   onCardVendorClick?.(String(rec.id))
                 }
               }}
+              onSuggestionClick={(text) => onSend(text)}
             />
           ))}
           {isTyping && <ChatMessage role="assistant" content="" isTyping />}

@@ -27,20 +27,33 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """앱 시작/종료 시 엔진 초기화/해제 (DI)"""
+    import time as _time
     logger.info("FastAPI 서버 시작")
     session_store = InMemorySessionStore()
 
-    # 스드메 엔진
+    # 스드메 엔진 (Neo4j 연결 재시도)
     from sdm.graphrag import SdmGraphRagEngine
     from sdm.service import SdmChatService
     sdm_engine = SdmGraphRagEngine(settings)
-    sdm_engine.startup()
+    for attempt in range(5):
+        sdm_engine.startup()
+        if sdm_engine.ready():
+            logger.info("SDM GraphRAG 초기화 성공")
+            break
+        logger.warning(f"SDM 초기화 실패 (시도 {attempt + 1}/5): {sdm_engine.startup_error}")
+        _time.sleep(5)
 
-    # 웨딩홀 엔진
+    # 웨딩홀 엔진 (Neo4j 연결 재시도)
     from hall.graphrag import HallGraphRagEngine
     from hall.service import HallChatService
     hall_engine = HallGraphRagEngine(settings)
-    hall_engine.startup()
+    for attempt in range(5):
+        hall_engine.startup()
+        if hall_engine.driver:
+            logger.info("Hall GraphRAG 초기화 성공")
+            break
+        logger.warning(f"Hall 초기화 실패 (시도 {attempt + 1}/5): {hall_engine.startup_error}")
+        _time.sleep(5)
 
     app.state.settings = settings
     app.state.session_store = session_store

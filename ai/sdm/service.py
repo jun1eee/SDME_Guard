@@ -108,6 +108,8 @@ class SdmChatService:
                         break
             if not all_vendors and answer:
                 all_vendors = self.engine._extract_vendors_from_bold(answer)
+            if not all_vendors and answer:
+                all_vendors = self.engine._extract_vendors_from_list(answer)
 
             self._update_session_from_tools(
                 session=session, tool_results=tool_results,
@@ -119,11 +121,16 @@ class SdmChatService:
         recommendations = self._build_recommendations(all_vendors, limit=requested_count)
         self._append_turns(session, message, answer)
 
+        # 후속 질문 생성 (규칙 기반, LLM 호출 없음)
+        tool_names = [tc.function.name for tc in (choice.message.tool_calls or [])] if choice.message.tool_calls else []
+        suggestions = self._generate_suggestions(tool_names, all_vendors, session)
+
         return ChatPayload(
             session_id=session.session_id, answer=answer,
             route_used=route_used, trace_id=trace_id,
             vendors=list(dict.fromkeys(all_vendors)),
             recommendations=recommendations,
+            suggestions=suggestions,
             debug_log="\n".join(log_lines) if request.debug else None,
         )
 
@@ -251,9 +258,101 @@ class SdmChatService:
                 category=self._map_category(r.get("category")),
                 title=r.get("name") or "추천 업체",
                 reason=", ".join(list(r.get("tags") or [])[:4]) or None,
+                address=r.get("address") or r.get("region") or None,
             )
             for r in records
         ]
+
+    @staticmethod
+    def _generate_suggestions(tool_names: list[str], vendors: list[str],
+                              session) -> list[str]:
+        """tool 결과 기반 후속 질문 생성 (LLM 호출 없음)"""
+        if not tool_names:
+            # tool 미사용 (잡담/일반 답변)
+            return ["웨딩홀 추천해줘", "스튜디오 찾아줘", "결혼 준비 일정 알려줘"]
+
+        primary = tool_names[0]
+        cat = session.category or ""
+        other_cats = {"studio": "드레스", "dress": "메이크업", "makeup": "스튜디오", "hall": "스튜디오"}
+        other = other_cats.get(cat, "스튜디오")
+
+        suggestions_map = {
+            "search": [
+                "이 중에서 비교해줘",
+                f"어울리는 {other} 찾아줘",
+                "투어 동선 짜줘",
+                "예산에 맞는지 확인해줘",
+            ],
+            "search_style": [
+                "이 중에서 비교해줘",
+                "상세 정보 알려줘",
+                f"어울리는 {other} 찾아줘",
+            ],
+            "search_nearby": [
+                "이 중에서 비교해줘",
+                "투어 동선 짜줘",
+                "더 가까운 곳 있어?",
+            ],
+            "search_related": [
+                "이 업체 상세 알려줘",
+                "투어 동선 짜줘",
+                "다른 스타일도 보여줘",
+            ],
+            "get_detail": [
+                "비슷한 업체 더 찾아줘",
+                "예산에 추가해줘",
+                f"어울리는 {other} 찾아줘",
+            ],
+            "compare": [
+                "이 중에서 추천해줘",
+                "투어 동선 짜줘",
+                "더 저렴한 곳 있어?",
+            ],
+            "plan_tour": [
+                "동선 수정해줘",
+                "다른 업체 추가해줘",
+                "귀가 시간도 알려줘",
+            ],
+            "modify_tour": [
+                "이 동선으로 확정할게",
+                "다른 업체로 바꿔줘",
+            ],
+            "knowledge_qa": [
+                "다른 궁금한 점 있어",
+                "업체 추천 받고 싶어",
+                "예산 배분 도와줘",
+            ],
+            "guest_calc": [
+                "웨딩홀 추천해줘",
+                "예산 배분 도와줘",
+                "체크리스트 만들어줘",
+            ],
+            "get_timeline": [
+                "체크리스트 만들어줘",
+                "지금 뭐 해야 돼?",
+                "업체 추천 받고 싶어",
+            ],
+            "get_checklist": [
+                "결혼 준비 일정 알려줘",
+                "업체 추천 받고 싶어",
+                "예산 현황 보여줘",
+            ],
+            "suggest_budget": [
+                "숨은 비용 뭐가 있어?",
+                "업체 추천 받고 싶어",
+                "예산 현황 보여줘",
+            ],
+            "get_budget_summary": [
+                "예산 배분 다시 해줘",
+                "업체 추천 받고 싶어",
+            ],
+        }
+
+        result = suggestions_map.get(primary, ["웨딩홀 추천해줘", "스튜디오 찾아줘"])
+        # 첫 번째 vendor 이름이 있으면 상세 조회 제안 추가
+        if vendors and primary in ("search", "search_nearby", "search_style"):
+            result = [f"{vendors[0]} 상세 알려줘"] + result[:3]
+        return result[:4]
 
     @staticmethod
     def _map_category(cat) -> str:

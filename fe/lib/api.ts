@@ -437,6 +437,7 @@ export interface AiRecommendation {
   contact: string | null
   description: string | null
   hashtags: string | null
+  address: string | null
 }
 
 export async function sendAiChat(data: {
@@ -448,6 +449,7 @@ export async function sendAiChat(data: {
     sessionId: string
     success: boolean
     recommendations: AiRecommendation[]
+    suggestions: string[]
   }>("/chat/ai", {
     method: "POST",
     body: JSON.stringify({
@@ -455,6 +457,27 @@ export async function sendAiChat(data: {
       sessionId: data.sessionId ?? undefined,
     }),
   })
+}
+
+export interface AiChatHistoryItem {
+  id: number
+  sessionId: string
+  role: string
+  content: string
+  recommendations: string | null
+  createdAt: string
+}
+
+export async function getAiChatHistory(sessionId: string) {
+  return fetchApi<AiChatHistoryItem[]>(`/chat/ai/history/${sessionId}`)
+}
+
+export async function getAiChatSessions() {
+  return fetchApi<AiChatHistoryItem[]>("/chat/ai/sessions")
+}
+
+export async function deleteAiChatSession(sessionId: string) {
+  return fetchApi(`/chat/ai/sessions/${sessionId}`, { method: "DELETE" })
 }
 
 // ─── 카드 관리 ──────────────────────────────────────────────────────────
