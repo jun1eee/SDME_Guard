@@ -18,9 +18,7 @@ SYSTEM_PROMPT = """당신은 웨딩 전문 추천 챗봇입니다.
 - 업체/홀을 조건으로 찾기 → search  예: "강남 스튜디오 200만원 이하", "밝은 웨딩홀"
 - 분위기/느낌으로 찾기 → search_style  예: "자연스러운 느낌 메이크업", "모던한 드레스"
 - 위치 근처 찾기 → search_nearby  예: "강남역 근처 웨딩홀", "홍대 주변 스튜디오"
-- 연관/비슷한 업체 → search_related  예: "이 홀과 어울리는 스튜디오", "A와 비슷한 곳", "어울리는 드레스", "비슷한 메이크업"
-  ★ "어울리는/비슷한/맞는" + 다른 카테고리 = 반드시 search_related. get_detail이 아님!
-- 업체 상세 → get_detail  예: "줄리의정원 정보 알려줘", "이 업체 패키지 뭐 있어?"
+- 업체 상세 또는 연관 추천 → get_detail  예: "줄리의정원 상세", "A와 어울리는 드레스", "비슷한 메이크업"
 - 업체 비교 → compare  예: "A랑 B 비교해줘", "둘 중 뭐가 나아?"
 - 결과 필터 → filter_sort  예: "이 중에서 가격순", "평점 높은 순으로"
 - 내 취향/찜 → get_user_info  예: "내 찜 목록", "내 취향 보여줘"
@@ -44,11 +42,11 @@ Q: "화사한 느낌 드레스" → search_style(query, category="dress")
 Q: "시크하고 모던한 메이크업" → search_style(query, category="makeup")
 Q: "역삼역 근처 메이크업" → search_nearby(query, category="makeup")
 Q: "홍대 주변 스튜디오" → search_nearby(query, category="studio")
-Q: "이 웨딩홀과 어울리는 스튜디오" → search_related(source_name, target_category="studio")
-Q: "삼정호텔에 맞는 드레스" → search_related(source_name="삼정호텔", target_category="dress")
-Q: "비슷한 업체 뭐있어?" → search_related(source_name=[대화상태 업체], target_category=같은카테고리)
-Q: "봉스튜디오와 비슷한 곳" → search_related(source_name="봉스튜디오", target_category="studio")
-Q: "이거랑 비슷한 드레스샵" → search_related(source_name=[대화상태 업체], target_category="dress")
+Q: "이 웨딩홀과 어울리는 스튜디오" → get_detail(name=홀이름, related_category="studio")
+Q: "삼정호텔에 맞는 드레스" → get_detail(name="삼정호텔", related_category="dress")
+Q: "비슷한 업체 뭐있어?" → get_detail(name=[대화상태 업체], related_category=같은카테고리)
+Q: "봉스튜디오와 비슷한 곳" → get_detail(name="봉스튜디오", related_category="studio")
+Q: "이거랑 비슷한 드레스샵" → get_detail(name=[대화상태 업체], related_category="dress")
 Q: "줄리의정원 가격이랑 패키지" → get_detail(name="줄리의정원")
 Q: "이 업체 연락처 알려줘" → get_detail(name=해당업체)
 Q: "A랑 B 비교해줘" → compare(names=["A","B"])
@@ -63,9 +61,6 @@ Q: "집까지 시간도 알려줘" → plan_tour(..., end_location="집주소")
 Q: "순서 바꿔줘" → modify_tour(action="swap", index_a, index_b)
 Q: "3번째 빼줘" → modify_tour(action="remove", index=2)
 Q: "줄리의정원도 추가해줘" → modify_tour(action="add", venue_name="줄리의정원")
-Q: "비슷한 업체 뭐있어?" → search_related(source_name=[대화상태 업체], target_category=같은카테고리)
-Q: "봉스튜디오와 비슷한 곳" → search_related(source_name="봉스튜디오", target_category="studio")
-Q: "이거랑 비슷한 드레스샵" → search_related(source_name=[대화상태 업체], target_category="dress")
 Q: "드레스도 찾아줘" → search(query, category="dress")
 Q: "아까 그 스튜디오 상세 알려줘" → get_detail(name=[대화 상태]에서 참조)
 Q: "축의금 얼마가 적당해?" → knowledge_qa(topic="gift_money", query)

@@ -82,7 +82,22 @@ class SdmChatService:
                         log_lines.append(f"[category_corrected] {tool_args.get('category')} -> {corrected}")
                         tool_args["category"] = corrected
 
-                if tool_name in ("search", "search_style", "search_nearby", "search_related", "filter_sort"):
+                # Category validation: get_detail without related_category but message mentions another category
+                if tool_name == "get_detail" and not tool_args.get("related_category"):
+                    cat_keywords = {"드레스": "dress", "메이크업": "makeup", "스튜디오": "studio",
+                                   "웨딩홀": "hall", "홀": "hall", "촬영": "studio", "헤어": "makeup"}
+                    for kw, cat in cat_keywords.items():
+                        if kw in message:
+                            source_name = tool_args.get("name", "")
+                            source_cat = self._get_source_category(source_name, session)
+                            if source_cat and cat != source_cat:
+                                tool_args["related_category"] = cat
+                                log_lines.append(f"[category_inject] {source_name} -> {cat}")
+                                break
+
+                if tool_name in ("search", "search_style", "search_nearby", "filter_sort"):
+                    is_new_search = True
+                if tool_name == "get_detail" and tool_args.get("related_category"):
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
@@ -152,6 +167,18 @@ class SdmChatService:
             return matched.pop()
         return current
 
+    def _get_source_category(self, name: str, session) -> str | None:
+        """업체 카테고리 조회 (세션 -> Neo4j)"""
+        if session.category:
+            return session.category
+        # Neo4j에서 직접 조회
+        if self.engine.driver:
+            with self.engine.driver.session() as s:
+                r = s.run("MATCH (v:Vendor) WHERE v.name = $n RETURN v.category AS cat LIMIT 1", n=name).single()
+                if r:
+                    return r["cat"]
+        return None
+
     # ── 내부 ──
 
     def _build_messages(self, session: SessionState, message: str) -> list[dict[str, Any]]:
@@ -196,7 +223,7 @@ class SdmChatService:
         if is_new_search:
             session.vendors = unique
         for _, tool_args, _ in tool_results:
-            cat = tool_args.get("category") or tool_args.get("target_category")
+            cat = tool_args.get("category") or tool_args.get("related_category") or tool_args.get("target_category")
             if cat:
                 session.category = cat
                 session.vendor_history[cat] = unique
@@ -294,15 +321,11 @@ class SdmChatService:
                 "투어 동선 짜줘",
                 "더 가까운 곳 있어?",
             ],
-            "search_related": [
-                "이 업체 상세 알려줘",
-                "투어 동선 짜줘",
-                "다른 스타일도 보여줘",
-            ],
             "get_detail": [
                 "비슷한 업체 더 찾아줘",
                 "예산에 추가해줘",
                 f"어울리는 {other} 찾아줘",
+                "투어 동선 짜줘",
             ],
             "compare": [
                 "이 중에서 추천해줘",
