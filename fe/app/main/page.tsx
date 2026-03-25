@@ -409,14 +409,16 @@ export default function ChatPage() {
         }
         const sessions: ChatSession[] = []
         sessionMap.forEach((msgs, sid) => {
-          const firstUser = msgs.find((m: any) => m.role === "user")
+          // 시간순 정렬 (API가 DESC로 반환하므로 reverse)
+          const sorted = [...msgs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          const firstUser = sorted.find((m: any) => m.role === "user")
           const title = generateChatTitle(firstUser?.content ?? "새 채팅")
-          const lastMsg = msgs[msgs.length - 1]
+          const lastMsg = sorted[sorted.length - 1]
           sessions.push({
             id: sid,
             title,
             preview: lastMsg?.content?.slice(0, 60) ?? "",
-            createdAt: new Date(msgs[0]?.createdAt ?? Date.now()),
+            createdAt: new Date(sorted[0]?.createdAt ?? Date.now()),
             isPinned: pinnedSet.has(sid),
             messages: [],
           })
