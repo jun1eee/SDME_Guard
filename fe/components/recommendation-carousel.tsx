@@ -142,7 +142,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                         {rec.rating != null && rec.rating > 0 && (
                           <span className="flex items-center gap-1 text-xs font-medium text-foreground/70">
                             <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
-                            {rec.rating}
+                            {rec.rating > 5 ? (rec.rating / 20).toFixed(1) : rec.rating}
                             {rec.reviewCount != null && rec.reviewCount > 0 && (
                               <span className="text-muted-foreground">({rec.reviewCount})</span>
                             )}
