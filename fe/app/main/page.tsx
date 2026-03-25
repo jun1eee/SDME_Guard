@@ -942,21 +942,29 @@ export default function ChatPage() {
     })
 
     // DB에 먼저 저장
+    const chatMsg = {
+      senderId: userId,
+      coupleId: coupleId,
+      content: vendorData,
+      messageType: "vendor_share",
+      vendorId: Number(shareModalVendor.id),
+    }
     shareVendor(Number(shareModalVendor.id), shareModalComment.trim() || undefined)
       .then(() => {
-        // WebSocket으로 채팅 메시지 전송
+        // WebSocket으로 채팅 메시지 전송, 실패 시 REST fallback
         const stompClient = (window as any).__stompClient
         if (stompClient?.connected) {
           stompClient.publish({
             destination: "/app/chat.send",
-            body: JSON.stringify({
-              senderId: userId,
-              coupleId: coupleId,
-              content: vendorData,
-              messageType: "vendor_share",
-              vendorId: Number(shareModalVendor.id),
-            }),
+            body: JSON.stringify(chatMsg),
           })
+        } else {
+          // WebSocket 미연결 시 REST API로 전송
+          fetch("/api/chat/couple/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${getAccessToken()}` },
+            body: JSON.stringify(chatMsg),
+          }).catch(() => {})
         }
         const hasCoupleChat = [...panelState.left, ...panelState.right].some((t) => t.type === "couple-chat")
         if (!hasCoupleChat) setCoupleChatBadge((prev) => prev + 1)
