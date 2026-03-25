@@ -267,8 +267,9 @@ export default function ChatPage() {
     }
   }, [aiSessionId])
 
-  // 페이지 로드 시 이전 대화 복원
+  // 페이지 로드 시 이전 대화 복원 (인증 완료 후)
   useEffect(() => {
+    if (!authChecked) return
     const savedSessionId = localStorage.getItem("aiSessionId")
     if (!savedSessionId) return
     getAiChatHistory(savedSessionId)
@@ -289,7 +290,7 @@ export default function ChatPage() {
       .catch(() => {
         // 복원 실패해도 정상 동작
       })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
   const [currentView, setCurrentView] = useState<ViewType | null>(() => {
     if (typeof window === "undefined") return null
     const path = window.location.pathname
