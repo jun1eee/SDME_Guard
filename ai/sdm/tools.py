@@ -622,6 +622,20 @@ class ToolRegistry:
             return (float(result["lat"]), float(result["lng"]))
         return None
 
+    def _get_hall_coord(self, name: str) -> tuple[float, float] | None:
+        """Hall 노드에서 좌표 직접 조회 (Kakao API 의존 제거)"""
+        if not self.hall_engine or not self.hall_engine.driver:
+            return None
+        with self.hall_engine.driver.session() as session:
+            result = session.run(
+                "MATCH (h:Hall) WHERE h.name = $name AND h.lat IS NOT NULL "
+                "RETURN h.lat AS lat, h.lng AS lng LIMIT 1",
+                name=name,
+            ).single()
+        if result and result["lat"] and result["lng"]:
+            return (float(result["lat"]), float(result["lng"]))
+        return None
+
     def _get_vendor_category(self, name: str) -> str | None:
         if not self.engine.driver:
             return None
@@ -642,14 +656,11 @@ class ToolRegistry:
                 cat = self._get_vendor_category(name) or "studio"
                 points.append({"name": name, "coord": coord, "category": cat})
                 continue
-            # 2순위: Hall
-            if self.hall_engine:
-                hall = self.hall_engine.get_hall_details(name)
-                if hall:
-                    hall_coord = self.hall_engine._resolve_hall_coordinate(hall)
-                    if hall_coord:
-                        points.append({"name": name, "coord": hall_coord, "category": "hall"})
-                        continue
+            # 2순위: Hall — Neo4j 좌표 직접 조회 (Kakao API 의존 제거)
+            coord = self._get_hall_coord(name)
+            if coord:
+                points.append({"name": name, "coord": coord, "category": "hall"})
+                continue
             # 3순위: geocode fallback
             lat, lng, _ = geocode_query(name)
             if lat and lng:
