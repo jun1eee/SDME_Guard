@@ -39,3 +39,4 @@ package-lock.json
 
 # .env
 fe/.env
+ai/.env

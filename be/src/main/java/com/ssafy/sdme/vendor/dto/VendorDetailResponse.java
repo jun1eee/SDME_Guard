@@ -42,7 +42,7 @@ public record VendorDetailResponse(
         String floor, String phone
     ) {}
 
-    public record PackageTab(String tabName, Long price, List<PackageInclude> includes) {}
+    public record PackageTab(String tabName, Long price, List<PackageInclude> includes, String imageUrl) {}
     public record PackageInclude(String label, String value) {}
     public record AdditionalProductGroup(String category, List<AdditionalItem> items) {}
     public record AdditionalItem(String name, String price, String condition) {}
@@ -70,13 +70,14 @@ public record VendorDetailResponse(
         Function<Long, List<VendorPackageItem>> itemLoader,
         List<VendorAdditionalProduct> additionalProducts,
         List<VendorImage> images,
+        java.util.Map<Long, String> packageImageMap,  // vendorId -> imageUrl
         JsonNode detailJson,               // iwedding JSON (studio/dress/makeup) or null
         List<VendorHallDetail> hallDetails, // hall detail rows or empty
         JsonNode hallJson                   // weddingbook JSON (hall) or null
     ) {
         String category = representative.getCategory().toLowerCase();
 
-        List<PackageTab> packageTabs = buildPackageTabs(packages, itemLoader);
+        List<PackageTab> packageTabs = buildPackageTabs(packages, itemLoader, packageImageMap);
         List<AdditionalProductGroup> addProducts = buildAdditionalProducts(additionalProducts);
         List<String> imageUrls = images.stream().map(VendorImage::getImageUrl).toList();
 
@@ -115,7 +116,8 @@ public record VendorDetailResponse(
 
     private static List<PackageTab> buildPackageTabs(
         List<VendorPackage> packages,
-        Function<Long, List<VendorPackageItem>> itemLoader
+        Function<Long, List<VendorPackageItem>> itemLoader,
+        java.util.Map<Long, String> packageImageMap
     ) {
         return packages.stream()
             .map(pkg -> new PackageTab(
@@ -123,7 +125,8 @@ public record VendorDetailResponse(
                 pkg.getPrice(),
                 itemLoader.apply(pkg.getId()).stream()
                     .map(i -> new PackageInclude(i.getLabel(), i.getValue()))
-                    .toList()
+                    .toList(),
+                packageImageMap.getOrDefault(pkg.getVendorId(), null)
             ))
             .toList();
     }

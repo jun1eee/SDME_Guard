@@ -17,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,11 +67,23 @@ public class VendorQueryService {
         String category = representative.getCategory().toUpperCase(Locale.ROOT);
         boolean isHall = "HALL".equals(category);
 
+        List<Vendor> sameNameVendors = isHall ? List.of()
+            : vendorRepository.findByNameAndCategory(representative.getName(), representative.getCategory());
+
         List<VendorPackage> packages = isHall ? List.of()
-            : vendorRepository.findByNameAndCategory(representative.getName(), representative.getCategory())
-                .stream()
+            : sameNameVendors.stream()
                 .flatMap(v -> vendorPackageRepository.findByVendorId(v.getId()).stream())
                 .toList();
+
+        Map<Long, String> packageImageMap = isHall ? Map.of()
+            : vendorImageRepository.findByVendorIdIn(
+                sameNameVendors.stream().map(Vendor::getId).toList()
+              ).stream()
+              .collect(Collectors.toMap(
+                  img -> img.getVendorId(),
+                  img -> img.getImageUrl(),
+                  (a, b) -> a  // keep first image per vendor
+              ));
 
         List<VendorHallDetail> hallDetails = isHall
             ? vendorHallDetailRepository.findByVendorId(representative.getId())
@@ -84,6 +98,7 @@ public class VendorQueryService {
             vendorPackageItemRepository::findByPackageId,
             vendorAdditionalProductRepository.findByVendorId(representative.getId()),
             vendorImageRepository.findByVendorIdOrderByOrderNum(representative.getId()),
+            packageImageMap,
             detailJson,
             hallDetails,
             hallJson

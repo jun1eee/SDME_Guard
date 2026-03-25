@@ -799,7 +799,7 @@ function CoupleChatMessage({
         )}
         {createdAt && !isAssistant && (
           <span className={`mt-1 block text-[10px] text-muted-foreground ${isMe ? "text-right" : "text-left"}`}>
-            {new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+            {new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" })}
           </span>
         )}
       </div>
