@@ -14,6 +14,7 @@ import { getChatMessages } from "@/lib/api"
 export interface VendorShare {
   id: string
   vendorId: string
+  sourceId?: string
   name: string
   category: "studio" | "dress" | "makeup" | "venue"
   categoryLabel: string

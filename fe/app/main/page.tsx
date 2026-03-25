@@ -109,6 +109,7 @@ export default function ChatPage() {
             return {
               id: `fav-${f.id}`,
               vendorId: f.vendorId.toString(),
+              sourceId: f.sourceId ? f.sourceId.toString() : undefined,
               name: f.name,
               category: cat,
               categoryLabel: CAT_LABEL[cat] || "",
@@ -1053,7 +1054,7 @@ export default function ChatPage() {
                 .catch(() => { reloadFavorites(); toast.error("찜 해제에 실패했습니다.") })
               toast.success("찜목록에서 제거됐어요", { duration: 2000 })
             }}
-            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).flatMap((v) => [v.vendorId, ...(v.sourceId ? [v.sourceId] : [])])}
             voteBadge={voteBadge}
             onShareVendorFromDrop={(vendor) => {
               setShareModalVendor({
@@ -1094,7 +1095,7 @@ export default function ChatPage() {
             currentUser={userRole}
             onFavoriteChange={handleFavoriteChange}
             initialVendorId={openVendorId}
-            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).map((v) => v.vendorId)}
+            favoriteVendorIds={favoriteVendors.filter((v) => v.sharedBy === userRole).flatMap((v) => [v.vendorId, ...(v.sourceId ? [v.sourceId] : [])])}
             aiRecommendations={messages.flatMap((m) => m.recommendations ?? [])}
           />
         )
