@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor, type AiRecommendation} from "@/lib/api"
+import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor, getAccessToken, type AiRecommendation} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ interface VendorPackage {
   price: number
   mainItems: VendorPackageItem[]
   sections?: VendorPackageSection[]
+  image?: string
 }
 
 interface VendorAddon {
@@ -1021,10 +1022,19 @@ export function VendorDetailView({
   isLoading?: boolean
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(vendor.packages?.[0]?.id ?? "")
+
+  useEffect(() => {
+    const firstId = vendor.packages?.[0]?.id
+    if (firstId) setSelectedPkgId(firstId)
+  }, [vendor.packages?.[0]?.id])
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
   const [showAddons, setShowAddons] = useState(false)
   const [showReservation, setShowReservation] = useState(false)
   const [showReview, setShowReview] = useState(false)
+  const [fittingImage, setFittingImage] = useState<File | null>(null)
+  const [fittingResult, setFittingResult] = useState<string | null>(null)
+  const [fittingLoading, setFittingLoading] = useState(false)
+  const [fittingError, setFittingError] = useState<string | null>(null)
   const [showReport, setShowReport] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
   const [addrCopied, setAddrCopied] = useState(false)
@@ -1130,14 +1140,6 @@ export function VendorDetailView({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
-        {/* Hero image */}
-        <div className="flex h-72 items-center justify-center overflow-hidden bg-[#f0eaf2]">
-          {vendor.coverUrl
-            ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
-            : <span className="text-sm text-muted-foreground/40">{CATEGORIES.find((c) => c.id === vendor.category)?.label}</span>
-          }
-        </div>
-
         <div className="px-4 pb-16">
           {/* Basic info */}
           <div className="mt-5">
@@ -1170,8 +1172,6 @@ export function VendorDetailView({
                 </span>
               ))}
             </div>
-
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{vendor.description}</p>
           </div>
 
           {/* Payment progress - 계약금 결제 후에만 표시 */}
@@ -1249,7 +1249,7 @@ export function VendorDetailView({
             {(currentPaymentStep < 2 || hasUsedBefore) && (
               <Button
                 onClick={() => setShowReservation(true)}
-                className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+                className="flex-1 bg-foreground py-5 text-sm font-semibold text-background hover:bg-foreground/90"
               >
                 예약 및 계약금 결제
               </Button>
@@ -1262,7 +1262,7 @@ export function VendorDetailView({
                     setVoteAdded(true)
                   }
                 }}
-                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
                   voteAdded
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:bg-muted"
@@ -1274,7 +1274,7 @@ export function VendorDetailView({
             )}
             <button
               onClick={() => onShareVendor?.(vendor)}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
+              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
             >
               <Share2 className="size-4" />
               공유
@@ -1284,6 +1284,16 @@ export function VendorDetailView({
           {/* Packages */}
           {vendor.packages && vendor.packages.length > 0 && (
             <div className="mt-5 rounded-2xl bg-card p-5">
+              {selectedPkg?.image && (
+                <div className="mb-4 -mx-5 -mt-5 overflow-hidden rounded-t-2xl">
+                  <img
+                    src={selectedPkg.image}
+                    alt={selectedPkg.name}
+                    className="w-full object-contain"
+                    style={{ maxHeight: "700px" }}
+                  />
+                </div>
+              )}
               <h2 className="mb-4 text-sm font-semibold text-foreground">용도별 패키지</h2>
 
               {vendor.packages.length > 1 && (
@@ -1320,12 +1330,14 @@ export function VendorDetailView({
                   </div>
 
                   <div className="space-y-2.5">
-                    {selectedPkg.mainItems.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.name}</span>
-                        <span className="text-right text-foreground">{item.value}</span>
-                      </div>
-                    ))}
+                    {selectedPkg.mainItems
+                      .filter((item) => !item.name.includes("수입드레"))
+                      .map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{item.name}</span>
+                          <span className="text-right text-foreground">{item.value}</span>
+                        </div>
+                      ))}
                   </div>
 
                   {selectedPkg.sections?.map((section, si) => (
@@ -1470,6 +1482,96 @@ export function VendorDetailView({
               </div>
             )
           })()}
+
+          {/* Dress Virtual Fitting */}
+          {vendor.category === "dress" && (
+            <div className="mt-5 rounded-2xl bg-card p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <Sparkles className="size-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-foreground">AI 드레스 피팅</h2>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                전신 사진을 업로드하면 AI가 이 드레스를 입혀드립니다. 처리에 30~60초 정도 소요됩니다.
+              </p>
+
+              {!fittingResult ? (
+                <div className="space-y-3">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 hover:bg-muted">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) { setFittingImage(file); setFittingError(null) }
+                      }}
+                    />
+                    {fittingImage ? (
+                      <span className="text-sm text-foreground">{fittingImage.name}</span>
+                    ) : (
+                      <>
+                        <span className="text-2xl">📷</span>
+                        <span className="text-sm text-muted-foreground">전신 사진 선택</span>
+                      </>
+                    )}
+                  </label>
+                  {fittingError && (
+                    <p className="text-xs text-red-500">{fittingError}</p>
+                  )}
+                  <Button
+                    className="w-full"
+                    disabled={!fittingImage || fittingLoading || !selectedPkg?.image}
+                    onClick={async () => {
+                      if (!fittingImage || !selectedPkg?.image) return
+                      setFittingLoading(true)
+                      setFittingError(null)
+                      try {
+                        const form = new FormData()
+                        form.append("personImage", fittingImage)
+                        form.append("dressImageUrl", selectedPkg.image)
+                        const token = getAccessToken()
+                        const res = await fetch(
+                          `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/vendors/${vendorId}/fitting`,
+                          {
+                            method: "POST",
+                            body: form,
+                            credentials: "include",
+                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          }
+                        )
+                        if (!res.ok) throw new Error(String(res.status))
+                        const json = await res.json() as { data?: { resultImageBase64?: string } }
+                        const b64 = json.data?.resultImageBase64
+                        if (!b64) throw new Error("결과 이미지가 없습니다.")
+                        setFittingResult(b64)
+                      } catch {
+                        setFittingError("피팅 처리에 실패했습니다. 다시 시도해주세요.")
+                      } finally {
+                        setFittingLoading(false)
+                      }
+                    }}
+                  >
+                    {fittingLoading ? "AI 처리 중..." : "피팅 시작"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <img
+                    src={`data:image/png;base64,${fittingResult}`}
+                    alt="AI 드레스 피팅 결과"
+                    className="w-full rounded-xl object-cover"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { setFittingResult(null); setFittingImage(null) }}
+                  >
+                    다시 시도
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Addons */}
           {vendor.addons && vendor.addons.length > 0 && (

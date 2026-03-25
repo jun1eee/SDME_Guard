@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     openai_chat_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
 
+    # GMS (OpenAI 프록시)
+    gms_key: str = ""
+
     # 카카오맵 API (지오코딩)
     kakao_api_key: str = ""
 
