@@ -32,3 +32,4 @@ coverage/
 .DS_Store
 .idea/
 .venv/
+fe/tsconfig.tsbuildinfo

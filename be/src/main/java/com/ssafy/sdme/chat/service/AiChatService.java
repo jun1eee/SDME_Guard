@@ -112,6 +112,12 @@ public class AiChatService {
                 .collect(Collectors.toList());
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteSession(String sessionId) {
+        aiChatMessageRepository.deleteBySessionId(sessionId);
+        log.info("[AiChat] 세션 삭제 완료 - sessionId: {}", sessionId);
+    }
+
     // ── 내부 메서드 ──
 
     private void saveMessages(Long coupleId, Long userId, String sessionId,
