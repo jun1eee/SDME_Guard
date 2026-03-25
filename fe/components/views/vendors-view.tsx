@@ -1140,6 +1140,13 @@ export function VendorDetailView({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
+        {/* 웨딩홀 Hero 이미지 */}
+        {vendor.category === "venue" && vendor.coverUrl && (
+          <div className="overflow-hidden">
+            <img src={vendor.coverUrl} alt={vendor.name} className="h-64 w-full object-cover" />
+          </div>
+        )}
+
         <div className="px-4 pb-16">
           {/* Basic info */}
           <div className="mt-5">
@@ -1243,43 +1250,6 @@ export function VendorDetailView({
             })()}
           </div>
           )}
-
-          {/* Action buttons */}
-          <div className="mt-5 flex gap-2">
-            {(currentPaymentStep < 2 || hasUsedBefore) && (
-              <Button
-                onClick={() => setShowReservation(true)}
-                className="flex-1 bg-foreground py-5 text-sm font-semibold text-background hover:bg-foreground/90"
-              >
-                예약 및 계약금 결제
-              </Button>
-            )}
-            {onAddToVote && (
-              <button
-                onClick={() => {
-                  if (!voteAdded) {
-                    onAddToVote(vendor)
-                    setVoteAdded(true)
-                  }
-                }}
-                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
-                  voteAdded
-                    ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <Lock className="size-4" />
-                {voteAdded ? "투표 추가됨" : "투표에 올리기"}
-              </button>
-            )}
-            <button
-              onClick={() => onShareVendor?.(vendor)}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
-            >
-              <Share2 className="size-4" />
-              공유
-            </button>
-          </div>
 
           {/* Packages */}
           {vendor.packages && vendor.packages.length > 0 && (
@@ -1572,6 +1542,43 @@ export function VendorDetailView({
               )}
             </div>
           )}
+
+          {/* Action buttons */}
+          <div className="mt-5 flex gap-2">
+            {(currentPaymentStep < 2 || hasUsedBefore) && (
+              <Button
+                onClick={() => setShowReservation(true)}
+                className="flex-1 bg-foreground py-5 text-sm font-semibold text-background hover:bg-foreground/90"
+              >
+                예약 및 계약금 결제
+              </Button>
+            )}
+            {onAddToVote && (
+              <button
+                onClick={() => {
+                  if (!voteAdded) {
+                    onAddToVote(vendor)
+                    setVoteAdded(true)
+                  }
+                }}
+                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  voteAdded
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Lock className="size-4" />
+                {voteAdded ? "투표 추가됨" : "투표에 올리기"}
+              </button>
+            )}
+            <button
+              onClick={() => onShareVendor?.(vendor)}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+            >
+              <Share2 className="size-4" />
+              공유
+            </button>
+          </div>
 
           {/* Addons */}
           {vendor.addons && vendor.addons.length > 0 && (
