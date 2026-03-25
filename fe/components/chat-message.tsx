@@ -20,6 +20,11 @@ interface ChatMessageProps {
 export function ChatMessage({ role, content, isTyping, recommendations, suggestions, onCardClick, onSuggestionClick }: ChatMessageProps) {
   const isUser = role === "user"
   const hasRecs = recommendations && recommendations.length > 0
+
+  // 추천 카드가 있으면 텍스트에서 업체 이름 번호 리스트 제거
+  const displayContent = hasRecs
+    ? content.replace(/\n*(\d+\.\s*.+\n?){2,}/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
+    : content
   const hasSuggestions = suggestions && suggestions.length > 0 && !isUser
 
   return (
@@ -86,7 +91,7 @@ export function ChatMessage({ role, content, isTyping, recommendations, suggesti
                     a: ({ children }) => <span className="text-foreground">{children}</span>,
                   }}
                 >
-                  {content}
+                  {displayContent}
                 </ReactMarkdown>
               </div>
 
