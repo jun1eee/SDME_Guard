@@ -52,9 +52,9 @@ pipeline {
             steps {
                 sh '''
                     cd /var/jenkins_home/workspace/sdmguard
-                    docker-compose down || true
-                    docker-compose build --no-cache ai backend frontend nginx
-                    docker-compose up -d
+                    docker compose down || true
+                    docker compose build --no-cache ai backend frontend nginx
+                    docker compose up -d
                 '''
             }
         }
