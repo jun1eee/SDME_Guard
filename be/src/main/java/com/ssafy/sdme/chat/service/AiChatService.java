@@ -101,11 +101,15 @@ public class AiChatService {
     public List<AiChatHistoryResponse> getRecentMessages(Long userId) {
         if (userId == null) return Collections.emptyList();
 
-        // coupleId로 조회 시도, 없으면 userId로 fallback
+        // coupleId로 조회 시도, 결과 없으면 userId로 fallback
         Long coupleId = resolveCoupleId(userId);
-        List<AiChatMessage> messages = coupleId != null
-                ? aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId)
-                : aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
+        List<AiChatMessage> messages = List.of();
+        if (coupleId != null) {
+            messages = aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId);
+        }
+        if (messages.isEmpty()) {
+            messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
+        }
 
         return messages.stream()
                 .map(AiChatHistoryResponse::from)
