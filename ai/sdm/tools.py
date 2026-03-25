@@ -512,7 +512,7 @@ class ToolRegistry:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 지역 기반 + 카테고리 기본 검색어 (추상적 스타일 키워드 대신)
+        # Hall에서 조회 → 지역 + 카테고리 기반 검색 (추상 스타일 키워드 대신)
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
