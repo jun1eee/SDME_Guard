@@ -410,8 +410,10 @@ class ToolRegistry:
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
         records = [self._hall_to_dict(h) for h in halls]
-        return ToolResult(result_type="raw",
-                          data=json.dumps(records, ensure_ascii=False, default=str),
+        # 코드에서 직접 번호 목록 생성
+        lines = [f"{i+1}. {h.name}" for i, h in enumerate(halls)]
+        text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
+        return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
 
     @staticmethod
@@ -465,8 +467,10 @@ class ToolRegistry:
             return ToolResult(result_type="direct", data=f"{place} 근처에서 업체를 찾지 못했습니다.", vendors=[])
         self._add_distance_text(records)
         records = _dedup_vendors(records)[:count]
-        return ToolResult(result_type="raw",
-                          data=json.dumps(records, ensure_ascii=False, default=str),
+        # 코드에서 직접 번호 목록 생성
+        lines = [f"{i+1}. {r['name']} ({r.get('distanceText', '')})" for i, r in enumerate(records)]
+        text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
+        return ToolResult(result_type="direct", data=text,
                           vendors=[r["name"] for r in records])
 
     # ── 4. search_related: 연관 추천 ──
@@ -761,7 +765,8 @@ class ToolRegistry:
 
         self._last_tour = {"venue_names": [p["name"] for p in ordered],
                            "start_location": start_location, "transport": transport, "visit_type": visit_type}
-        return ToolResult(result_type="raw", data=json.dumps(result, ensure_ascii=False, default=str),
+        # timeline_text is already built with markdown formatting — return directly
+        return ToolResult(result_type="direct", data=timeline_text,
                           vendors=[p["name"] for p in ordered])
 
     def _build_tour_schedule(self, ordered, legs, visit_type, start_location=None):

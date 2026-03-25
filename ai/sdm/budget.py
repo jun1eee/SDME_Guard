@@ -133,6 +133,29 @@ def check_budget_fit(
     }
 
 
+def format_budget_allocation(total: int, result: dict) -> str:
+    """예산 배분 결과를 마크다운으로 포맷"""
+    lines = [f"**총 예산 {total // 10000:,}만원** 배분 추천:\n"]
+    for name, info in result["allocation"].items():
+        amount = info["amount"]
+        ratio = info["ratio"] / 100  # ratio is stored as percentage (e.g. 45.0)
+        lines.append(f"- **{name}**: {amount // 10000:,}만원 ({ratio:.0%})")
+
+    # 각 카테고리의 숨은 비용 안내
+    hidden = []
+    for name in result["allocation"]:
+        costs = get_hidden_costs(name)
+        if costs:
+            for c in costs:
+                hidden.append(f"- {c['name']}: {c['range']} ({c['desc']})")
+    if hidden:
+        lines.append("\n**숨은 비용 주의:**")
+        for h in hidden[:5]:
+            lines.append(h)
+
+    return "\n".join(lines)
+
+
 def _format_won(amount: int) -> str:
     """금액을 한국어 표기로 변환 (예: 15000000 → '1,500만원')."""
     if amount >= 100000000:  # 1억 이상
