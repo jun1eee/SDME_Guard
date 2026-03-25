@@ -116,6 +116,7 @@ public class VendorActionService {
     }
 
     private Long resolveVendorId(Long vendorId) {
+        if (vendorRepository.existsById(vendorId)) return vendorId;
         return vendorRepository.findBySourceId(vendorId)
                 .map(Vendor::getId)
                 .orElse(vendorId);

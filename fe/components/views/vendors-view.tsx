@@ -665,23 +665,21 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       if (v) {
         openVendorDetail(v)
       } else {
-        // AI 추천 카드에서 온 ID는 sourceId → /source/{sourceId}로 조회
+        // AI 추천 카드에서 온 ID → 업체 상세 조회
+        const isFav = favoriteVendorIds?.includes(initialVendorId) ?? false
+        const loadDetail = (id: string) =>
+          fetchVendorDetail(id)
+            .then((detail) => setSelectedVendor({ ...detail, isFavorite: isFav }))
+            .catch(() => {})
         const isSourceId = Number(initialVendorId) >= 1_000_000
         if (isSourceId) {
           import("@/lib/api/vendor-detail").then(({ fetchVendorDetailBySource }) => {
             fetchVendorDetailBySource(initialVendorId)
-              .then((detail) => setSelectedVendor(detail))
-              .catch(() => {
-                // sourceId 조회 실패 시 일반 조회 시도
-                fetchVendorDetail(initialVendorId)
-                  .then((detail) => setSelectedVendor(detail))
-                  .catch(() => {})
-              })
+              .then((detail) => setSelectedVendor({ ...detail, isFavorite: isFav }))
+              .catch(() => loadDetail(initialVendorId))
           })
         } else {
-          fetchVendorDetail(initialVendorId)
-            .then((detail) => setSelectedVendor(detail))
-            .catch(() => {})
+          loadDetail(initialVendorId)
         }
       }
     }
