@@ -245,7 +245,8 @@ class SdmGraphRagEngine:
     def _extract_vendors_from_bold(answer: str) -> list[str]:
         """답변의 **볼드** 텍스트에서 업체명 추출 (fallback)"""
         bold_names = re.findall(r"\*\*([^*]{2,30})\*\*", answer)
-        skip = {"가격", "평점", "특징", "주소", "웹사이트", "링크", "리뷰", "참고"}
+        skip = {"가격", "평점", "특징", "주소", "웹사이트", "링크", "리뷰", "참고",
+                "촬영시간", "소요시간", "위치", "연락처", "식대", "총예산", "분위기"}
         vendors = []
         for name in bold_names:
             name = name.strip()
@@ -253,6 +254,20 @@ class SdmGraphRagEngine:
                 continue
             if 2 <= len(name) <= 30 and name not in vendors:
                 vendors.append(name)
+        return vendors
+
+    @staticmethod
+    def _extract_vendors_from_list(answer: str) -> list[str]:
+        """답변의 번호 목록(1. 업체명) 또는 불릿(- 업체명)에서 추출"""
+        vendors = []
+        for line in answer.splitlines():
+            line = line.strip()
+            # "1. 로이스튜디오" 또는 "- 로이스튜디오"
+            m = re.match(r"^(?:\d+[.)]\s*|\-\s*|\*\s*)([\w가-힣()（）._·\s]{2,30})$", line)
+            if m:
+                name = m.group(1).strip()
+                if name and name not in vendors:
+                    vendors.append(name)
         return vendors
 
     # ── 벡터 검색 ──
