@@ -476,6 +476,10 @@ export async function getAiChatSessions() {
   return fetchApi<AiChatHistoryItem[]>("/chat/ai/sessions")
 }
 
+export async function deleteAiChatSession(sessionId: string) {
+  return fetchApi(`/chat/ai/sessions/${sessionId}`, { method: "DELETE" })
+}
+
 // ─── 카드 관리 ──────────────────────────────────────────────────────────
 
 export async function registerCard(data: { authKey: string; customerKey: string }) {

@@ -82,9 +82,10 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
     try {
       await connectCouple(partnerCode.trim())
       onComplete()
-    } catch (err) {
+    } catch (err: any) {
       console.error("커플 연결 실패:", err)
-      alert("커플 연결에 실패했습니다. 코드를 확인해주세요.")
+      const msg = err?.data?.message || err?.message || "커플 연결에 실패했습니다. 코드를 확인해주세요."
+      alert(msg)
     } finally {
       setIsLoading(false)
     }

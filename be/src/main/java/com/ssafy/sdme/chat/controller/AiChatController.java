@@ -51,4 +51,11 @@ public class AiChatController {
         List<AiChatHistoryResponse> sessions = aiChatService.getRecentMessages(userId);
         return ApiResponse.ok(sessions);
     }
+
+    @DeleteMapping("/ai/sessions/{sessionId}")
+    @Operation(summary = "AI 채팅 세션 삭제", description = "세션의 모든 메시지를 삭제합니다")
+    public ApiResponse<Void> deleteSession(@PathVariable String sessionId) {
+        aiChatService.deleteSession(sessionId);
+        return ApiResponse.ok(null);
+    }
 }

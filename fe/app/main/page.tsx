@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import {AiRecommendation, getAiChatHistory} from "@/lib/api"
+import {AiRecommendation, getAiChatHistory, getAiChatSessions, deleteAiChatSession} from "@/lib/api"
 import { getMyInfo, getCoupleProfile, getPreference, getAccessToken, setAccessToken, tryReissue, logout, clearAccessToken, createInviteCode, connectCouple, addFavorite, removeFavorite, getAllCoupleFavorites, shareVendor, getSharedVendors, createVoteItem, submitVote, unshareVendor, sendAiChat } from "@/lib/api"
 import { ChatSidebar, type ChatSession, type ChatMessage as SessionMessage } from "@/components/chat-sidebar"
 import { ChatMessage } from "@/components/chat-message"
@@ -53,6 +53,22 @@ interface Message {
   content: string
   recommendations?: import("@/lib/api").AiRecommendation[]
   suggestions?: string[]
+}
+
+/** 첫 user 메시지 → ChatGPT 스타일 짧은 제목 */
+function generateChatTitle(msg: string): string {
+  let t = msg.trim()
+  // 긴 문장이면 첫 문장만
+  const firstSentence = t.split(/[.!?\n]/)[0].trim()
+  if (firstSentence) t = firstSentence
+  // 한국어 어미/조사 제거 → 명사구 형태로
+  t = t
+    .replace(/\s*(해줘|해주세요|해 줘|해 주세요|알려줘|알려주세요|추천해줘|추천해주세요|보여줘|보여주세요|찾아줘|찾아주세요|검색해줘|검색해주세요|만들어줘|만들어주세요|설명해줘|설명해주세요|확인해줘|확인해주세요|가르쳐줘|가르쳐주세요)\s*$/g, "")
+    .replace(/\s*(있어\??|있나\??|있을까\??|없어\??|없나\??|뭐야\??|뭐에요\??|할까\??|될까\??|일까\??)\s*$/g, "")
+    .replace(/\s*(좀|요|ㅋ+|ㅎ+|~+|\.+)\s*$/g, "")
+    .trim()
+  if (t.length > 40) t = t.slice(0, 40) + "…"
+  return t || msg.slice(0, 40)
 }
 
 export default function ChatPage() {
@@ -348,8 +364,9 @@ export default function ChatPage() {
     }
   }, [aiSessionId])
 
-  // 페이지 로드 시 이전 대화 복원
+  // 인증 완료 후 이전 대화 복원
   useEffect(() => {
+    if (!authChecked) return
     const savedSessionId = localStorage.getItem("aiSessionId")
     if (!savedSessionId) return
     getAiChatHistory(savedSessionId)
@@ -366,12 +383,48 @@ export default function ChatPage() {
         }))
         setMessages(restored)
         setAiSessionId(savedSessionId)
+        setActiveSessionId(savedSessionId)
         setShowWelcome(false)
       })
       .catch(() => {
         // 복원 실패해도 정상 동작
       })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 인증 완료 후 AI 채팅 세션 목록 불러오기
+  useEffect(() => {
+    if (!authChecked) return
+    const pinnedSet = new Set<string>(JSON.parse(localStorage.getItem("pinnedChats") || "[]"))
+    getAiChatSessions()
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) return
+        // sessionId별로 그룹핑
+        const sessionMap = new Map<string, typeof items>()
+        for (const item of items) {
+          const sid = item.sessionId
+          if (!sessionMap.has(sid)) sessionMap.set(sid, [])
+          sessionMap.get(sid)!.push(item)
+        }
+        const sessions: ChatSession[] = []
+        sessionMap.forEach((msgs, sid) => {
+          const firstUser = msgs.find((m: any) => m.role === "user")
+          const title = generateChatTitle(firstUser?.content ?? "새 채팅")
+          const lastMsg = msgs[msgs.length - 1]
+          sessions.push({
+            id: sid,
+            title,
+            preview: lastMsg?.content?.slice(0, 60) ?? "",
+            createdAt: new Date(msgs[0]?.createdAt ?? Date.now()),
+            isPinned: pinnedSet.has(sid),
+            messages: [],
+          })
+        })
+        sessions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        setChatHistory(sessions)
+      })
+      .catch(() => {})
+  }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
   const [currentView, setCurrentView] = useState<ViewType | null>(() => {
     if (typeof window === "undefined") return null
     const path = window.location.pathname
@@ -628,22 +681,22 @@ export default function ChatPage() {
   }
 
   const handleNewChat = () => {
-    if (messages.length > 0) {
-      const firstUser = messages.find((m) => m.role === "user")
-      const rawTitle = firstUser?.content ?? "새 채팅"
-      const title = rawTitle.length > 28 ? rawTitle.slice(0, 28) + "…" : rawTitle
-      const lastMsg = messages[messages.length - 1]
-      const preview = lastMsg.content.slice(0, 60)
-
-      const session: ChatSession = {
-        id: Date.now().toString(),
-        title,
-        preview,
-        createdAt: new Date(),
-        isPinned: false,
-        messages: [...messages] as SessionMessage[],
-      }
-      setChatHistory((prev) => [session, ...prev])
+    if (messages.length > 0 && aiSessionId) {
+      // 현재 대화를 사이드바 목록에 저장 (이미 있으면 스킵)
+      setChatHistory((prev) => {
+        if (prev.some((s) => s.id === aiSessionId)) return prev
+        const firstUser = messages.find((m) => m.role === "user")
+        const title = generateChatTitle(firstUser?.content ?? "새 채팅")
+        const lastMsg = messages[messages.length - 1]
+        return [{
+          id: aiSessionId,
+          title,
+          preview: lastMsg?.content?.slice(0, 60) ?? "",
+          createdAt: new Date(),
+          isPinned: false,
+          messages: [],
+        }, ...prev]
+      })
     }
     setMessages([])
     setAiSessionId(null)
@@ -656,24 +709,57 @@ export default function ChatPage() {
   const handleLoadChat = (id: string) => {
     const session = chatHistory.find((s) => s.id === id)
     if (!session) return
-    setMessages(session.messages as Message[])
     setActiveSessionId(id)
+    setAiSessionId(id)
     setShowWelcome(false)
-
-    // AI 채팅 탭이 패널에 있으면 활성화, 없으면 추가
     addPanelTab("chat", "left", session.title)
+
+    // API에서 메시지 불러오기
+    getAiChatHistory(id)
+      .then((res) => {
+        const items = res.data ?? res
+        if (!items || !Array.isArray(items) || items.length === 0) {
+          setMessages([])
+          return
+        }
+        const restored = items.map((item: any, idx: number) => ({
+          id: `restored-${idx}`,
+          role: item.role as "user" | "assistant",
+          content: item.content,
+          recommendations: item.role === "assistant" && item.recommendations
+            ? (JSON.parse(item.recommendations) as AiRecommendation[])
+            : undefined,
+        }))
+        setMessages(restored)
+      })
+      .catch(() => {
+        setMessages([])
+      })
   }
 
   const handlePinChat = (id: string) => {
-    setChatHistory((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, isPinned: !s.isPinned } : s))
-    )
+    setChatHistory((prev) => {
+      const updated = prev.map((s) => (s.id === id ? { ...s, isPinned: !s.isPinned } : s))
+      // localStorage에 고정 목록 저장
+      const pinned = updated.filter((s) => s.isPinned).map((s) => s.id)
+      localStorage.setItem("pinnedChats", JSON.stringify(pinned))
+      return updated
+    })
   }
 
   const handleDeleteChat = (id: string) => {
     setChatHistory((prev) => prev.filter((s) => s.id !== id))
+    // 서버에서도 삭제
+    deleteAiChatSession(id).catch(() => {})
+    // 고정 목록에서도 제거
+    try {
+      const pinned = JSON.parse(localStorage.getItem("pinnedChats") || "[]") as string[]
+      localStorage.setItem("pinnedChats", JSON.stringify(pinned.filter((p) => p !== id)))
+    } catch {}
     if (activeSessionId === id) {
       setActiveSessionId(null)
+      setAiSessionId(null)
+      localStorage.removeItem("aiSessionId")
       setMessages([])
       setShowWelcome(true)
     }
