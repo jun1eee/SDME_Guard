@@ -143,6 +143,8 @@ class SdmGraphRagEngine:
             vendors = self.extract_vendors_from_answer(answer)
         if not vendors:
             vendors = self._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self._extract_vendors_from_list(answer)
         if answer and any(phrase in answer for phrase in NO_RESULT_PHRASES):
             return self.search_semantic(query=query, category=category)
         return answer, vendors
@@ -162,12 +164,16 @@ class SdmGraphRagEngine:
             vendors = self.extract_vendors_from_answer(answer)
         if not vendors:
             vendors = self._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self._extract_vendors_from_list(answer)
         # semantic 실패 시 structured 교차 시도
         if answer and any(p in answer for p in NO_RESULT_PHRASES):
             result2 = self.rag_cypher.search(query_text=query)
             vendors2 = self.extract_vendors_from_retriever(result2)
             if not vendors2:
                 vendors2 = self._extract_vendors_from_bold(result2.answer)
+            if not vendors2:
+                vendors2 = self._extract_vendors_from_list(result2.answer)
             if vendors2:
                 return result2.answer, vendors2
         return answer, vendors
@@ -262,8 +268,15 @@ class SdmGraphRagEngine:
         vendors = []
         for line in answer.splitlines():
             line = line.strip()
-            # "1. 로이스튜디오" 또는 "- 로이스튜디오"
-            m = re.match(r"^(?:\d+[.)]\s*|\-\s*|\*\s*)([\w가-힣()（）._·\s]{2,30})$", line)
+            # "1. 로이스튜디오" or "1. 로이스튜디오 - 설명" or "1) 로이스튜디오: 설명"
+            m = re.match(r"^(?:\d+[.)]\s*)([\w가-힣()（）._·\s]{2,30}?)(?:\s*[-\u2013:]|$)", line)
+            if m:
+                name = m.group(1).strip()
+                if name and name not in vendors:
+                    vendors.append(name)
+                continue
+            # bullet point: "- 업체명" or "* 업체명"
+            m = re.match(r"^[-*]\s+([\w가-힣()（）._·\s]{2,30}?)(?:\s*[-\u2013:]|$)", line)
             if m:
                 name = m.group(1).strip()
                 if name and name not in vendors:
