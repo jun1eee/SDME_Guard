@@ -516,7 +516,7 @@ class ToolRegistry:
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
-                region_hint = hall.region or hall.sub_region or ""
+                region_hint = hall.sub_region or hall.region or ""
                 cat_default = {
                     "studio": "웨딩 스튜디오 촬영",
                     "dress": "웨딩 드레스",
@@ -740,12 +740,14 @@ class ToolRegistry:
         transport_label = {"car": "자동차", "transit": "지하철/대중교통", "walk": "도보"}.get(transport, transport)
         visit_label = "견학" if visit_type == "tour" else "피팅/체험"
         timeline_lines = []
+        step = 1
         for item in schedule:
-            timeline_lines.append(f"  {item['time']} {item['activity']}")
+            timeline_lines.append(f"{step}. **{item['time']}** {item['activity']}")
+            step += 1
         timeline_text = (
-            f"{start_location or '출발지'}에서 {transport_label}로 {visit_label} 투어:\n\n"
-            + "\n".join(timeline_lines)
-            + f"\n\n총 이동거리: {total_dist:.1f}km | 총 이동시간: {total_time:.0f}분"
+            f"**{start_location or '출발지'}**에서 {transport_label}로 {visit_label} 투어:\n\n"
+            + "\n\n".join(timeline_lines)
+            + f"\n\n---\n**총 이동거리:** {total_dist:.1f}km | **총 이동시간:** {total_time:.0f}분"
         )
 
         summary = f"추천 동선: {' -> '.join(p['name'] for p in ordered)}. 총 이동 약 {total_dist:.1f}km, {total_time:.0f}분."
