@@ -255,7 +255,7 @@ public class AiChatService {
 
             if (vendor != null) {
                 enriched.add(AiRecommendation.builder()
-                        .id(vendor.getSourceId())
+                        .id(vendor.getId())
                         .source(source)
                         .category(vendor.getCategory())
                         .name(vendor.getName())
