@@ -512,22 +512,17 @@ class ToolRegistry:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 타겟 카테고리에 맞는 키워드로 변환
+        # Hall에서 조회 → 지역 + 카테고리 기반 검색 (추상 스타일 키워드 대신)
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
-                region_hint = hall.region
-                cat_map = self._HALL_STYLE_MAP_BY_CAT.get(target_category, {})
-                style_words = []
-                for tag in hall.tags + hall.style_filters:
-                    mapped = cat_map.get(tag)
-                    if mapped:
-                        style_words.append(mapped)
-                if not style_words:
-                    # 기본 키워드: 타겟 카테고리 자체
-                    default_kw = {"studio": "웨딩촬영", "dress": "웨딩 드레스", "makeup": "웨딩 메이크업"}
-                    style_words = [default_kw.get(target_category, "웨딩")]
-                query_text = " ".join(style_words)
+                region_hint = hall.region or hall.sub_region or ""
+                cat_default = {
+                    "studio": "웨딩 스튜디오 촬영",
+                    "dress": "웨딩 드레스",
+                    "makeup": "웨딩 메이크업 헤어",
+                }
+                query_text = f"{region_hint} {cat_default.get(target_category, '웨딩')}"
 
         if not query_text:
             query_text = source_name
@@ -539,6 +534,8 @@ class ToolRegistry:
         )
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self.engine._extract_vendors_from_list(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 5. get_detail: 상세 조회 ──
