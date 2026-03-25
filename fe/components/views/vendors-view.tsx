@@ -1818,12 +1818,6 @@ export function VendorDetailView({
             )}
           </div>
 
-          {/* AI ask button */}
-          <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-border py-4 text-sm font-medium text-foreground hover:bg-muted">
-            <MessageCircle className="size-5" />
-            AI에게 이 업체 물어보기
-          </button>
-
           {/* Report */}
           <button
             onClick={() => setShowReport(true)}
