@@ -55,6 +55,8 @@ services:
       - TZ=Asia/Seoul
     ports:
       - "8080:8080"
+    volumes:
+      - upload_data:/uploads
     networks:
       - weddirect-net
 
@@ -97,6 +99,7 @@ services:
       - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - upload_data:/uploads:ro
     depends_on:
       - backend
       - frontend
@@ -109,3 +112,4 @@ networks:
 
 volumes:
   neo4j_data:
+  upload_data:
