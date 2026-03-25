@@ -294,6 +294,40 @@ export default function ChatPage() {
         const favInterval = setInterval(() => reloadFavorites(res.data.id, r, true), 30000)
         ;(window as any).__favInterval = favInterval
 
+        // 초기 공유 업체 로드
+        if (res.data.coupleId) {
+          getSharedVendors()
+            .then((shareRes) => {
+              const CATEGORY_MAP: Record<string, "studio" | "dress" | "makeup" | "venue"> = {
+                STUDIO: "studio", DRESS: "dress", MAKEUP: "makeup", HALL: "venue",
+                studio: "studio", dress: "dress", makeup: "makeup", venue: "venue",
+              }
+              const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
+              const shares: VendorShare[] = shareRes.data
+                .filter((s: any) => s.vendorName)
+                .map((s: any) => {
+                  const cat = CATEGORY_MAP[s.category] ?? "studio"
+                  return {
+                    id: `share-${s.id}`,
+                    vendorId: s.vendorId.toString(),
+                    name: s.vendorName,
+                    category: cat,
+                    categoryLabel: CAT_LABEL[cat] || "",
+                    price: s.price ? `${s.price.toLocaleString()}원` : "",
+                    rating: s.rating || 0,
+                    address: "",
+                    tags: [],
+                    description: "",
+                    coverUrl: s.imageUrl || undefined,
+                    sharedBy: s.sharedUserId === res.data.id ? r : (r === "groom" ? "bride" : "groom"),
+                    comment: s.message || "",
+                  }
+                })
+              setSharedVendors(shares)
+            })
+            .catch(() => {})
+        }
+
         setAuthChecked(true)
 
         // 5초마다 커플 상태 확인 (매칭/해제 실시간 감지)
