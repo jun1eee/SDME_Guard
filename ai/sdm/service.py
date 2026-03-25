@@ -233,6 +233,7 @@ class SdmChatService:
                         records.append({
                             "sourceId": hall.partner_id, "name": hall.name,
                             "category": "hall", "tags": hall.tags[:3],
+                            "address": hall.address or f"{hall.region} {hall.sub_region}".strip(),
                         })
         # 같은 이름 업체 중복 제거 (패키지 다른 레코드 합침)
         seen: dict[str, dict] = {}
