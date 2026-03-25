@@ -512,33 +512,32 @@ class ToolRegistry:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
             query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 타겟 카테고리에 맞는 키워드로 변환
+        # Hall에서 조회 → 지역 기반 + 카테고리 기본 검색어 (추상적 스타일 키워드 대신)
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
-                region_hint = hall.region
-                cat_map = self._HALL_STYLE_MAP_BY_CAT.get(target_category, {})
-                style_words = []
-                for tag in hall.tags + hall.style_filters:
-                    mapped = cat_map.get(tag)
-                    if mapped:
-                        style_words.append(mapped)
-                if not style_words:
-                    # 기본 키워드: 타겟 카테고리 자체
-                    default_kw = {"studio": "웨딩촬영", "dress": "웨딩 드레스", "makeup": "웨딩 메이크업"}
-                    style_words = [default_kw.get(target_category, "웨딩")]
-                query_text = " ".join(style_words)
+                region_hint = hall.region or hall.sub_region or ""
+                cat_default = {
+                    "studio": "웨딩 스튜디오 촬영",
+                    "dress": "웨딩 드레스",
+                    "makeup": "웨딩 메이크업 헤어",
+                }
+                query_text = f"{region_hint} {cat_default.get(target_category, '웨딩')}"
 
         if not query_text:
             query_text = source_name
 
         if target_category == "hall":
             return self._search_hall(query_text)
+
+        # search_semantic with region hint for better results
         answer, vendors = self.engine.search_semantic(
             query=query_text, category=target_category, region=region_hint or None,
         )
         if not vendors:
             vendors = self.engine._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self.engine._extract_vendors_from_list(answer)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 5. get_detail: 상세 조회 ──
@@ -735,7 +734,19 @@ class ToolRegistry:
                 total_time += dur
 
         # 스케줄 빌드 (카테고리별 소요시간)
-        schedule = self._build_tour_schedule(ordered, legs, visit_type)
+        schedule = self._build_tour_schedule(ordered, legs, visit_type, start_location=start_location)
+
+        # 상세 타임라인 텍스트 생성
+        transport_label = {"car": "자동차", "transit": "지하철/대중교통", "walk": "도보"}.get(transport, transport)
+        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
+        timeline_lines = []
+        for item in schedule:
+            timeline_lines.append(f"  {item['time']} {item['activity']}")
+        timeline_text = (
+            f"{start_location or '출발지'}에서 {transport_label}로 {visit_label} 투어:\n\n"
+            + "\n".join(timeline_lines)
+            + f"\n\n총 이동거리: {total_dist:.1f}km | 총 이동시간: {total_time:.0f}분"
+        )
 
         summary = f"추천 동선: {' -> '.join(p['name'] for p in ordered)}. 총 이동 약 {total_dist:.1f}km, {total_time:.0f}분."
         result = {
@@ -743,6 +754,7 @@ class ToolRegistry:
             "summary": summary, "transport": transport,
             "total_distance_km": round(total_dist, 2), "total_travel_min": round(total_time, 1),
             "legs": legs, "schedule": schedule,
+            "timeline_text": timeline_text,
         }
 
         self._last_tour = {"venue_names": [p["name"] for p in ordered],
@@ -750,27 +762,63 @@ class ToolRegistry:
         return ToolResult(result_type="raw", data=json.dumps(result, ensure_ascii=False, default=str),
                           vendors=[p["name"] for p in ordered])
 
-    def _build_tour_schedule(self, ordered, legs, visit_type):
+    def _build_tour_schedule(self, ordered, legs, visit_type, start_location=None):
         schedule = []
         current_min = 10 * 60  # 10:00
-        leg_map = {leg["to"]: leg["duration_min"] for leg in legs}
+        leg_map = {}
+        for leg in legs:
+            leg_map[leg["to"]] = leg
         fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"
-        for p in ordered:
-            travel = leg_map.get(p["name"], 0)
-            if travel > 0:
-                arrive = current_min + int(travel)
-                schedule.append({"time": f"{fmt(current_min)}~{fmt(arrive)}", "activity": f"{p['name']}(으)로 이동 (약 {int(travel)}분)"})
+
+        lunch_inserted = False
+        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
+
+        for i, p in enumerate(ordered):
+            leg = leg_map.get(p["name"])
+
+            # Travel segment
+            if leg:
+                travel_min = int(leg["duration_min"])
+                dist = leg["distance_km"]
+                from_name = leg["from"]
+                arrive = current_min + travel_min
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(arrive)}",
+                    "activity": f"{from_name} -> {p['name']} 이동 ({travel_min}분, {dist}km)",
+                })
                 current_min = arrive
+
+            # Lunch break (if between 11:30-13:30 and not yet inserted)
+            if not lunch_inserted and 11 * 60 + 30 <= current_min <= 13 * 60 + 30:
+                lunch_end = current_min + 60
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(lunch_end)}",
+                    "activity": "점심 식사 (1시간)",
+                })
+                current_min = lunch_end
+                lunch_inserted = True
+
+            # Visit
             cat = p.get("category", "unknown")
             duration = VISIT_DURATION.get(cat, VISIT_DURATION["unknown"]).get(visit_type, 60)
             end = current_min + duration
-            schedule.append({"time": f"{fmt(current_min)}~{fmt(end)}", "activity": f"{p['name']} 방문 ({duration}분)"})
+            schedule.append({
+                "time": f"{fmt(current_min)}~{fmt(end)}",
+                "activity": f"{p['name']} {visit_label} ({duration}분)",
+            })
             current_min = end
+
+        # Return trip
         for leg in legs:
             if "귀가" in str(leg.get("to", "")):
-                travel = int(leg["duration_min"])
-                arrive = current_min + travel
-                schedule.append({"time": f"{fmt(current_min)}~{fmt(arrive)}", "activity": f"귀가 이동 (약 {travel}분)"})
+                travel_min = int(leg["duration_min"])
+                dist = leg["distance_km"]
+                arrive = current_min + travel_min
+                schedule.append({
+                    "time": f"{fmt(current_min)}~{fmt(arrive)}",
+                    "activity": f"귀가 이동 ({travel_min}분, {dist}km)",
+                })
+
         return schedule
 
     # ── 10. modify_tour ──
