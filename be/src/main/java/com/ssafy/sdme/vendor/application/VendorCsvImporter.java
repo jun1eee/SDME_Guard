@@ -56,6 +56,7 @@ public class VendorCsvImporter {
                     String newHashtags = buildHashtags(node.path("tags"));
                     vendorRepository.findBySourceId(partnerId).ifPresent(v -> {
                         v.updateHashtags(newHashtags);
+                        vendorRepository.save(v);
                     });
                     updated++;
                 }

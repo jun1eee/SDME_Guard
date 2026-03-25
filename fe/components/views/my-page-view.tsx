@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken, uploadProfileImage } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -112,15 +112,23 @@ export function MyPageView({
   const groomInputRef = useRef<HTMLInputElement>(null)
   const brideInputRef = useRef<HTMLInputElement>(null)
 
-  const handlePhotoChange = (
+  const handlePhotoChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (v: string) => void
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setter(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    try {
+      const res = await uploadProfileImage(file)
+      if (res.data) {
+        setter(res.data)
+      }
+    } catch {
+      // 업로드 실패 시 로컬 미리보기로 폴백
+      const reader = new FileReader()
+      reader.onload = (ev) => setter(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleSave = async () => {

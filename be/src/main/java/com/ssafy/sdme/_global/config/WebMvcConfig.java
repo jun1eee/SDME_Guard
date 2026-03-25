@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.filter.CommonsRequestLoggingFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
@@ -48,6 +49,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",
                         "/error"
                 );
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String uploadPath = System.getProperty("os.name").toLowerCase().contains("win")
+                ? "file:///" + System.getProperty("user.home").replace("\\", "/") + "/uploads/"
+                : "file:/uploads/";
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(uploadPath);
     }
 
     @Bean

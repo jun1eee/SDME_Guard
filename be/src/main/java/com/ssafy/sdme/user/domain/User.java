@@ -63,6 +63,10 @@ public class User extends BaseTimeEntity {
         this.coupleId = null;
     }
 
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
     public void rejoin(String nickname, String profileImage) {
         this.deletedAt = null;
         this.name = null;

@@ -23,4 +23,6 @@ public interface UserService {
     UserPreferenceResponse getPartnerPreference(Long userId);
 
     UserPreferenceResponse updateSharedInfo(Long userId, UserSharedInfoRequest request);
+
+    String updateProfileImage(Long userId, org.springframework.web.multipart.MultipartFile file);
 }
