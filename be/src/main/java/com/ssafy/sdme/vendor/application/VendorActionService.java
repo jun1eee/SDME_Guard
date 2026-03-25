@@ -43,20 +43,23 @@ public class VendorActionService {
             throw new NotFoundException("커플 매칭이 필요합니다.");
         }
 
-        if (vendorShareRepository.existsBySharedUserIdAndVendorIdAndDeletedAtIsNull(userId, vendorId)) {
+        // PK로 못 찾으면 sourceId로 조회
+        Long resolvedId = resolveVendorId(vendorId);
+
+        if (vendorShareRepository.existsBySharedUserIdAndVendorIdAndDeletedAtIsNull(userId, resolvedId)) {
             throw new com.ssafy.sdme._global.exception.BadRequestException("이미 공유한 업체입니다.");
         }
 
         VendorShare share = VendorShare.builder()
                 .coupleId(user.getCoupleId())
-                .vendorId(vendorId)
+                .vendorId(resolvedId)
                 .sharedUserId(userId)
                 .message(message)
                 .build();
         vendorShareRepository.save(share);
 
-        Vendor vendor = vendorRepository.findById(vendorId).orElse(null);
-        log.info("[Vendor] 업체 공유 - userId: {}, vendorId: {}", userId, vendorId);
+        Vendor vendor = vendorRepository.findById(resolvedId).orElse(null);
+        log.info("[Vendor] 업체 공유 - userId: {}, vendorId: {} (resolved: {})", userId, vendorId, resolvedId);
         return VendorShareResponse.of(share, vendor);
     }
 
@@ -71,8 +74,7 @@ public class VendorActionService {
 
         List<VendorShare> shares = vendorShareRepository.findByCoupleIdAndDeletedAtIsNullOrderByCreatedAtDesc(user.getCoupleId());
         List<Long> vendorIds = shares.stream().map(VendorShare::getVendorId).distinct().toList();
-        Map<Long, Vendor> vendorMap = vendorRepository.findAllById(vendorIds)
-                .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
+        Map<Long, Vendor> vendorMap = resolveVendorMap(vendorIds);
 
         return shares.stream()
                 .map(s -> VendorShareResponse.of(s, vendorMap.get(s.getVendorId())))
@@ -81,7 +83,8 @@ public class VendorActionService {
 
     @Transactional
     public void unshareVendor(Long userId, Long vendorId) {
-        VendorShare share = vendorShareRepository.findBySharedUserIdAndVendorIdAndDeletedAtIsNull(userId, vendorId)
+        Long resolvedId = resolveVendorId(vendorId);
+        VendorShare share = vendorShareRepository.findBySharedUserIdAndVendorIdAndDeletedAtIsNull(userId, resolvedId)
                 .orElseThrow(() -> new NotFoundException("공유한 업체를 찾을 수 없습니다."));
         share.softDelete();
         // 채팅 메시지도 삭제
@@ -110,5 +113,21 @@ public class VendorActionService {
     public void updateProgress(Long userId, Long vendorId, String progress) {
         // 진행 상태는 Reservation 테이블에서 관리
         log.info("[Vendor] 진행 상태 업데이트 - userId: {}, vendorId: {}, progress: {}", userId, vendorId, progress);
+    }
+
+    private Long resolveVendorId(Long vendorId) {
+        if (vendorRepository.existsById(vendorId)) return vendorId;
+        return vendorRepository.findBySourceId(vendorId).map(Vendor::getId).orElse(vendorId);
+    }
+
+    private Map<Long, Vendor> resolveVendorMap(List<Long> vendorIds) {
+        Map<Long, Vendor> map = vendorRepository.findAllById(vendorIds)
+                .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
+        List<Long> missing = vendorIds.stream().filter(id -> !map.containsKey(id)).distinct().toList();
+        if (!missing.isEmpty()) {
+            vendorRepository.findBySourceIdIn(missing)
+                    .forEach(v -> map.put(v.getSourceId(), v));
+        }
+        return map;
     }
 }
