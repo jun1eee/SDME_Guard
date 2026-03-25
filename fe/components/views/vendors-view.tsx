@@ -741,7 +741,7 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
   const currentStyleFilters = selectedCategory !== "all" ? (STYLE_FILTERS[selectedCategory] ?? []) : []
 
   const toggleFavorite = (id: string) => {
-    const vendor = vendors.find((v) => v.id === id) || aiVendors.find((v) => v.id === id)
+    const vendor = vendors.find((v) => v.id === id) || aiVendors.find((v) => v.id === id) || (selectedVendor?.id === id ? selectedVendor : null)
     if (vendor) {
       const newFav = !vendor.isFavorite
       onFavoriteChange?.(vendor, newFav)
