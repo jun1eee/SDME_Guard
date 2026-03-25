@@ -77,8 +77,8 @@ public class FavoriteService {
     }
 
     private Long resolveVendorId(Long vendorId) {
-        // PK가 존재하고 sourceId로도 다른 업체가 없으면 PK 그대로 사용
-        // sourceId로 매칭되는 업체가 있으면 해당 PK로 변환
+        // PK로 존재하면 그대로 사용, 없으면 sourceId로 조회
+        if (vendorRepository.existsById(vendorId)) return vendorId;
         return vendorRepository.findBySourceId(vendorId)
                 .map(Vendor::getId)
                 .orElse(vendorId);
