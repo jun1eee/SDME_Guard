@@ -12,10 +12,18 @@ class ChatContext(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CoupleContext(BaseModel):
+    groom_summary: str | None = None
+    groom_vendors: str | None = None
+    bride_summary: str | None = None
+    bride_vendors: str | None = None
+
+
 class ChatRequest(BaseModel):
     session_id: str | None = None
     message: str
     context: ChatContext | None = None
+    couple_context: CoupleContext | None = None
     debug: bool = False
 
     @field_validator("message")

@@ -126,6 +126,21 @@ RAG_TEMPLATE = """당신은 웨딩 전문 추천 챗봇입니다.
 
 답변:"""
 
+COUPLE_CONTEXT_TEMPLATE = """
+[커플 대화 모드]
+두 분의 개인 상담 내용을 참고하여 답변하세요.
+
+[신랑 상담 요약]
+{groom_summary}
+관심 업체: {groom_vendors}
+
+[신부 상담 요약]
+{bride_summary}
+관심 업체: {bride_vendors}
+
+두 분의 취향을 모두 고려하여 추천해주세요. 겹치는 선호는 강조하고, 다른 취향은 절충안을 제시하세요.
+"""
+
 FEWSHOT_EXAMPLES = [
     # 스튜디오
     "USER INPUT: '스튜디오 추천해줘'\nQUERY:\nMATCH (v:Vendor {category:'studio'}) WHERE v.salePrice > 0\nRETURN v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.reviewCnt AS reviewCnt, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC, v.reviewCnt DESC LIMIT 10",
