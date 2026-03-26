@@ -404,8 +404,20 @@ class ToolRegistry:
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
         records = [self._hall_to_dict(h) for h in halls]
-        # 코드에서 직접 번호 목록 생성
-        lines = [f"{i+1}. {h.name}" for i, h in enumerate(halls)]
+        # 코드에서 직접 번호 목록 + 추천 이유 생성 (룰베이스)
+        lines = []
+        for i, h in enumerate(halls):
+            features = []
+            if h.sub_region:
+                features.append(h.sub_region)
+            if h.stations:
+                features.append(f"{h.stations[0]} 근처")
+            if h.tags:
+                features.append(h.tags[0])
+            if h.min_meal_price:
+                features.append(f"식대 {h.min_meal_price // 10000}만원~")
+            reason = ", ".join(features[:3]) if features else ""
+            lines.append(f"{i+1}. **{h.name}** — {reason}" if reason else f"{i+1}. **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
         return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
@@ -461,8 +473,14 @@ class ToolRegistry:
             return ToolResult(result_type="direct", data=f"{place} 근처에서 업체를 찾지 못했습니다.", vendors=[])
         self._add_distance_text(records)
         records = _dedup_vendors(records)[:count]
-        # 코드에서 직접 번호 목록 생성
-        lines = [f"{i+1}. {r['name']} ({r.get('distanceText', '')})" for i, r in enumerate(records)]
+        # 코드에서 직접 번호 목록 + 거리/특징 생성 (룰베이스)
+        lines = []
+        for i, r in enumerate(records):
+            dist = r.get("distanceText", "")
+            rating = r.get("rating", "")
+            rating_str = f"평점 {rating}" if rating else ""
+            parts = [p for p in [dist, rating_str] if p]
+            lines.append(f"{i+1}. **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}. **{r['name']}**")
         text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
         return ToolResult(result_type="direct", data=text,
                           vendors=[r["name"] for r in records])
@@ -504,23 +522,26 @@ class ToolRegistry:
         query_text = ""
         region_hint = ""
 
-        # Vendor에서 태그 조회
+        # Vendor에서 태그 조회 → 태그(특징) 우선, 지역은 보조
         records = self.engine.query_vendors_by_names([source_name])
         if records:
             tags = records[0].get("tags", [])
             region_hint = records[0].get("region", "")
-            query_text = f"{source_name} {' '.join(tags[:8])}"
-        # Hall에서 조회 → 지역 + 카테고리 기반 검색 (추상 스타일 키워드 대신)
+            # 태그 기반 검색어 (특징 우선)
+            query_text = f"{' '.join(tags[:6])} {target_category}"
+        # Hall에서 조회 → Hall 태그 + 카테고리 (지역 아닌 특징 우선)
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
                 region_hint = hall.sub_region or hall.region or ""
+                # 태그(특징) 우선 검색어
+                hall_tags = " ".join(hall.tags[:4]) if hall.tags else ""
                 cat_default = {
                     "studio": "웨딩 스튜디오 촬영",
                     "dress": "웨딩 드레스",
                     "makeup": "웨딩 메이크업 헤어",
                 }
-                query_text = f"{region_hint} {cat_default.get(target_category, '웨딩')}"
+                query_text = f"{hall_tags} {cat_default.get(target_category, '웨딩')}"
 
         if not query_text:
             query_text = source_name
