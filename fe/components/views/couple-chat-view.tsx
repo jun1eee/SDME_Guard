@@ -282,10 +282,12 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     setIsTyping(true)
     try {
       let messageToSend = content
-      if (vendors.length >= 2) {
-        // 업체 비교 요청 시 업체 정보를 메시지에 포함
-        const vendorNames = vendors.map(v => v.name).join(", ")
-        messageToSend = `${content} (업체: ${vendorNames})`
+      if (vendors.length > 0) {
+        const catLabel: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀", STUDIO: "스튜디오", DRESS: "드레스", MAKEUP: "메이크업", HALL: "웨딩홀" }
+        const vendorInfo = vendors.map(v =>
+          `${v.name} (${catLabel[v.category] || v.category}${v.price ? `, ${v.price}` : ""}${v.rating ? `, ⭐${v.rating}` : ""})`
+        ).join(", ")
+        messageToSend = `${content || (vendors.length >= 2 ? "비교해줘" : "이 업체에 대해 알려줘")} [업체: ${vendorInfo}]`
       }
       const res = await sendCoupleAiChat({ message: messageToSend, sessionId: coupleAiSessionId })
       if (res.data.sessionId) {
