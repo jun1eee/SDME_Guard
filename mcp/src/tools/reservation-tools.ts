@@ -98,20 +98,21 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
         const hasHalls = (detail.halls ?? []).length > 0
         if ((hasPackages || hasHalls) && !memo) {
           const options = hasPackages
-            ? (detail.packageTabs ?? []).map((p: any) => `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`).join("\n")
-            : (detail.halls ?? []).map((h: any) => `  · ${h.name} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원`).join("\n")
+            ? (detail.packageTabs ?? []).map((p: any, i: number) => `${i + 1}. ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`).join("\n")
+            : (detail.halls ?? []).map((h: any, i: number) => `${i + 1}. ${h.name} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원`).join("\n")
+          const total = hasPackages ? (detail.packageTabs ?? []).length : (detail.halls ?? []).length
           return {
             content: [{
               type: "text",
-              text: `❌ ${hasPackages ? "패키지" : "홀"}를 선택해주세요!\n\n${hasPackages ? "📦 패키지 목록" : "🏛️ 홀 목록"}:\n${options}\n\n사용자에게 어떤 ${hasPackages ? "패키지" : "홀"}로 예약할지 물어보세요.`,
+              text: `❌ ${hasPackages ? "패키지" : "홀"}를 선택해주세요! (총 ${total}개)\n\n${hasPackages ? "📦 전체 패키지 목록" : "🏛️ 전체 홀 목록"}:\n${options}\n\n위 목록을 사용자에게 모두 보여주고 번호 또는 이름으로 선택하게 해주세요.`,
             }],
           }
         }
 
-        // 3. 오늘이면 지나간 시간 체크
-        const now = new Date()
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-        const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+        // 3. 오늘이면 지나간 시간 체크 (KST 기준)
+        const nowKST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+        const today = `${nowKST.getFullYear()}-${String(nowKST.getMonth() + 1).padStart(2, "0")}-${String(nowKST.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(nowKST.getHours()).padStart(2, "0")}:${String(nowKST.getMinutes()).padStart(2, "0")}`
         if (reservationDate === today && reservationTime <= currentTime) {
           const futureTimes = allTimes.filter(t => t > currentTime)
           return {

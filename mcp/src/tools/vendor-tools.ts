@@ -139,10 +139,10 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         const bookedData = await api.get(`/vendors/${vendorId}/reservations?date=${date}`)
         const bookedTimes: string[] = Array.isArray(bookedData) ? bookedData : []
 
-        // 4. 오늘 날짜면 지나간 시간 필터링
-        const now = new Date()
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-        const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+        // 4. 오늘 날짜면 지나간 시간 필터링 (KST 기준)
+        const nowKST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+        const today = `${nowKST.getFullYear()}-${String(nowKST.getMonth() + 1).padStart(2, "0")}-${String(nowKST.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(nowKST.getHours()).padStart(2, "0")}:${String(nowKST.getMinutes()).padStart(2, "0")}`
         const isToday = date === today
 
         const availableTimes = allTimes.filter(t => {
@@ -172,9 +172,9 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
     async (params) => {
       try {
         const data = await api.get(`/vendors/${params.vendorId}`)
-        const packages = (data.packageTabs ?? []).map((p: any) => {
+        const packages = (data.packageTabs ?? []).map((p: any, idx: number) => {
           const includes = (p.includes ?? []).map((i: any) => `    - ${i.label}: ${i.value}`).join("\n")
-          return `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원${includes ? "\n" + includes : ""}`
+          return `${idx + 1}. ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원${includes ? "\n" + includes : ""}`
         }).join("\n")
 
         const halls = (data.halls ?? []).map((h: any) =>
