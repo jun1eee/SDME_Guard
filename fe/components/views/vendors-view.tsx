@@ -1011,6 +1011,7 @@ export function VendorDetailView({
   onShareVendor,
   onAddToVote,
   isLoading = false,
+  autoOpenPayment = false,
 }: {
   vendor: Vendor
   onBack: () => void
@@ -1018,6 +1019,7 @@ export function VendorDetailView({
   onShareVendor?: (v: Vendor) => void
   onAddToVote?: (v: Vendor) => void
   isLoading?: boolean
+  autoOpenPayment?: boolean
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(vendor.packages?.[0]?.id ?? "")
 
@@ -1027,7 +1029,7 @@ export function VendorDetailView({
   }, [vendor.packages?.[0]?.id])
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
   const [showAddons, setShowAddons] = useState(false)
-  const [showReservation, setShowReservation] = useState(false)
+  const [showReservation, setShowReservation] = useState(autoOpenPayment)
   const [showReview, setShowReview] = useState(false)
   const [fittingImage, setFittingImage] = useState<File | null>(null)
   const [fittingResult, setFittingResult] = useState<string | null>(null)
@@ -1978,6 +1980,18 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
             if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
             if (existing.memo) setNotes(existing.memo)
             setReservationId(existing.id)
+            // memo에서 홀/패키지 자동 선택
+            if (existing.memo) {
+              if (isVenue && halls) {
+                const matched = halls.find(h => existing.memo.includes(h.name))
+                if (matched) setSelectedHallId(matched.id)
+                else if (halls.length === 1) setSelectedHallId(halls[0].id)
+              } else if (!isVenue && packages) {
+                const matched = packages.find(p => existing.memo.includes(p.name))
+                if (matched) setSelectedPkgId(matched.id)
+                else if (packages.length === 1) setSelectedPkgId(packages[0].id)
+              }
+            }
             // 이미 예약 있으면 바로 카드 선택 → 결제
             loadCards()
             setStep("payment")
@@ -2045,14 +2059,18 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         if (!existing) throw new Error("예약 정보를 찾을 수 없습니다.")
         targetReservationId = existing.id
       } else {
-        // 계약금 결제: 새 예약 생성
-        const resReservation = await createReservation(Number(vendorId), {
-          reservationDate: date,
-          serviceDate: date,
-          reservationTime: time,
-          memo: notes || undefined,
-        })
-        targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
+        // 계약금 결제: 기존 예약 있으면 재사용, 없으면 새로 생성
+        if (reservationId) {
+          targetReservationId = reservationId
+        } else {
+          const resReservation = await createReservation(Number(vendorId), {
+            reservationDate: date,
+            serviceDate: date,
+            reservationTime: time,
+            memo: notes || undefined,
+          })
+          targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
+        }
       }
 
       // 결제 요청
