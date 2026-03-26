@@ -95,7 +95,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
 
   server.tool(
     "get_vendor_booked_times",
-    "특정 업체의 특정 날짜에 이미 예약된 시간을 조회합니다. 업체별 크롤링 데이터에서 실제 예약 가능 시간을 가져옵니다.",
+    "특정 업체의 특정 날짜에 예약 가능한 시간을 조회합니다. 오늘 날짜는 현재 시간 이후의 시간만 반환합니다(지나간 시간 제외). 예약 전 반드시 호출하세요. 이 도구만이 실제 예약 가능 시간을 알 수 있습니다.",
     {
       vendorId: z.number().describe("업체 ID"),
       date: z.string().describe("조회할 날짜 (YYYY-MM-DD 형식)"),
@@ -165,7 +165,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
 
   server.tool(
     "get_vendor_detail",
-    "특정 업체의 상세 정보를 조회합니다. 패키지, 가격, 리뷰 등을 확인할 수 있습니다. 주의: 여기서 보여주는 시간은 전체 스케줄이며, 실제 예약 가능 시간은 반드시 get_vendor_booked_times로 확인해야 합니다. 오늘 날짜는 지나간 시간이 제외될 수 있습니다.",
+    "특정 업체의 상세 정보(패키지, 홀, 가격)를 조회합니다. 예약 가능 시간은 여기서 알 수 없으며, 반드시 get_vendor_booked_times를 별도로 호출해야 합니다. 시간 정보를 추측하거나 임의로 말하지 마세요.",
     {
       vendorId: z.number().describe("업체 ID"),
     },
@@ -184,6 +184,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         let detail = `🏪 ${data.name}\n- 카테고리: ${data.category}\n- 평점: ⭐${data.rating ?? "-"}\n- 가격: ${data.price?.toLocaleString() ?? "가격 문의"}원`
         if (packages) detail += `\n\n📦 패키지:\n${packages}`
         if (halls) detail += `\n\n🏛️ 홀 정보:\n${halls}`
+        detail += `\n\n⚠️ 이 응답에는 시간 정보가 없습니다. 예약 가능 시간 확인은 반드시 get_vendor_booked_times를 호출하세요. 절대 임의로 시간을 추측하지 마세요.`
 
         return {
           content: [{
