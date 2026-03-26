@@ -173,12 +173,7 @@ public class AiChatService {
 
             AiChatResponse chatResponse = parseResponse(response.getBody(), request.getSessionId());
 
-            // 메시지 영속화
-            if (chatResponse.isSuccess() && chatResponse.getSessionId() != null) {
-                saveMessages(coupleId, userId, chatResponse.getSessionId(),
-                        request.getMessage(), chatResponse);
-            }
-
+            // 커플 AI 채팅은 개인 MY CHATS에 노출되지 않도록 저장하지 않음
             return chatResponse;
         } catch (RestClientException e) {
             log.error("[AiChat] AI 서버 연결 실패", e);
