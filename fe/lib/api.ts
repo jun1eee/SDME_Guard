@@ -610,3 +610,41 @@ export async function getMcpToken() {
 export async function refreshMcpToken() {
   return fetchApi("/mcp/token/refresh", { method: "POST" })
 }
+
+// ─── 커플 AI 세션 ──────────────────────────────────────────────────
+
+export async function selectCoupleAiSession(sessionId: string) {
+  return fetchApi<void>("/chat/couple/ai-sessions", {
+    method: "PUT",
+    body: JSON.stringify({ sessionId }),
+  })
+}
+
+export async function clearCoupleAiSession() {
+  return fetchApi<void>("/chat/couple/ai-sessions", {
+    method: "DELETE",
+  })
+}
+
+export async function getCoupleAiSessions() {
+  return fetchApi<{ groomAiSessionId: string | null; brideAiSessionId: string | null }>("/chat/couple/ai-sessions")
+}
+
+export async function sendCoupleAiChat(data: {
+  message: string
+  sessionId?: string | null
+}) {
+  return fetchApi<{
+    answer: string
+    sessionId: string
+    success: boolean
+    recommendations: AiRecommendation[]
+    suggestions: string[]
+  }>("/chat/couple/ai", {
+    method: "POST",
+    body: JSON.stringify({
+      message: data.message,
+      sessionId: data.sessionId ?? undefined,
+    }),
+  })
+}
