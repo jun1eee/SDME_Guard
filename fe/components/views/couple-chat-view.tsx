@@ -34,6 +34,7 @@ interface Message {
   content: string
   sender?: string
   vendorShare?: VendorShare
+  vendorShares?: VendorShare[]
   comment?: string
   createdAt?: string
 }
@@ -80,6 +81,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   ])
   const [isTyping, setIsTyping] = useState(false)
   const [aiMode, setAiMode] = useState(false)
+  const [attachedVendors, setAttachedVendors] = useState<import("@/components/chat-input").DroppedVendor[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const stompClientRef = useRef<Client | null>(null)
 
@@ -237,43 +239,109 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     scrollToBottom()
   }, [messages, isTyping])
 
-  const triggerAiResponse = (content: string) => {
+  const triggerAiResponse = (content: string, vendors: typeof attachedVendors = []) => {
     setIsTyping(true)
     setTimeout(() => {
       setIsTyping(false)
+      let responseContent: string
+      if (vendors.length >= 2) {
+        // 업체 비교 응답 생성
+        responseContent = generateComparisonResponse(vendors, content)
+      } else {
+        responseContent = getCoupleChatResponse(content, currentUser, groomName, brideName)
+      }
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: getCoupleChatResponse(content, currentUser, groomName, brideName),
+        content: responseContent,
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, aiResponse])
     }, 1500)
   }
 
+  const generateComparisonResponse = (vendors: typeof attachedVendors, userMsg: string) => {
+    const header = `**${vendors.map(v => v.name).join(" vs ")}** 비교해드릴게요!\n\n`
+    const catLabel: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀", STUDIO: "스튜디오", DRESS: "드레스", MAKEUP: "메이크업", HALL: "웨딩홀" }
+
+    let table = "| 항목 |"
+    vendors.forEach(v => { table += ` ${v.name} |` })
+    table += "\n|---|"
+    vendors.forEach(() => { table += "---|" })
+
+    table += "\n| 카테고리 |"
+    vendors.forEach(v => { table += ` ${catLabel[v.category] || v.category} |` })
+
+    table += "\n| 가격 |"
+    vendors.forEach(v => { table += ` ${v.price || "문의"} |` })
+
+    table += "\n| 평점 |"
+    vendors.forEach(v => { table += ` ⭐ ${v.rating || "-"} |` })
+
+    const footer = "\n\n궁금한 점이 있으면 더 물어보세요! 상세 비교가 필요하면 업체명을 클릭해서 상세 정보를 확인해보세요."
+    return header + table + footer
+  }
+
   const handleVendorDrop = (vendor: PendingVendor | { id: string; name: string; category: string; categoryLabel: string; price: string; rating: number }) => {
-    const full = { address: "", tags: [] as string[], description: "", ...vendor }
-    onShareVendorFromDrop?.(full)
+    if (aiMode) {
+      // AI 모드: 첨부 목록에 추가 (중복 방지)
+      setAttachedVendors((prev) =>
+        prev.some((v) => v.id === vendor.id) ? prev : [...prev, {
+          id: vendor.id,
+          name: vendor.name,
+          category: vendor.category,
+          categoryLabel: ("categoryLabel" in vendor ? vendor.categoryLabel : vendor.category) || "",
+          price: ("price" in vendor ? vendor.price : "") || "",
+          rating: vendor.rating || 0,
+          coverUrl: ("coverUrl" in vendor ? (vendor as any).coverUrl : undefined),
+        }]
+      )
+    } else {
+      const full = { address: "", tags: [] as string[], description: "", ...vendor }
+      onShareVendorFromDrop?.(full)
+    }
   }
 
   const handleSend = (content: string) => {
-    if (!content.trim()) return
+    if (!content.trim() && attachedVendors.length === 0) return
     const isAiMention = content.trimStart().toLowerCase().startsWith("@ai")
     const cleanContent = isAiMention ? content.trimStart().slice(3).trim() : content
     const senderName = currentUser === "groom" ? groomName : brideName
 
+    // AI 모드에서 업체가 첨부되어 있으면 카드 형태로 메시지에 포함
+    const currentAttached = aiMode ? [...attachedVendors] : []
+    const catLabelMap: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀", STUDIO: "스튜디오", DRESS: "드레스", MAKEUP: "메이크업", HALL: "웨딩홀" }
+    const vendorSharesForMsg: VendorShare[] = currentAttached.map((v) => ({
+      id: `attached-${v.id}`,
+      vendorId: v.id,
+      name: v.name,
+      category: (v.category === "HALL" ? "venue" : v.category.toLowerCase()) as VendorShare["category"],
+      categoryLabel: catLabelMap[v.category] || v.categoryLabel || v.category,
+      price: v.price,
+      rating: v.rating,
+      address: "",
+      tags: [],
+      description: "",
+      coverUrl: v.coverUrl,
+      sharedBy: currentUser as "groom" | "bride",
+    }))
+
+    const displayContent = content.trim()
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: currentUser,
-      content,
+      content: displayContent,
       sender: senderName,
+      vendorShares: vendorSharesForMsg.length > 0 ? vendorSharesForMsg : undefined,
       createdAt: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, userMessage])
 
     if (aiMode) {
       // AI 모드: AI 응답만, 상대방에게 안 보냄
-      triggerAiResponse(cleanContent || content)
+      triggerAiResponse(cleanContent || content, currentAttached)
+      setAttachedVendors([])
     } else if (isAiMention) {
       // @AI 멘션: 상대방에게도 보내고 AI 응답도
       if (stompClientRef.current?.connected && coupleId && userId) {
@@ -416,6 +484,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                       currentUser={currentUser}
                       createdAt={message.createdAt}
                       vendorShare={message.vendorShare}
+                      vendorShares={message.vendorShares}
                       comment={message.comment}
                       onAddToVote={onAddToVote}
                       onFavoriteVendor={onFavoriteVendor}
@@ -440,6 +509,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         onSend={handleSend}
         disabled={isTyping}
         placeholder={inputPlaceholder}
+        attachedVendors={aiMode ? attachedVendors : []}
+        onRemoveVendor={aiMode ? (id) => setAttachedVendors((prev) => prev.filter((v) => v.id !== id)) : undefined}
         onVendorDrop={(vendor) => handleVendorDrop(vendor)}
         extraButton={
           <button
@@ -704,6 +775,7 @@ function CoupleChatMessage({
   currentUser,
   createdAt,
   vendorShare,
+  vendorShares,
   comment,
   onAddToVote,
   onFavoriteVendor,
@@ -719,6 +791,7 @@ function CoupleChatMessage({
   currentUser?: "groom" | "bride"
   createdAt?: string
   vendorShare?: VendorShare
+  vendorShares?: VendorShare[]
   comment?: string
   onAddToVote?: (vendor: VendorShare) => void
   onFavoriteVendor?: (vendor: VendorShare) => void
@@ -764,7 +837,22 @@ function CoupleChatMessage({
             {sender}
           </span>
         )}
-        {vendorShare ? (
+        {vendorShares && vendorShares.length > 0 ? (
+          <div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {vendorShares.map((vs) => (
+                <div key={vs.id} className="shrink-0">
+                  <VendorShareCard vendor={vs} onAddToVote={onAddToVote} onFavorite={onFavoriteVendor} onUnfavorite={onUnfavoriteVendor} initialLiked={favoriteVendorIds.includes(vs.vendorId)} onOpenVendor={() => onOpenVendor?.(vs.vendorId)} />
+                </div>
+              ))}
+            </div>
+            {content && (
+              <div className={`mt-2 ${isMe ? "rounded-2xl bg-primary px-4 py-3 text-white" : "rounded-2xl bg-muted px-4 py-3"}`}>
+                <p className="text-sm whitespace-pre-line">{content}</p>
+              </div>
+            )}
+          </div>
+        ) : vendorShare ? (
           <VendorShareCard vendor={vendorShare} comment={comment} onAddToVote={onAddToVote} onFavorite={onFavoriteVendor} onUnfavorite={onUnfavoriteVendor} initialLiked={favoriteVendorIds.includes(vendorShare.vendorId)} onOpenVendor={() => onOpenVendor?.(vendorShare.vendorId)} isMine={isMine} onUnshare={onUnshare} />
         ) : isAssistant ? (
           <div className="px-1 text-sm leading-relaxed text-foreground">

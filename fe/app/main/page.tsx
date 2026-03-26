@@ -1398,7 +1398,11 @@ export default function ChatPage() {
         coupleConnected={coupleConnected}
         userRole={userRole}
         currentView={currentView ?? "chat"}
-        activeSessionId={activeSessionId}
+        activeSessionId={
+          (panelState.left.find((t) => t.id === panelState.activeLeftId)?.type === "chat" ||
+           panelState.right.find((t) => t.id === panelState.activeRightId)?.type === "chat")
+            ? activeSessionId : null
+        }
         chatHistory={chatHistory}
         userName={userName}
         userNickname={userNickname}
