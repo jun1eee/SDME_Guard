@@ -138,12 +138,23 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         // 3. 예약된 시간 조회
         const bookedData = await api.get(`/vendors/${vendorId}/reservations?date=${date}`)
         const bookedTimes: string[] = Array.isArray(bookedData) ? bookedData : []
-        const availableTimes = allTimes.filter(t => !bookedTimes.includes(t))
+
+        // 4. 오늘 날짜면 지나간 시간 필터링
+        const now = new Date()
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+        const isToday = date === today
+
+        const availableTimes = allTimes.filter(t => {
+          if (bookedTimes.includes(t)) return false
+          if (isToday && t <= currentTime) return false
+          return true
+        })
 
         return {
           content: [{
             type: "text",
-            text: `📅 ${date} 예약 현황 (${detail.name ?? vendorId}, ${category}):\n- 시간 출처: ${source}\n- 전체 시간: ${allTimes.join(", ")}\n- 예약된 시간: ${bookedTimes.length > 0 ? bookedTimes.join(", ") : "없음"}\n- 예약 가능 시간: ${availableTimes.length > 0 ? availableTimes.join(", ") : "모두 예약됨"}`,
+            text: `📅 ${date} 예약 현황 (${detail.name ?? vendorId}, ${category}):\n- 시간 출처: ${source}\n- 전체 시간: ${allTimes.join(", ")}\n- 예약된 시간: ${bookedTimes.length > 0 ? bookedTimes.join(", ") : "없음"}${isToday ? `\n- 현재 시간: ${currentTime} (지나간 시간 제외)` : ""}\n- 예약 가능 시간: ${availableTimes.length > 0 ? availableTimes.join(", ") : "모두 예약됨"}`,
           }],
         }
       } catch (e: any) {
