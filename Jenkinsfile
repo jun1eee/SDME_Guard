@@ -53,7 +53,7 @@ pipeline {
                 sh '''
                     cd /var/jenkins_home/workspace/sdmguard
                     docker-compose down --remove-orphans || true
-                    docker-compose up -d --build --force-recreate ai backend frontend nginx
+                    docker-compose up -d --build --force-recreate ai backend frontend mcp nginx
                 '''
             }
         }

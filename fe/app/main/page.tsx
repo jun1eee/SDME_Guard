@@ -929,6 +929,11 @@ export default function ChatPage() {
 
   const confirmShareVendor = () => {
     if (!shareModalVendor || !coupleId || !userId) return
+    if (!coupleConnected) {
+      toast.error("커플 매칭 후 공유할 수 있어요")
+      setShareModalVendor(null)
+      return
+    }
     console.log("[공유] coverUrl:", shareModalVendor.coverUrl)
     // 업체 공유를 채팅 메시지로 전송 (vendor_share 타입)
     const vendorData = JSON.stringify({
@@ -1333,6 +1338,9 @@ export default function ChatPage() {
             coverUrl: vendor.coverUrl,
           })
           setShareModalComment("")
+        }} onFavoriteRemoved={(vendorId) => {
+          favChangedAt.current = Date.now()
+          setFavoriteVendors((prev) => prev.filter((v) => v.vendorId !== vendorId))
         }} />
       case "payment":
         return <PaymentView />
