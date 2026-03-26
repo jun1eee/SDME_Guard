@@ -179,29 +179,45 @@ class SdmGraphRagEngine:
     def query_vendors_by_names(self, vendor_names: list[str]) -> list[dict[str, Any]]:
         self._ensure_driver()
         with self.driver.session() as session:
-            return session.run("""
-                MATCH (v:Vendor)
-                WHERE any(name IN $names WHERE v.name = name)
-                WITH v
-                OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)
-                WITH v, collect(DISTINCT t.name) AS tags
-                OPTIONAL MATCH (v)-[:HAS_PACKAGE]->(p:Package)
-                WITH v, tags, collect(DISTINCT {title: p.title, value: p.value})[..3] AS packages
-                OPTIONAL MATCH (v)-[:HAS_REVIEW]->(rv:Review)
-                WITH v, tags, packages,
-                     round(avg(rv.score), 1) AS avgReviewScore,
-                     count(rv) AS reviewCount,
-                     collect(rv.contents)[..2] AS recentReviews
-                RETURN v.partnerId AS sourceId,
-                       v.name AS name, v.category AS category,
-                       v.salePrice AS price, v.rating AS rating,
-                       v.address AS address, v.region AS region,
-                       v.profileUrl AS url, v.coverUrl AS imageUrl,
-                       v.holiday AS holiday, v.reviewCnt AS reviewCnt,
-                       tags, packages, avgReviewScore,
-                       reviewCount, recentReviews
-                ORDER BY v.rating DESC
-            """, names=vendor_names).data()
+            # 1차: 정확 매칭
+            results = session.run(self._VENDOR_QUERY, names=vendor_names).data()
+            # 2차: 못 찾은 이름은 CONTAINS fallback
+            found = {r["name"] for r in results}
+            missing = [n for n in vendor_names if n not in found]
+            if missing:
+                for name in missing:
+                    fallback = session.run(
+                        "MATCH (v:Vendor) WHERE v.name CONTAINS $name "
+                        "RETURN v.name AS name LIMIT 1", name=name,
+                    ).data()
+                    if fallback:
+                        extra = session.run(self._VENDOR_QUERY, names=[fallback[0]["name"]]).data()
+                        results.extend(extra)
+            return results
+
+    _VENDOR_QUERY = """
+        MATCH (v:Vendor)
+        WHERE any(name IN $names WHERE v.name = name)
+        WITH v
+        OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)
+        WITH v, collect(DISTINCT t.name) AS tags
+        OPTIONAL MATCH (v)-[:HAS_PACKAGE]->(p:Package)
+        WITH v, tags, collect(DISTINCT {title: p.title, value: p.value})[..3] AS packages
+        OPTIONAL MATCH (v)-[:HAS_REVIEW]->(rv:Review)
+        WITH v, tags, packages,
+             round(avg(rv.score), 1) AS avgReviewScore,
+             count(rv) AS reviewCount,
+             collect(rv.contents)[..2] AS recentReviews
+        RETURN v.partnerId AS sourceId,
+               v.name AS name, v.category AS category,
+               v.salePrice AS price, v.rating AS rating,
+               v.address AS address, v.region AS region,
+               v.profileUrl AS url, v.coverUrl AS imageUrl,
+               v.holiday AS holiday, v.reviewCnt AS reviewCnt,
+               tags, packages, avgReviewScore,
+               reviewCount, recentReviews
+        ORDER BY v.rating DESC
+    """
 
     # ── Vendor 추출 ──
 
