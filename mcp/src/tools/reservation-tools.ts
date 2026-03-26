@@ -54,12 +54,12 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
 
   server.tool(
     "create_reservation",
-    "업체에 예약을 생성합니다. 예약 생성 시 일정도 자동으로 추가됩니다. 중요: 예약 전에 반드시 get_vendor_detail로 업체의 패키지 목록을 확인하고, 사용자에게 어떤 패키지를 원하는지 물어본 후 memo에 패키지명을 기록해야 합니다. 사용자가 패키지를 명시하지 않았다면 먼저 패키지 목록을 보여주고 선택을 요청하세요.",
+    "업체에 예약을 생성합니다. 예약 생성 시 일정도 자동으로 추가됩니다. 중요: 예약 전에 반드시 get_vendor_detail로 업체 정보를 확인하고, 스드메(스튜디오/드레스/메이크업) 업체는 어떤 패키지를 원하는지, 웨딩홀은 어떤 홀을 원하는지 사용자에게 물어본 후 memo에 선택한 패키지명 또는 홀 이름을 기록해야 합니다. 사용자가 명시하지 않았다면 목록을 보여주고 선택을 요청하세요.",
     {
       vendorId: z.number().describe("업체 ID"),
       reservationDate: z.string().describe("예약 날짜 (YYYY-MM-DD 형식)"),
       reservationTime: z.string().describe("예약 시간 (HH:mm 형식)"),
-      memo: z.string().optional().describe("메모 - 선택한 패키지명을 반드시 포함 (예: '[촬영] 신부신랑 헤어메이크업(실장)')"),
+      memo: z.string().optional().describe("메모 - 선택한 패키지명 또는 홀 이름을 반드시 포함 (예: '[촬영] 신부신랑 헤어메이크업(실장)' 또는 '모던홀 (2층)')"),
     },
     async ({ vendorId, reservationDate, reservationTime, memo }) => {
       try {
@@ -93,7 +93,22 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
         }
         const allTimes = scheduleSlots ?? defaultSlots[category] ?? defaultSlots.HALL
 
-        // 2. 요청한 시간이 예약 가능한 시간인지 검증
+        // 2. 패키지/홀 선택 필수 검증
+        const hasPackages = (detail.packageTabs ?? []).length > 0
+        const hasHalls = (detail.halls ?? []).length > 0
+        if ((hasPackages || hasHalls) && !memo) {
+          const options = hasPackages
+            ? (detail.packageTabs ?? []).map((p: any) => `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`).join("\n")
+            : (detail.halls ?? []).map((h: any) => `  · ${h.name} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원`).join("\n")
+          return {
+            content: [{
+              type: "text",
+              text: `❌ ${hasPackages ? "패키지" : "홀"}를 선택해주세요!\n\n${hasPackages ? "📦 패키지 목록" : "🏛️ 홀 목록"}:\n${options}\n\n사용자에게 어떤 ${hasPackages ? "패키지" : "홀"}로 예약할지 물어보세요.`,
+            }],
+          }
+        }
+
+        // 3. 요청한 시간이 예약 가능한 시간인지 검증
         if (!allTimes.includes(reservationTime)) {
           return {
             content: [{

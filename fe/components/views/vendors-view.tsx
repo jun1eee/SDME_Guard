@@ -2421,7 +2421,13 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
                 <p className="py-4 text-center text-sm text-muted-foreground">날짜를 먼저 선택해주세요</p>
               ) : (
               <div className="grid grid-cols-4 gap-2">
-                {timeSlots.map((t) => {
+                {timeSlots.filter((t) => {
+                  if (!selectedDate) return true
+                  const now = new Date()
+                  if (selectedDate.toDateString() !== now.toDateString()) return true
+                  const [h, m] = t.split(":").map(Number)
+                  return h > now.getHours() || (h === now.getHours() && m > now.getMinutes())
+                }).map((t) => {
                   const isBooked = bookedTimes.includes(t)
                   return (
                     <button

@@ -245,21 +245,31 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                     )}
 
                     {r.status === "예정" && (
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={() => handleCancel(r.id)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-destructive py-2 text-sm text-destructive hover:bg-destructive/5"
-                        >
-                          <X className="size-4" />
-                          예약 취소
-                        </button>
-                        <button
-                          onClick={() => setEditingId(r.id)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-sm text-primary-foreground hover:bg-primary/90"
-                        >
-                          <Pencil className="size-4" />
-                          예약 변경
-                        </button>
+                      <div className="space-y-2 pt-1">
+                        {r.progress === "CONSULTING" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openVendorModal(r.vendorId) }}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                          >
+                            💳 계약금 결제하기
+                          </button>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleCancel(r.id)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-destructive py-2 text-sm text-destructive hover:bg-destructive/5"
+                          >
+                            <X className="size-4" />
+                            예약 취소
+                          </button>
+                          <button
+                            onClick={() => setEditingId(r.id)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary py-2 text-sm text-primary hover:bg-primary/5"
+                          >
+                            <Pencil className="size-4" />
+                            예약 변경
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

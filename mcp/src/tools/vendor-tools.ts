@@ -5,7 +5,7 @@ import { ApiClient } from "../api-client.js"
 export function registerVendorTools(server: McpServer, api: ApiClient, userId?: number) {
   server.tool(
     "search_vendors",
-    "웨딩 업체를 검색합니다. 카테고리(스튜디오/드레스/메이크업/웨딩홀)와 키워드로 검색할 수 있습니다.",
+    "웨딩 업체를 검색합니다. 업체 이름이나 키워드로 검색합니다. 업체를 찾을 때 반드시 이 도구를 먼저 사용하세요. 검색 결과가 없으면 카테고리 없이 키워드만으로 다시 시도하세요. 공유 목록이나 찜 목록에서 찾지 마세요.",
     {
       category: z.enum(["studio", "dress", "makeup", "hall"]).optional().describe("카테고리 (studio, dress, makeup, hall)"),
       keyword: z.string().optional().describe("검색 키워드"),
@@ -161,14 +161,23 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
     async (params) => {
       try {
         const data = await api.get(`/vendors/${params.vendorId}`)
-        const packages = (data.packageTabs ?? []).map((p: any) =>
-          `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`
+        const packages = (data.packageTabs ?? []).map((p: any) => {
+          const includes = (p.includes ?? []).map((i: any) => `    - ${i.label}: ${i.value}`).join("\n")
+          return `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원${includes ? "\n" + includes : ""}`
+        }).join("\n")
+
+        const halls = (data.halls ?? []).map((h: any) =>
+          `  · [홀ID:${h.id}] ${h.name} | ${h.hallType ?? ""} | ${h.style ?? ""} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원 | ${h.guestMin ?? "?"}~${h.guestMax ?? "?"}명`
         ).join("\n")
+
+        let detail = `🏪 ${data.name}\n- 카테고리: ${data.category}\n- 평점: ⭐${data.rating ?? "-"}\n- 가격: ${data.price?.toLocaleString() ?? "가격 문의"}원`
+        if (packages) detail += `\n\n📦 패키지:\n${packages}`
+        if (halls) detail += `\n\n🏛️ 홀 정보:\n${halls}`
 
         return {
           content: [{
             type: "text",
-            text: `🏪 ${data.name}\n- 카테고리: ${data.category}\n- 평점: ⭐${data.rating ?? "-"}\n- 가격: ${data.price?.toLocaleString() ?? "가격 문의"}원\n${packages ? `\n📦 패키지:\n${packages}` : ""}`,
+            text: detail,
           }],
         }
       } catch (e: any) {
