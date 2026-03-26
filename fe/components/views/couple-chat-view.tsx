@@ -564,6 +564,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                                   : { ...prev, brideAiSessionId: session.sessionId }
                               )
                             }
+                            // 세션 전환 시 커플 AI 세션 리셋 → 새 맥락으로 대화 시작
+                            setCoupleAiSessionId(null)
                             setShowSessionModal(false)
                           } catch (e) { console.error("세션 선택 실패:", e) }
                         }}
