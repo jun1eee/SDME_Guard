@@ -158,7 +158,7 @@ export function ChatInput({
           </div>
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          SDME Guard는 웨딩 플래닝에 대한 조언을 제공합니다
+          SDM Guard는 웨딩 플래닝에 대한 조언을 제공합니다
         </p>
       </form>
     </div>

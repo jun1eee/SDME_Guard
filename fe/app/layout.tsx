@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'SDME Guard - AI Wedding Planner',
-  description: 'AI 웨딩 플래너 SDME Guard와 함께 완벽한 결혼 준비를 시작하세요',
+  title: 'SDM Guard - AI Wedding Planner',
+  description: 'AI 웨딩 플래너 SDM Guard와 함께 완벽한 결혼 준비를 시작하세요',
   generator: 'v0.app',
   icons: {
     icon: [
