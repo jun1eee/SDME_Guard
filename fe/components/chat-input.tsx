@@ -12,6 +12,7 @@ export interface DroppedVendor {
   categoryLabel: string
   price: string
   rating: number
+  coverUrl?: string
 }
 
 interface ChatInputProps {
@@ -46,15 +47,7 @@ export function ChatInput({
     if (!hasText && !hasVendorsAttached) return
     if (disabled) return
 
-    const vendorNames = attachedVendors.map((v) => `"${v.name}"`).join(", ")
-    const prefix = vendorNames ? `[${vendorNames}] ` : ""
-    const message = hasText
-      ? `${prefix}${value.trim()}`
-      : hasVendorsAttached
-        ? `${prefix}이 업체${attachedVendors.length > 1 ? "들" : ""}에 대해 알려줘`
-        : ""
-
-    onSend(message)
+    onSend(value.trim())
     setValue("")
   }
 
