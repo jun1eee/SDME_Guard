@@ -123,7 +123,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
               return (
                 <div
                   key={`${rec.id}-${idx}`}
-                  className="w-[80%] flex-shrink-0 px-1.5"
+                  className="w-[55%] flex-shrink-0 px-1.5"
                 >
                   <div
                     onClick={() => {

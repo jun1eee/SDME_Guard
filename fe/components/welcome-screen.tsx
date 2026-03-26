@@ -186,7 +186,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          SDME Guard는 웨딩 플래닝에 대한 조언을 제공합니다
+          SDM Guard는 웨딩 플래닝에 대한 조언을 제공합니다
         </p>
       </div>
     </div>

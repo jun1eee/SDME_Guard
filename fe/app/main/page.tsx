@@ -1635,7 +1635,7 @@ function getInitialAIResponse(userMessage: string): string {
 선호하시는 스타일(휴양/액티비티/문화)이 있으시면 말씀해주세요!`
   }
 
-  return `안녕하세요! AI 웨딩 플래너 SDME Guard입니다.
+  return `안녕하세요! AI 웨딩 플래너 SDM Guard입니다.
 
 "${userMessage}"에 대해 도움을 드릴게요.
 

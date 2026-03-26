@@ -242,9 +242,9 @@ export function ChatSidebar({
             aria-label="사이드바 닫기"
           >
             <div className="flex size-8 items-center justify-center rounded-lg">
-              <img src="/favicon.png" alt="SDME Guard" className="size-6 object-contain" />
+              <img src="/favicon.png" alt="SDM Guard" className="size-6 object-contain" />
             </div>
-            <span className="font-semibold text-sidebar-foreground">SDME Guard</span>
+            <span className="font-semibold text-sidebar-foreground">SDM Guard</span>
           </button>
         ) : (
           <button
@@ -253,7 +253,7 @@ export function ChatSidebar({
             className="mx-auto flex size-8 items-center justify-center rounded-lg"
             aria-label="Open sidebar"
           >
-            <img src="/favicon.png" alt="SDME Guard" className="size-6 object-contain" />
+            <img src="/favicon.png" alt="SDM Guard" className="size-6 object-contain" />
           </button>
         )}
         {!collapsed && (
