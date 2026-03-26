@@ -558,7 +558,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                                   : { ...prev, brideAiSessionId: session.sessionId }
                               )
                             }
-                          } catch { /* ignore */ }
+                            setShowSessionModal(false)
+                          } catch (e) { console.error("세션 선택 실패:", e) }
                         }}
                         className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${
                           isSelected
