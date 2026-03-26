@@ -6,6 +6,7 @@ import com.ssafy.sdme.chat.domain.CoupleChatRoom;
 import com.ssafy.sdme.chat.domain.MessageType;
 import com.ssafy.sdme.chat.dto.ChatMessageRequest;
 import com.ssafy.sdme.chat.dto.ChatMessageResponse;
+import com.ssafy.sdme.chat.dto.CoupleAiSessionResponse;
 import com.ssafy.sdme.chat.repository.CoupleChatMessageRepository;
 import com.ssafy.sdme.chat.repository.CoupleChatRoomRepository;
 import com.ssafy.sdme.couple.domain.Couple;
@@ -110,5 +111,60 @@ public class CoupleChatService {
                     return ChatMessageResponse.of(msg, name, role);
                 })
                 .toList();
+    }
+
+    @Transactional
+    public void selectAiSession(Long userId, String sessionId) {
+        Couple couple = coupleRepository.findByGroomIdOrBrideId(userId, userId)
+                .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
+
+        CoupleChatRoom room = chatRoomRepository.findByCoupleId(couple.getId())
+                .orElseGet(() -> chatRoomRepository.save(
+                        CoupleChatRoom.builder().coupleId(couple.getId()).build()
+                ));
+
+        if (userId.equals(couple.getGroomId())) {
+            room.setGroomAiSessionId(sessionId);
+        } else {
+            room.setBrideAiSessionId(sessionId);
+        }
+        chatRoomRepository.save(room);
+        log.info("[CoupleChat] AI 세션 선택 - userId: {}, sessionId: {}", userId, sessionId);
+    }
+
+    @Transactional
+    public void clearAiSession(Long userId) {
+        Couple couple = coupleRepository.findByGroomIdOrBrideId(userId, userId)
+                .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
+
+        CoupleChatRoom room = chatRoomRepository.findByCoupleId(couple.getId())
+                .orElse(null);
+        if (room == null) return;
+
+        if (userId.equals(couple.getGroomId())) {
+            room.setGroomAiSessionId(null);
+        } else {
+            room.setBrideAiSessionId(null);
+        }
+        chatRoomRepository.save(room);
+        log.info("[CoupleChat] AI 세션 해제 - userId: {}", userId);
+    }
+
+    @Transactional(readOnly = true)
+    public CoupleAiSessionResponse getSelectedSessions(Long userId) {
+        Couple couple = coupleRepository.findByGroomIdOrBrideId(userId, userId)
+                .orElseThrow(() -> new NotFoundException("커플 정보를 찾을 수 없습니다."));
+
+        CoupleChatRoom room = chatRoomRepository.findByCoupleId(couple.getId())
+                .orElse(null);
+
+        if (room == null) {
+            return CoupleAiSessionResponse.builder().build();
+        }
+
+        return CoupleAiSessionResponse.builder()
+                .groomAiSessionId(room.getGroomAiSessionId())
+                .brideAiSessionId(room.getBrideAiSessionId())
+                .build();
     }
 }
