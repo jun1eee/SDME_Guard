@@ -377,7 +377,7 @@ class ToolRegistry:
     def search(self, query: str, category: str, couple_id: int, **_) -> ToolResult:
         if category == "hall":
             return self._search_hall(query)
-        # 스드메: Text2Cypher 검색
+        # 스드메: Text2Cypher 검색 (정형)
         answer, vendors = self.engine.search_structured(query=query, category=category)
         # 결과 없으면 거리 기반 fallback
         if answer and any(p in answer for p in NO_RESULT_PHRASES):
@@ -388,9 +388,10 @@ class ToolRegistry:
                 if records:
                     self._add_distance_text(records)
                     records = _dedup_vendors(records)[:count]
-                    return ToolResult(result_type="raw",
-                                     data=json.dumps(records, ensure_ascii=False, default=str),
-                                     vendors=[r["name"] for r in records])
+                    vendors = [r["name"] for r in records]
+        # vendor 있으면 통일된 번호목록 생성 (direct)
+        if vendors:
+            return self._build_vendor_list(vendors, category)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     def _search_hall(self, query: str) -> ToolResult:
@@ -412,10 +413,11 @@ class ToolRegistry:
                 features.append(h.sub_region)
             if h.stations:
                 features.append(f"{h.stations[0]} 근처")
-            if h.tags:
-                features.append(h.tags[0])
-            if h.min_meal_price:
-                features.append(f"식대 {h.min_meal_price // 10000}만원~")
+            # 태그에서 스타일만 (식대/숫자 제외)
+            style_tags = [t for t in (h.style_filters or h.tags or [])
+                          if not any(c.isdigit() for c in t) and "식대" not in t]
+            if style_tags:
+                features.append(style_tags[0])
             reason = ", ".join(features[:3]) if features else ""
             lines.append(f"{i+1}. **{h.name}** — {reason}" if reason else f"{i+1}. **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
@@ -451,9 +453,13 @@ class ToolRegistry:
 
     def search_style(self, query: str, category: str, couple_id: int,
                      region: str = None, max_price: int = None, **_) -> ToolResult:
+        # 비정형 검색 (VectorCypher)
         answer, vendors = self.engine.search_semantic(
             query=query, category=category, region=region, max_price=max_price,
         )
+        # vendor 있으면 통일된 번호목록 (direct)
+        if vendors:
+            return self._build_vendor_list(vendors, category)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 3. search_nearby: 위치 기반 검색 ──
@@ -551,17 +557,18 @@ class ToolRegistry:
 
         # 1순위: Text2Cypher (태그 기반 multi-hop, 정형 검색)
         answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
+        if not vendors:
+            # 2순위: VectorCypher (의미 유사도, 비정형 검색)
+            answer, vendors = self.engine.search_semantic(
+                query=query_text, category=target_category, region=region_hint or None,
+            )
+            if not vendors:
+                vendors = self.engine._extract_vendors_from_bold(answer)
+            if not vendors:
+                vendors = self.engine._extract_vendors_from_list(answer)
+        # vendor 있으면 통일된 번호목록 (direct)
         if vendors:
-            return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
-
-        # 2순위: VectorCypher (의미 유사도, 비정형 검색)
-        answer, vendors = self.engine.search_semantic(
-            query=query_text, category=target_category, region=region_hint or None,
-        )
-        if not vendors:
-            vendors = self.engine._extract_vendors_from_bold(answer)
-        if not vendors:
-            vendors = self.engine._extract_vendors_from_list(answer)
+            return self._build_vendor_list(vendors, target_category)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 5. get_detail: 상세 조회 ──
@@ -1090,6 +1097,37 @@ class ToolRegistry:
         )
 
     # ── 유틸 ──
+
+    def _build_vendor_list(self, vendor_names: list[str], category: str) -> ToolResult:
+        """vendor 이름 목록 → 통일된 번호목록 텍스트 생성 (direct)"""
+        records = self.engine.query_vendors_by_names(vendor_names)
+        # Neo4j에서 못 찾은 이름도 포함
+        found = {r.get("name") for r in records}
+        lines = []
+        cat_label = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}.get(category, "")
+        for i, name in enumerate(vendor_names):
+            rec = next((r for r in records if r.get("name") == name), None)
+            if rec:
+                features = []
+                region = rec.get("region") or rec.get("address", "")
+                if region:
+                    features.append(region)
+                rating = rec.get("rating")
+                if rating:
+                    features.append(f"평점 {rating}")
+                price = rec.get("price")
+                if price and price > 0:
+                    features.append(f"{price // 10000}만원")
+                reason = ", ".join(features[:3])
+                lines.append(f"{i+1}. **{name}** — {reason}" if reason else f"{i+1}. **{name}**")
+            else:
+                lines.append(f"{i+1}. **{name}**")
+        text = "\n".join(lines)
+        if cat_label:
+            text += f"\n\n{cat_label} 추천 결과입니다. 궁금한 곳이 있으면 말씀해주세요!"
+        else:
+            text += "\n\n궁금한 곳이 있으면 말씀해주세요!"
+        return ToolResult(result_type="direct", data=text, vendors=vendor_names)
 
     @staticmethod
     def _add_distance_text(records):
