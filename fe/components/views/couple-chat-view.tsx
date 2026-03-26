@@ -696,7 +696,11 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         extraButton={
           <button
             type="button"
-            onClick={() => setAiMode((prev) => !prev)}
+            onClick={() => {
+              const next = !aiMode
+              setAiMode(next)
+              if (next) setShowSessionModal(true)
+            }}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
               aiMode
                 ? "bg-primary text-primary-foreground shadow-sm"
