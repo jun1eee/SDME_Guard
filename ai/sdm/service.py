@@ -203,8 +203,16 @@ class SdmChatService:
         return SYSTEM_PROMPT + "\n\n[현재 대화 상태]\n" + "\n".join(state_lines)
 
     def _build_answer_from_tools(self, messages, tool_results, log_lines) -> str:
-        if len(tool_results) == 1 and tool_results[0][2].result_type in {"direct", "graphrag"}:
+        # direct 타입이 있으면 LLM 안 거치고 바로 반환 (룰베이스 결과)
+        direct_results = [r.data for _, _, r in tool_results if r.result_type == "direct"]
+        if direct_results:
+            return "\n\n".join(direct_results)
+
+        # graphrag 단일 결과 (Text2Cypher/VectorCypher 답변)
+        if len(tool_results) == 1 and tool_results[0][2].result_type == "graphrag":
             return tool_results[0][2].data
+
+        # raw 또는 복수 tool → LLM이 자연어 생성
         try:
             final = self.engine.run_chat_completion(messages=messages, temperature=0)
             if final.usage:
