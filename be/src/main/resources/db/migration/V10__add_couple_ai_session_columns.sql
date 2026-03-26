@@ -1,3 +1,2 @@
-ALTER TABLE COUPLE_CHAT_ROOMS
-    ADD COLUMN groom_ai_session_id VARCHAR(100) NULL,
-    ADD COLUMN bride_ai_session_id VARCHAR(100) NULL;
+-- 커플 AI 세션 컬럼 추가 (이미 적용됨)
+SELECT 1;
