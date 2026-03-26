@@ -352,8 +352,9 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
       setMessages((prev) => [...prev, aiResponse])
 
       // AI 응답을 REST API로 DB 저장 (ai_response 타입: 질문+업체+답변 포함)
+      console.log("[AI save] coupleId:", coupleId, "userId:", userId)
       if (coupleId && userId) {
-        saveCoupleChatMessage({
+        const savePayload = {
           senderId: userId,
           coupleId: coupleId,
           content: JSON.stringify({
@@ -362,7 +363,11 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
             answer: res.data.answer,
           }),
           messageType: "ai_response",
-        }).catch(() => {})
+        }
+        saveCoupleChatMessage(savePayload).catch((e) => {
+          console.error("[AI save 실패] 재시도 중...", e)
+          setTimeout(() => saveCoupleChatMessage(savePayload).catch(console.error), 2000)
+        })
       }
     } catch {
       const errorResponse: Message = {
