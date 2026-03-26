@@ -50,8 +50,10 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [modalVendor, setModalVendor] = useState<any>(null)
   const [vendorLoading, setVendorLoading] = useState(false)
+  const [directPayment, setDirectPayment] = useState(false)
 
-  const openVendorModal = async (vendorId: string) => {
+  const openVendorModal = async (vendorId: string, payment = false) => {
+    setDirectPayment(payment)
     setVendorLoading(true)
     try {
       const v = await fetchVendorDetail(vendorId)
@@ -248,7 +250,7 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                       <div className="space-y-2 pt-1">
                         {r.progress === "CONSULTING" && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); openVendorModal(r.vendorId) }}
+                            onClick={(e) => { e.stopPropagation(); openVendorModal(r.vendorId, true) }}
                             className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                           >
                             💳 계약금 결제하기
@@ -312,6 +314,7 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                   onToggleFavorite={() => {
                     setModalVendor((p: any) => p ? { ...p, isFavorite: !p.isFavorite } : null)
                   }}
+                  autoOpenPayment={directPayment}
                 />
               </div>
             )}
