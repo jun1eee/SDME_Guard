@@ -206,13 +206,19 @@ class SdmChatService:
         # direct 타입이 있으면 LLM 안 거치고 바로 반환 (룰베이스 결과)
         direct_results = [r.data for _, _, r in tool_results if r.result_type == "direct"]
         if direct_results:
-            return "\n\n".join(direct_results)
+            # 중복 제거 (같은 tool 여러 번 호출 시)
+            seen = []
+            for d in direct_results:
+                if d not in seen:
+                    seen.append(d)
+            return "\n\n".join(seen)
 
-        # graphrag 단일 결과 (Text2Cypher/VectorCypher 답변)
-        if len(tool_results) == 1 and tool_results[0][2].result_type == "graphrag":
-            return tool_results[0][2].data
+        # graphrag 결과 (Text2Cypher/VectorCypher 답변) — 단일이든 복수든 첫 번째 사용
+        graphrag_results = [r.data for _, _, r in tool_results if r.result_type == "graphrag"]
+        if graphrag_results:
+            return graphrag_results[0]
 
-        # raw 또는 복수 tool → LLM이 자연어 생성
+        # raw → LLM이 자연어 생성
         try:
             final = self.engine.run_chat_completion(messages=messages, temperature=0)
             if final.usage:
