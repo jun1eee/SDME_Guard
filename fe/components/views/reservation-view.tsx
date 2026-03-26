@@ -65,7 +65,7 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
     }
   }
 
-  useEffect(() => {
+  const loadReservations = () => {
     getReservations()
       .then((res) => {
         const mapped: Reservation[] = res.data.map((r) => {
@@ -90,6 +90,10 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadReservations()
   }, [])
 
   const filtered = filter === "전체" ? reservations : reservations.filter(r => r.status === filter)
@@ -315,6 +319,10 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                     setModalVendor((p: any) => p ? { ...p, isFavorite: !p.isFavorite } : null)
                   }}
                   autoOpenPayment={directPayment}
+                  onPaymentComplete={() => {
+                    setModalVendor(null)
+                    loadReservations()
+                  }}
                 />
               </div>
             )}

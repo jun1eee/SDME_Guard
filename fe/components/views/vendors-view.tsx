@@ -1012,6 +1012,7 @@ export function VendorDetailView({
   onAddToVote,
   isLoading = false,
   autoOpenPayment = false,
+  onPaymentComplete: onPaymentCompleteExternal,
 }: {
   vendor: Vendor
   onBack: () => void
@@ -1020,6 +1021,7 @@ export function VendorDetailView({
   onAddToVote?: (v: Vendor) => void
   isLoading?: boolean
   autoOpenPayment?: boolean
+  onPaymentComplete?: () => void
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(vendor.packages?.[0]?.id ?? "")
 
@@ -1852,6 +1854,7 @@ export function VendorDetailView({
             setCurrentPaymentStep(step as 1 | 2 | 3 | 4 | 5)
             setHasUsedBefore(false)
           }
+          onPaymentCompleteExternal?.()
         }} />
       )}
 {showReview && (
@@ -1971,7 +1974,12 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
     import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
       getReservations()
         .then((res) => {
-          const existing = res.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
+          const existing = res.data.find((r: any) =>
+            String(r.vendorId) === vendorId &&
+            r.status !== "CANCELLED" &&
+            r.progress !== "BALANCE_PAID" &&
+            r.progress !== "COMPLETED"
+          )
           if (existing) {
             if (existing.reservationDate) {
               const [y, m, d] = existing.reservationDate.split("-").map(Number)
