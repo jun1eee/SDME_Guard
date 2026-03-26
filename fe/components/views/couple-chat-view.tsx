@@ -85,6 +85,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   const [myAiSessions, setMyAiSessions] = useState<Array<{ sessionId: string; firstMessage: string; messageCount: number; lastDate: string }>>([])
   const [showSessionModal, setShowSessionModal] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<import("@/components/chat-input").DroppedVendor[]>([])
+  const [coupleAiSessionId, setCoupleAiSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const stompClientRef = useRef<Client | null>(null)
 
@@ -286,7 +287,10 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         const vendorNames = vendors.map(v => v.name).join(", ")
         messageToSend = `${content} (업체: ${vendorNames})`
       }
-      const res = await sendCoupleAiChat({ message: messageToSend })
+      const res = await sendCoupleAiChat({ message: messageToSend, sessionId: coupleAiSessionId })
+      if (res.data.sessionId) {
+        setCoupleAiSessionId(res.data.sessionId)
+      }
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
