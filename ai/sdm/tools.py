@@ -412,7 +412,11 @@ class ToolRegistry:
         count = _extract_count(query)
         # 쿼리에서 예산/개수 등 숫자 조건 제거 → tokenizer가 의미없는 토큰 생성 방지
         clean_query = self._clean_hall_query(query)
-        halls = self.hall_engine.search(query=clean_query, criteria=criteria, limit=count)
+        halls = self.hall_engine.search(query=clean_query, criteria=criteria, limit=count * 2)
+        # 예산 "이하" 명시 시 엄격 필터링
+        if criteria.budget and "이하" in query:
+            halls = [h for h in halls if not h.min_total_price or h.min_total_price <= criteria.budget]
+        halls = halls[:count]
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
         records = [self._hall_to_dict(h) for h in halls]
@@ -573,17 +577,21 @@ class ToolRegistry:
             hall_query = f"{region_hint} 웨딩홀" if region_hint else "웨딩홀 추천"
             return self._search_hall(hall_query)
 
-        # 1순위: Text2Cypher (태그 기반 multi-hop, 정형 검색)
-        answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
+        # 1순위: VectorCypher (카테고리 필터 보장, 의미 유사도)
+        answer, vendors = self.engine.search_semantic(
+            query=query_text, category=target_category, region=region_hint or None,
+        )
         if not vendors:
-            # 2순위: VectorCypher (의미 유사도, 비정형 검색)
-            answer, vendors = self.engine.search_semantic(
-                query=query_text, category=target_category, region=region_hint or None,
-            )
-            if not vendors:
-                vendors = self.engine._extract_vendors_from_bold(answer)
-            if not vendors:
-                vendors = self.engine._extract_vendors_from_list(answer)
+            vendors = self.engine._extract_vendors_from_bold(answer)
+        if not vendors:
+            vendors = self.engine._extract_vendors_from_list(answer)
+        if not vendors:
+            # 2순위: Text2Cypher fallback
+            answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
+            # Text2Cypher는 카테고리 필터가 없으므로 결과 검증
+            if vendors:
+                verified = self.engine.query_vendors_by_names(vendors)
+                vendors = [v["name"] for v in verified if v.get("category") == target_category]
         # vendor 있으면 통일된 번호목록 + 추천 이유 (direct)
         if vendors:
             return self._build_vendor_list(vendors, target_category,
