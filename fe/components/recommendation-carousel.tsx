@@ -16,11 +16,12 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
 
   if (!recommendations || recommendations.length === 0) return null
 
-  const canPrev = currentIndex > 0
-  const canNext = currentIndex < recommendations.length - 1
+  const total = recommendations.length
+  const canPrev = total > 1
+  const canNext = total > 1
 
-  const prev = () => canPrev && setCurrentIndex((i) => i - 1)
-  const next = () => canNext && setCurrentIndex((i) => i + 1)
+  const prev = () => setCurrentIndex((i) => (i - 1 + total) % total)
+  const next = () => setCurrentIndex((i) => (i + 1) % total)
 
   const categoryLabel: Record<string, string> = {
     studio: "STUDIO",
