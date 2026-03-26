@@ -127,6 +127,17 @@ VISIT_DURATION = {
     "unknown": {"tour": 60, "fitting": 60},
 }
 
+# 프로모션/무의미 태그 필터
+_PROMO_PATTERN = re.compile(
+    r"할인|특가|이벤트|인★|인기.*%|최대\d+%|스드메특가|"
+    r"^\d+만원|^\d+~\d+만원|^\d+개월|^\d+~\d+시간|"
+    r"^서울$|^경기$|^인천$|^부산$"
+)
+
+def _filter_tags(tags: list[str]) -> list[str]:
+    """프로모션, 가격대, 지역명 등 무의미 태그 제거"""
+    return [t for t in tags if not _PROMO_PATTERN.search(t)]
+
 
 def _extract_count(query: str, default: int = 5, maximum: int = 20) -> int:
     m = re.search(r"(\d{1,2})\s*(?:개|곳|군데)", query)
@@ -405,20 +416,18 @@ class ToolRegistry:
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
         records = [self._hall_to_dict(h) for h in halls]
-        # 코드에서 직접 번호 목록 + 추천 이유 생성 (룰베이스)
+        # 코드에서 직접 번호 목록 생성: 업체명, 지역, 가격 (룰베이스)
+        promo_words = {"할인", "특가", "인기", "인★", "최대", "선점"}
         lines = []
         for i, h in enumerate(halls):
             features = []
             if h.sub_region:
                 features.append(h.sub_region)
-            if h.stations:
-                features.append(f"{h.stations[0]} 근처")
-            # 태그에서 스타일만 (식대/숫자 제외)
-            style_tags = [t for t in (h.style_filters or h.tags or [])
-                          if not any(c.isdigit() for c in t) and "식대" not in t]
-            if style_tags:
-                features.append(style_tags[0])
-            reason = ", ".join(features[:3]) if features else ""
+            elif h.region:
+                features.append(h.region)
+            if h.min_total_price:
+                features.append(f"{h.min_total_price // 10000}만원")
+            reason = ", ".join(features) if features else ""
             lines.append(f"{i+1}) **{h.name}** — {reason}" if reason else f"{i+1}) **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
         return ToolResult(result_type="direct", data=text,
@@ -482,10 +491,16 @@ class ToolRegistry:
         # 코드에서 직접 번호 목록 + 거리/특징 생성 (룰베이스)
         lines = []
         for i, r in enumerate(records):
+            parts = []
             dist = r.get("distanceText", "")
-            rating = r.get("rating", "")
-            rating_str = f"평점 {rating}" if rating else ""
-            parts = [p for p in [dist, rating_str] if p]
+            if dist:
+                parts.append(dist)
+            addr = r.get("address") or r.get("region", "")
+            if addr:
+                parts.append(addr)
+            price = r.get("price")
+            if price and price > 0:
+                parts.append(f"{price // 10000}만원")
             lines.append(f"{i+1}) **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}) **{r['name']}**")
         text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
         return ToolResult(result_type="direct", data=text,
@@ -527,20 +542,21 @@ class ToolRegistry:
     def _search_related(self, source_name: str, target_category: str, couple_id: int) -> ToolResult:
         query_text = ""
         region_hint = ""
+        source_tags: list[str] = []
 
         # Vendor에서 태그 조회 → 태그(특징) 우선, 지역은 보조
         records = self.engine.query_vendors_by_names([source_name])
         if records:
             tags = records[0].get("tags", [])
+            source_tags = _filter_tags(tags)
             region_hint = records[0].get("region", "")
-            # 태그 기반 검색어 (특징 우선)
             query_text = f"{' '.join(tags[:6])} {target_category}"
-        # Hall에서 조회 → Hall 태그 + 카테고리 (지역 아닌 특징 우선)
+        # Hall에서 조회 → Hall 태그 + 카테고리
         elif self.hall_engine:
             hall = self.hall_engine.get_hall_details(source_name)
             if hall:
                 region_hint = hall.sub_region or hall.region or ""
-                # 태그(특징) 우선 검색어
+                source_tags = _filter_tags(hall.tags or [])
                 hall_tags = " ".join(hall.tags[:4]) if hall.tags else ""
                 cat_default = {
                     "studio": "웨딩 스튜디오 촬영",
@@ -553,7 +569,9 @@ class ToolRegistry:
             query_text = source_name
 
         if target_category == "hall":
-            return self._search_hall(query_text)
+            # Vendor→Hall 연관 검색: 지역 기반으로 홀 검색 (태그는 Hall tokenizer에 안 맞음)
+            hall_query = f"{region_hint} 웨딩홀" if region_hint else "웨딩홀 추천"
+            return self._search_hall(hall_query)
 
         # 1순위: Text2Cypher (태그 기반 multi-hop, 정형 검색)
         answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
@@ -566,9 +584,10 @@ class ToolRegistry:
                 vendors = self.engine._extract_vendors_from_bold(answer)
             if not vendors:
                 vendors = self.engine._extract_vendors_from_list(answer)
-        # vendor 있으면 통일된 번호목록 (direct)
+        # vendor 있으면 통일된 번호목록 + 추천 이유 (direct)
         if vendors:
-            return self._build_vendor_list(vendors, target_category)
+            return self._build_vendor_list(vendors, target_category,
+                                           source_name=source_name, source_tags=source_tags)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 5. get_detail: 상세 조회 ──
@@ -822,16 +841,18 @@ class ToolRegistry:
                 arrive = current_min + travel_min
                 schedule.append({
                     "time": f"{fmt(current_min)}~{fmt(arrive)}",
-                    "activity": f"{from_name} -> {p['name']} 이동 ({travel_min}분, {dist}km)",
+                    "activity": f"{from_name} → {p['name']} 이동 ({travel_min}분, {dist}km)",
                 })
                 current_min = arrive
+                # 역→업체 도보 이동 여유시간 (+10분)
+                current_min += 10
 
             # Lunch break (if between 11:30-13:30 and not yet inserted)
             if not lunch_inserted and 11 * 60 + 30 <= current_min <= 13 * 60 + 30:
-                lunch_end = current_min + 60
+                lunch_end = current_min + 80  # 식당 이동 포함 1시간 20분
                 schedule.append({
                     "time": f"{fmt(current_min)}~{fmt(lunch_end)}",
-                    "activity": "점심 식사 (1시간)",
+                    "activity": "점심 식사 (1시간 20분, 이동 포함)",
                 })
                 current_min = lunch_end
                 lunch_inserted = True
@@ -1098,32 +1119,48 @@ class ToolRegistry:
 
     # ── 유틸 ──
 
-    def _build_vendor_list(self, vendor_names: list[str], category: str) -> ToolResult:
-        """vendor 이름 목록 → 통일된 번호목록 텍스트 생성 (direct)"""
+    def _build_vendor_list(self, vendor_names: list[str], category: str,
+                           source_name: str = None, source_tags: list[str] = None) -> ToolResult:
+        """vendor 이름 목록 → 번호목록 텍스트 생성 (direct)
+        source_name/source_tags 있으면: 공유 태그 기반 추천 이유 생성"""
         records = self.engine.query_vendors_by_names(vendor_names)
-        # Neo4j에서 못 찾은 이름도 포함
-        found = {r.get("name") for r in records}
+        source_tag_set = set(source_tags) if source_tags else set()
         lines = []
         cat_label = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}.get(category, "")
+        if cat_label:
+            lines.append(f"**[{cat_label}]**")
         for i, name in enumerate(vendor_names):
             rec = next((r for r in records if r.get("name") == name), None)
             if rec:
-                features = []
-                region = rec.get("region") or rec.get("address", "")
-                if region:
-                    features.append(region)
-                rating = rec.get("rating")
-                if rating:
-                    features.append(f"평점 {rating}")
                 price = rec.get("price")
-                if price and price > 0:
-                    features.append(f"{price // 10000}만원")
-                reason = ", ".join(features[:3])
+                price_str = f"{price // 10000}만원" if price and price > 0 else ""
+                region = rec.get("region") or ""
+
+                if source_name and source_tag_set:
+                    # 연관 추천: 공유 태그로 이유 생성
+                    vendor_tags = _filter_tags(rec.get("tags") or [])
+                    shared = [t for t in vendor_tags if t in source_tag_set][:3]
+                    if shared:
+                        reason = f"{', '.join(shared)} 스타일 매칭"
+                    elif vendor_tags:
+                        reason = ", ".join(vendor_tags[:2])
+                    else:
+                        reason = region
+                    extras = [p for p in [price_str] if p]
+                    if extras:
+                        reason += f" ({', '.join(extras)})"
+                else:
+                    # 일반 추천: 지역 + 가격
+                    parts = [p for p in [region, price_str] if p]
+                    reason = ", ".join(parts)
+
                 lines.append(f"{i+1}) **{name}** — {reason}" if reason else f"{i+1}) **{name}**")
             else:
                 lines.append(f"{i+1}) **{name}**")
         text = "\n".join(lines)
-        if cat_label:
+        if source_name and cat_label:
+            text += f"\n\n{source_name}과(와) 어울리는 {cat_label} 추천입니다!"
+        elif cat_label:
             text += f"\n\n{cat_label} 추천 결과입니다. 궁금한 곳이 있으면 말씀해주세요!"
         else:
             text += "\n\n궁금한 곳이 있으면 말씀해주세요!"
