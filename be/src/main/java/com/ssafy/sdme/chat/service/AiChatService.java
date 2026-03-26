@@ -197,28 +197,37 @@ public class AiChatService {
                     content = content.substring(0, 100);
                 }
                 summary.append("- 질문: ").append(content).append("\n");
-            } else if ("assistant".equals(msg.getRole()) && msg.getRecommendations() != null) {
-                try {
-                    List<Map<String, Object>> recs = objectMapper.readValue(
-                            msg.getRecommendations(),
-                            objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
-                    );
-                    List<String> names = recs.stream()
-                            .map(r -> (String) r.getOrDefault("name", ""))
-                            .filter(n -> !n.isEmpty())
-                            .collect(Collectors.toList());
-                    if (!names.isEmpty()) {
-                        summary.append("- 추천 업체: ").append(String.join(", ", names)).append("\n");
+            } else if ("assistant".equals(msg.getRole())) {
+                // 추천 업체 목록 (recommendations JSON)
+                if (msg.getRecommendations() != null) {
+                    try {
+                        List<Map<String, Object>> recs = objectMapper.readValue(
+                                msg.getRecommendations(),
+                                objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+                        );
+                        List<String> names = recs.stream()
+                                .map(r -> (String) r.getOrDefault("name", ""))
+                                .filter(n -> !n.isEmpty())
+                                .collect(Collectors.toList());
+                        if (!names.isEmpty()) {
+                            summary.append("- 추천 업체: ").append(String.join(", ", names)).append("\n");
+                        }
+                    } catch (Exception e) {
+                        log.warn("[AiChat] recommendations 파싱 실패", e);
                     }
-                } catch (Exception e) {
-                    log.warn("[AiChat] recommendations 파싱 실패", e);
+                }
+                // 답변 텍스트 요약 (추천 업체가 없는 상세/비교 답변 포함)
+                String aiContent = msg.getContent();
+                if (aiContent != null && !aiContent.isEmpty()) {
+                    String snippet = aiContent.length() > 150 ? aiContent.substring(0, 150) : aiContent;
+                    summary.append("- 답변: ").append(snippet).append("\n");
                 }
             }
         }
 
         String result = summary.toString();
-        if (result.length() > 800) {
-            result = result.substring(0, 800);
+        if (result.length() > 1500) {
+            result = result.substring(0, 1500);
         }
         return result;
     }
