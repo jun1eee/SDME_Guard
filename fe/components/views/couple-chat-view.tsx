@@ -504,7 +504,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                               ? { ...prev, groomAiSessionId: session.sessionId }
                               : { ...prev, brideAiSessionId: session.sessionId }
                           )
-                        } catch { /* ignore */ }
+                          setShowSessionPanel(false)
+                        } catch (e) { console.error("세션 선택 실패:", e) }
                       }}
                       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
                         isSelected
@@ -636,7 +637,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
             onClick={() => {
               const next = !aiMode
               setAiMode(next)
-              if (next) setShowSessionModal(true)
+              if (next) setShowSessionPanel(true)
             }}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
               aiMode
