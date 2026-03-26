@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
-import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat } from "@/lib/api"
+import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat, saveCoupleChatMessage } from "@/lib/api"
 
 export interface VendorShare {
   id: string
@@ -100,13 +100,12 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         }
         const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
 
-        const loaded: Message[] = res.data.flatMap((m): Message | Message[] => {
+        const loaded = res.data.reduce<Message[]>((acc, m) => {
           if (m.messageType === "ai_response") {
             try {
               const data = JSON.parse(m.content)
-              const msgs: Message[] = []
               if ((data.vendors?.length > 0) || data.question) {
-                msgs.push({
+                acc.push({
                   id: `${m.id}-req`,
                   role: m.senderRole as "groom" | "bride",
                   content: data.question || "",
@@ -115,13 +114,13 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                   createdAt: m.createdAt,
                 })
               }
-              msgs.push({
+              acc.push({
                 id: `${m.id}-res`,
                 role: "assistant" as const,
                 content: data.answer || "",
                 createdAt: m.createdAt,
               })
-              return msgs
+              return acc
             } catch { /* fall through */ }
           }
           if (m.messageType === "vendor_share") {
@@ -143,7 +142,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 sharedBy: m.senderRole as "groom" | "bride",
                 comment: vendorInfo.comment || undefined,
               }
-              return {
+              acc.push({
                 id: m.id.toString(),
                 role: m.senderRole as "groom" | "bride",
                 content: "",
@@ -151,26 +150,29 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 vendorShare: vs,
                 comment: vendorInfo.comment || undefined,
                 createdAt: m.createdAt,
-              }
+              })
+              return acc
             } catch { /* fall through */ }
           }
           if (m.messageType === "system") {
-            return {
+            acc.push({
               id: m.id.toString(),
               role: "system" as const,
               content: m.content,
               sender: "시스템",
               createdAt: m.createdAt,
-            }
+            })
+            return acc
           }
-          return {
+          acc.push({
             id: m.id.toString(),
             role: m.senderRole as "groom" | "bride",
             content: m.content,
             sender: m.senderName,
             createdAt: m.createdAt,
-          }
-        })
+          })
+          return acc
+        }, [])
         if (loaded.length > 0) {
           setMessages((prev) => [prev[0], ...loaded])
         }
@@ -349,21 +351,18 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
       }
       setMessages((prev) => [...prev, aiResponse])
 
-      // AI 응답을 WebSocket으로 저장 (ai_response 타입: 질문+업체+답변 포함)
-      if (stompClientRef.current?.connected && coupleId && userId) {
-        stompClientRef.current.publish({
-          destination: "/app/chat.send",
-          body: JSON.stringify({
-            senderId: userId,
-            coupleId: coupleId,
-            content: JSON.stringify({
-              question: content,
-              vendors: vendorShares,
-              answer: res.data.answer,
-            }),
-            messageType: "ai_response",
+      // AI 응답을 REST API로 DB 저장 (ai_response 타입: 질문+업체+답변 포함)
+      if (coupleId && userId) {
+        saveCoupleChatMessage({
+          senderId: userId,
+          coupleId: coupleId,
+          content: JSON.stringify({
+            question: content,
+            vendors: vendorShares,
+            answer: res.data.answer,
           }),
-        })
+          messageType: "ai_response",
+        }).catch(() => {})
       }
     } catch {
       const errorResponse: Message = {
