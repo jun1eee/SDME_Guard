@@ -108,7 +108,21 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
           }
         }
 
-        // 3. 요청한 시간이 예약 가능한 시간인지 검증
+        // 3. 오늘이면 지나간 시간 체크
+        const now = new Date()
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+        if (reservationDate === today && reservationTime <= currentTime) {
+          const futureTimes = allTimes.filter(t => t > currentTime)
+          return {
+            content: [{
+              type: "text",
+              text: `❌ ${reservationTime}은 이미 지난 시간입니다. (현재 ${currentTime})\n- 오늘 예약 가능 시간: ${futureTimes.length > 0 ? futureTimes.join(", ") : "오늘은 예약 가능한 시간이 없습니다"}`,
+            }],
+          }
+        }
+
+        // 4. 요청한 시간이 예약 가능한 시간인지 검증
         if (!allTimes.includes(reservationTime)) {
           return {
             content: [{
