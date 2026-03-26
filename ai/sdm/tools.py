@@ -653,11 +653,20 @@ class ToolRegistry:
     # ── 8. get_user_info: 사용자 정보 ──
 
     def get_user_info(self, info_type: str, couple_id: int, **_) -> ToolResult:
+        _PREF_LABELS = {
+            "region": "지역", "sub_region": "세부 지역",
+            "studio_style": "스튜디오 스타일", "dress_style": "드레스 스타일",
+            "makeup_style": "메이크업 스타일",
+        }
         parts = []
         if info_type in ("preference", "all"):
             pref = self.engine.get_user_preference(couple_id)
-            lines = [f"- {k}: {v}" for k, v in pref.items() if k != "couple_id" and v]
-            parts.append("취향 정보:\n" + "\n".join(lines))
+            if pref:
+                lines = [f"- {_PREF_LABELS.get(k, k)}: {v}" for k, v in pref.items()
+                         if k in _PREF_LABELS and v]
+                parts.append("취향 정보:\n" + "\n".join(lines))
+            else:
+                parts.append("저장된 취향 정보가 없습니다.")
         if info_type in ("likes", "all"):
             likes = self.engine.get_user_likes(couple_id)
             if likes:

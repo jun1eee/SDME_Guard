@@ -105,19 +105,17 @@ class SdmGraphRagEngine:
 
     # ── MySQL (사용자 데이터) ──
 
-    def get_user_preference(self, couple_id: int) -> dict[str, Any]:
-        fallback = {"region": "서울", "sub_region": "강남구",
-                    "studio_style": "인물중심", "dress_style": "클래식", "makeup_style": "내추럴"}
+    def get_user_preference(self, couple_id: int) -> dict[str, Any] | None:
         if not self.mysql_conn:
-            return fallback
+            return None
         try:
             cur = self.mysql_conn.cursor(dictionary=True)
             cur.execute("SELECT * FROM couple_preferences WHERE couple_id = %s", (couple_id,))
             row = cur.fetchone()
             cur.close()
-            return row or fallback
+            return row if row else None
         except Exception:
-            return fallback
+            return None
 
     def get_user_likes(self, couple_id: int) -> list[dict[str, Any]]:
         fallback = [{"name": "더미업체", "category": "스튜디오"}]
@@ -294,6 +292,7 @@ class SdmGraphRagEngine:
             driver=self.driver, index_name="vendor_embedding_index",
             embedder=self.embedder, retrieval_query=retrieval_query,
             result_formatter=self._vendor_result_formatter,
+            top_k=30,
         )
         rag = self._graph_rag_cls(
             retriever=retriever, llm=self.llm,
@@ -307,7 +306,7 @@ class SdmGraphRagEngine:
         parts = ["WITH node AS v, score"]
         if category:
             parts.append(f"WHERE v.category = '{category}'")
-        parts.append("MATCH (v)-[:IN_REGION]->(r:Region)")
+        parts.append("OPTIONAL MATCH (v)-[:IN_REGION]->(r:Region)")
         parts.append("OPTIONAL MATCH (v)-[:HAS_TAG]->(t:Tag)")
         parts.append("OPTIONAL MATCH (v)-[:HAS_REVIEW]->(rv:Review)")
         parts.append("""WITH v, score, r,
