@@ -56,6 +56,7 @@ pipeline {
                     date > be/.build_timestamp
                     date > fe/.build_timestamp
                     docker-compose down --remove-orphans || true
+                    sleep 3
                     docker-compose up -d --build --force-recreate ai backend frontend mcp nginx
                 '''
             }
