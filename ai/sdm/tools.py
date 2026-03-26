@@ -1,4 +1,4 @@
-"""통합 웨딩 챗봇 Tool — 11개 tool, 명확한 역할 분리"""
+"""통합 웨딩 챗봇 Tool — 16개 tool, 명확한 역할 분리"""
 import json
 import re
 import requests as http_requests
@@ -162,7 +162,7 @@ def _search_nearest(driver, node_label: str, category: str | None, lat: float, l
             return session.run(cypher, cat=category, lat=lat, lng=lng, limit=limit).data()
 
 
-# ── Tool Schema (8개) ──
+# ── Tool Schema (16개) ──
 
 TOOLS_SCHEMA = [
     # 1. 통합 검색 (스드메 + 웨딩홀)
@@ -196,22 +196,17 @@ TOOLS_SCHEMA = [
             "count": {"type": "integer", "description": "결과 수 (기본 5)"},
         }, "required": ["query", "category"]},
     }},
-    # 4. 연관 추천 (cross-category)
-    {"type": "function", "function": {
-        "name": "search_related",
-        "description": "특정 업체/홀과 어울리는 다른 카테고리 추천. '~와 어울리는', '~에 맞는', '~과 비슷한 느낌의' 등.",
-        "parameters": {"type": "object", "properties": {
-            "source_name": {"type": "string", "description": "기준 업체/홀 이름"},
-            "target_category": {"type": "string", "enum": ["studio", "dress", "makeup", "hall"],
-                                "description": "추천받을 카테고리"},
-        }, "required": ["source_name", "target_category"]},
-    }},
-    # 5. 상세 조회
+    # 4. 상세 조회 + 연관 추천 (통합)
     {"type": "function", "function": {
         "name": "get_detail",
-        "description": "특정 업체/웨딩홀의 상세 정보 조회. 패키지, 리뷰, 태그, 연락처 등.",
+        "description": "특정 업체/웨딩홀의 상세 정보 조회 또는 연관 추천. 상세 조회, 어울리는 업체, 비슷한 업체 모두 이 tool 사용.",
         "parameters": {"type": "object", "properties": {
             "name": {"type": "string", "description": "업체/홀 이름"},
+            "related_category": {
+                "type": "string",
+                "enum": ["studio", "dress", "makeup", "hall"],
+                "description": "연관 추천할 카테고리 (선택). '어울리는 드레스' -> dress, '비슷한 스튜디오' -> studio. 상세 조회만 할 때는 비워두세요.",
+            },
         }, "required": ["name"]},
     }},
     # 6. 비교
@@ -354,7 +349,6 @@ class ToolRegistry:
             "search": self.search,
             "search_style": self.search_style,
             "search_nearby": self.search_nearby,
-            "search_related": self.search_related,
             "get_detail": self.get_detail,
             "compare": self.compare,
             "filter_sort": self.filter_sort,
@@ -506,7 +500,7 @@ class ToolRegistry:
         },
     }
 
-    def search_related(self, source_name: str, target_category: str, couple_id: int, **_) -> ToolResult:
+    def _search_related(self, source_name: str, target_category: str, couple_id: int) -> ToolResult:
         query_text = ""
         region_hint = ""
 
@@ -534,7 +528,12 @@ class ToolRegistry:
         if target_category == "hall":
             return self._search_hall(query_text)
 
-        # search_semantic with region hint for better results
+        # 1순위: Text2Cypher (태그 기반 multi-hop, 정형 검색)
+        answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
+        if vendors:
+            return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
+
+        # 2순위: VectorCypher (의미 유사도, 비정형 검색)
         answer, vendors = self.engine.search_semantic(
             query=query_text, category=target_category, region=region_hint or None,
         )
@@ -546,8 +545,12 @@ class ToolRegistry:
 
     # ── 5. get_detail: 상세 조회 ──
 
-    def get_detail(self, name: str, couple_id: int, **_) -> ToolResult:
-        # Vendor 먼저
+    def get_detail(self, name: str, couple_id: int, related_category: str = None, **_) -> ToolResult:
+        # Case 1: 연관 추천 (related_category가 있으면)
+        if related_category:
+            return self._search_related(name, related_category, couple_id)
+
+        # Case 2: 상세 조회 (기존 로직)
         records = self.engine.query_vendors_by_names([name])
         if records:
             return ToolResult(result_type="raw",
