@@ -54,12 +54,12 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
 
   server.tool(
     "create_reservation",
-    "업체에 예약을 생성합니다. 예약 생성 시 일정도 자동으로 추가됩니다. 중요: 예약 전에 반드시 get_vendor_detail로 업체의 패키지 목록을 확인하고, 사용자에게 어떤 패키지를 원하는지 물어본 후 memo에 패키지명을 기록해야 합니다. 사용자가 패키지를 명시하지 않았다면 먼저 패키지 목록을 보여주고 선택을 요청하세요.",
+    "업체에 예약을 생성합니다. 예약 생성 시 일정도 자동으로 추가됩니다. 중요: 예약 전에 반드시 get_vendor_detail로 업체 정보를 확인하고, 스드메(스튜디오/드레스/메이크업) 업체는 어떤 패키지를 원하는지, 웨딩홀은 어떤 홀을 원하는지 사용자에게 물어본 후 memo에 선택한 패키지명 또는 홀 이름을 기록해야 합니다. 사용자가 명시하지 않았다면 목록을 보여주고 선택을 요청하세요.",
     {
       vendorId: z.number().describe("업체 ID"),
       reservationDate: z.string().describe("예약 날짜 (YYYY-MM-DD 형식)"),
       reservationTime: z.string().describe("예약 시간 (HH:mm 형식)"),
-      memo: z.string().optional().describe("메모 - 선택한 패키지명을 반드시 포함 (예: '[촬영] 신부신랑 헤어메이크업(실장)')"),
+      memo: z.string().optional().describe("메모 - 선택한 패키지명 또는 홀 이름을 반드시 포함 (예: '[촬영] 신부신랑 헤어메이크업(실장)' 또는 '모던홀 (2층)')"),
     },
     async ({ vendorId, reservationDate, reservationTime, memo }) => {
       try {
@@ -93,7 +93,37 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
         }
         const allTimes = scheduleSlots ?? defaultSlots[category] ?? defaultSlots.HALL
 
-        // 2. 요청한 시간이 예약 가능한 시간인지 검증
+        // 2. 패키지/홀 선택 필수 검증
+        const hasPackages = (detail.packageTabs ?? []).length > 0
+        const hasHalls = (detail.halls ?? []).length > 0
+        if ((hasPackages || hasHalls) && !memo) {
+          const options = hasPackages
+            ? (detail.packageTabs ?? []).map((p: any, i: number) => `${i + 1}. ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`).join("\n")
+            : (detail.halls ?? []).map((h: any, i: number) => `${i + 1}. ${h.name} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원`).join("\n")
+          const total = hasPackages ? (detail.packageTabs ?? []).length : (detail.halls ?? []).length
+          return {
+            content: [{
+              type: "text",
+              text: `❌ ${hasPackages ? "패키지" : "홀"}를 선택해주세요! (총 ${total}개)\n\n${hasPackages ? "📦 전체 패키지 목록" : "🏛️ 전체 홀 목록"}:\n${options}\n\n위 목록을 사용자에게 모두 보여주고 번호 또는 이름으로 선택하게 해주세요.`,
+            }],
+          }
+        }
+
+        // 3. 오늘이면 지나간 시간 체크 (KST 기준)
+        const nowKST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+        const today = `${nowKST.getFullYear()}-${String(nowKST.getMonth() + 1).padStart(2, "0")}-${String(nowKST.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(nowKST.getHours()).padStart(2, "0")}:${String(nowKST.getMinutes()).padStart(2, "0")}`
+        if (reservationDate === today && reservationTime <= currentTime) {
+          const futureTimes = allTimes.filter(t => t > currentTime)
+          return {
+            content: [{
+              type: "text",
+              text: `❌ ${reservationTime}은 이미 지난 시간입니다. (현재 ${currentTime})\n- 오늘 예약 가능 시간: ${futureTimes.length > 0 ? futureTimes.join(", ") : "오늘은 예약 가능한 시간이 없습니다"}`,
+            }],
+          }
+        }
+
+        // 4. 요청한 시간이 예약 가능한 시간인지 검증
         if (!allTimes.includes(reservationTime)) {
           return {
             content: [{

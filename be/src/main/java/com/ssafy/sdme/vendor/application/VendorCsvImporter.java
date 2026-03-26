@@ -33,7 +33,8 @@ public class VendorCsvImporter {
     @Transactional
     public void importIfEmpty() {
         if (vendorRepository.countByCategory("HALL") > 0) {
-            log.info("Skip HALL import: data already exists.");
+            // 기존 데이터 해시태그 정리 (타입/메뉴/예식형태만 유지)
+            updateHallHashtags();
             return;
         }
 
@@ -41,6 +42,29 @@ public class VendorCsvImporter {
         List<Vendor> vendors = loadDetailJson(listByPartnerId);
         vendorRepository.saveAll(vendors);
         log.info("Imported {} HALL vendors from weddingbook reco JSON", vendors.size());
+    }
+
+    private void updateHallHashtags() {
+        try {
+            ClassPathResource resource = new ClassPathResource(DETAIL_PATH);
+            try (InputStream is = resource.getInputStream()) {
+                JsonNode root = objectMapper.readTree(is);
+                int updated = 0;
+                for (JsonNode node : root) {
+                    long partnerId = node.path("partnerId").asLong(0L);
+                    if (partnerId <= 0) continue;
+                    String newHashtags = buildHashtags(node.path("tags"));
+                    vendorRepository.findBySourceId(partnerId).ifPresent(v -> {
+                        v.updateHashtags(newHashtags);
+                        vendorRepository.save(v);
+                    });
+                    updated++;
+                }
+                log.info("Updated {} HALL vendor hashtags", updated);
+            }
+        } catch (IOException e) {
+            log.warn("Failed to update HALL hashtags: {}", e.getMessage());
+        }
     }
 
     private Map<Long, JsonNode> loadListJson() {
@@ -93,12 +117,18 @@ public class VendorCsvImporter {
             .build();
     }
 
+    private static final java.util.Set<String> HALL_TAG_TYPES = java.util.Set.of("타입", "메뉴", "예식형태");
+
     private String buildHashtags(JsonNode tagsNode) {
         if (tagsNode == null || tagsNode.isEmpty()) return "";
         List<String> tags = new ArrayList<>();
         for (JsonNode tag : tagsNode) {
+            String typeName = tag.path("typeName").asText("").trim();
             String name = tag.path("name").asText("").trim();
-            if (!name.isBlank()) tags.add(name);
+            if (name.isBlank()) continue;
+            // 타입, 메뉴, 예식형태만 포함 (식대 금액, 예식간격 숫자 제외)
+            if (!HALL_TAG_TYPES.contains(typeName)) continue;
+            if (!tags.contains(name)) tags.add(name);
         }
         return String.join("|", tags);
     }

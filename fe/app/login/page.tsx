@@ -69,9 +69,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-8">
       <div className="mb-10 flex flex-col items-center gap-3">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-          <img src="/favicon.png" alt="SDME Guard" className="size-9 object-contain" />
+          <img src="/favicon.png" alt="SDM Guard" className="size-9 object-contain" />
         </div>
-        <span className="text-lg font-semibold tracking-tight text-foreground">SDME Guard</span>
+        <span className="text-lg font-semibold tracking-tight text-foreground">SDM Guard</span>
       </div>
 
       <div className="w-full max-w-sm space-y-6">

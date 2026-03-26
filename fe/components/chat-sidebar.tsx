@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import {
   Plus,
   DollarSign,
@@ -102,11 +103,16 @@ function ChatHistoryItem({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setMenuOpen(false)
       }
     }
@@ -143,25 +149,33 @@ function ChatHistoryItem({
           <MoreHorizontal className="size-3.5" />
         </button>
 
-        {/* 드롭다운 */}
-        {menuOpen && (
-          <div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+        {/* 드롭다운 - Portal로 body에 렌더링하여 overflow 영향 없이 표시 */}
+        {menuOpen && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-xl"
+            style={{
+              left: menuRef.current ? menuRef.current.getBoundingClientRect().right + 8 : 0,
+              top: menuRef.current ? menuRef.current.getBoundingClientRect().top : 0,
+            }}
+          >
             <button
               onClick={() => { onPin(session.id); setMenuOpen(false) }}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
             >
-              <Pin className="size-3.5 text-muted-foreground" />
+              <Pin className="size-4 text-muted-foreground" />
               {session.isPinned ? "고정 해제" : "채팅 고정"}
             </button>
-            <div className="mx-2 h-px bg-border" />
+            <div className="mx-3 h-px bg-border" />
             <button
               onClick={() => { onDelete(session.id); setMenuOpen(false) }}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
+              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10"
             >
-              <Trash2 className="size-3.5" />
+              <Trash2 className="size-4" />
               삭제
             </button>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>
@@ -228,9 +242,9 @@ export function ChatSidebar({
             aria-label="사이드바 닫기"
           >
             <div className="flex size-8 items-center justify-center rounded-lg">
-              <img src="/favicon.png" alt="SDME Guard" className="size-6 object-contain" />
+              <img src="/favicon.png" alt="SDM Guard" className="size-6 object-contain" />
             </div>
-            <span className="font-semibold text-sidebar-foreground">SDME Guard</span>
+            <span className="font-semibold text-sidebar-foreground">SDM Guard</span>
           </button>
         ) : (
           <button
@@ -239,7 +253,7 @@ export function ChatSidebar({
             className="mx-auto flex size-8 items-center justify-center rounded-lg"
             aria-label="Open sidebar"
           >
-            <img src="/favicon.png" alt="SDME Guard" className="size-6 object-contain" />
+            <img src="/favicon.png" alt="SDM Guard" className="size-6 object-contain" />
           </button>
         )}
         {!collapsed && (

@@ -173,6 +173,52 @@ export async function editUser(data: {
   })
 }
 
+export async function uploadProfileImage(file: File): Promise<{ status: number; message: string; data: string }> {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  const res = await fetch(`${API_BASE}/user/me/profile-image`, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "include",
+  })
+
+  if (res.status === 401 && token) {
+    const reissueRes = await fetch(`${API_BASE}/auth/reissue`, {
+      method: "POST",
+      credentials: "include",
+    })
+    if (reissueRes.ok) {
+      const reissueData = await reissueRes.json()
+      if (reissueData.data?.accessToken) {
+        setAccessToken(reissueData.data.accessToken)
+        headers["Authorization"] = `Bearer ${reissueData.data.accessToken}`
+        const retryRes = await fetch(`${API_BASE}/user/me/profile-image`, {
+          method: "POST",
+          headers,
+          body: formData,
+          credentials: "include",
+        })
+        const retryData = await retryRes.json()
+        if (!retryRes.ok) throw new Error(retryData.message || `API Error: ${retryRes.status}`)
+        return retryData
+      }
+    }
+    throw new Error("인증이 만료되었습니다.")
+  }
+
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.message || `API Error: ${res.status}`)
+  return data
+}
+
 // Preference API
 export async function savePreference(data: {
   weddingDate: string
@@ -474,6 +520,10 @@ export async function getAiChatHistory(sessionId: string) {
 
 export async function getAiChatSessions() {
   return fetchApi<AiChatHistoryItem[]>("/chat/ai/sessions")
+}
+
+export async function deleteAiChatSession(sessionId: string) {
+  return fetchApi(`/chat/ai/sessions/${sessionId}`, { method: "DELETE" })
 }
 
 // ─── 카드 관리 ──────────────────────────────────────────────────────────

@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface VendorImageRepository extends JpaRepository<VendorImage, Long> {
     List<VendorImage> findByVendorIdOrderByOrderNum(Long vendorId);
+    List<VendorImage> findByVendorIdIn(List<Long> vendorIds);
 }

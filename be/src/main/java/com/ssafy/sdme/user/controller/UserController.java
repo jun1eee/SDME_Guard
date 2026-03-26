@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "User", description = "사용자 관련 API")
 @Slf4j
@@ -77,5 +78,15 @@ public class UserController {
         Long userId = (Long) request.getAttribute("userId");
         log.info("[UserController] 추가 정보 수정 - userId: {}", userId);
         return ApiResponse.ok(userService.updateSharedInfo(userId, infoRequest));
+    }
+
+    @Operation(summary = "프로필 이미지 업로드", description = "프로필 이미지를 업로드하고 URL을 반환합니다.")
+    @PostMapping(value = "/me/profile-image", consumes = "multipart/form-data")
+    public ApiResponse<String> uploadProfileImage(@RequestParam("file") MultipartFile file,
+                                                   HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        log.info("[UserController] 프로필 이미지 업로드 - userId: {}", userId);
+        String imageUrl = userService.updateProfileImage(userId, file);
+        return ApiResponse.ok(imageUrl);
     }
 }

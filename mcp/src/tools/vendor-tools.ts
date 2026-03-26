@@ -5,7 +5,7 @@ import { ApiClient } from "../api-client.js"
 export function registerVendorTools(server: McpServer, api: ApiClient, userId?: number) {
   server.tool(
     "search_vendors",
-    "웨딩 업체를 검색합니다. 카테고리(스튜디오/드레스/메이크업/웨딩홀)와 키워드로 검색할 수 있습니다.",
+    "웨딩 업체를 이름 또는 키워드로 검색합니다. 업체를 찾을 때 반드시 이 도구를 사용하세요. 절대 '검색 기능이 없다'고 말하지 마세요 - 이 도구가 검색 기능입니다. 결과가 없으면 키워드를 더 짧게 줄여서(2~3글자) 다시 시도하세요. 예: '겐그레아' 검색 실패 → '겐그' 또는 '그레아'로 재시도.",
     {
       category: z.enum(["studio", "dress", "makeup", "hall"]).optional().describe("카테고리 (studio, dress, makeup, hall)"),
       keyword: z.string().optional().describe("검색 키워드"),
@@ -22,7 +22,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         const data = await api.get(`/vendors?${query}`)
         const vendors = data.items ?? data.vendors ?? data.content ?? data
         if (!vendors || (Array.isArray(vendors) && vendors.length === 0)) {
-          return { content: [{ type: "text", text: "검색 결과가 없습니다." }] }
+          return { content: [{ type: "text", text: `'${params.keyword ?? params.category ?? ""}' 검색 결과가 없습니다. 키워드를 더 짧게 줄여서(앞 2~3글자) 다시 search_vendors를 호출해보세요.` }] }
         }
 
         const list = (Array.isArray(vendors) ? vendors : []).map((v: any) =>
@@ -95,7 +95,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
 
   server.tool(
     "get_vendor_booked_times",
-    "특정 업체의 특정 날짜에 이미 예약된 시간을 조회합니다. 업체별 크롤링 데이터에서 실제 예약 가능 시간을 가져옵니다.",
+    "특정 업체의 특정 날짜에 예약 가능한 시간을 조회합니다. 오늘 날짜는 현재 시간 이후의 시간만 반환합니다(지나간 시간 제외). 예약 전 반드시 호출하세요. 이 도구만이 실제 예약 가능 시간을 알 수 있습니다.",
     {
       vendorId: z.number().describe("업체 ID"),
       date: z.string().describe("조회할 날짜 (YYYY-MM-DD 형식)"),
@@ -138,12 +138,23 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         // 3. 예약된 시간 조회
         const bookedData = await api.get(`/vendors/${vendorId}/reservations?date=${date}`)
         const bookedTimes: string[] = Array.isArray(bookedData) ? bookedData : []
-        const availableTimes = allTimes.filter(t => !bookedTimes.includes(t))
+
+        // 4. 오늘 날짜면 지나간 시간 필터링 (KST 기준)
+        const nowKST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+        const today = `${nowKST.getFullYear()}-${String(nowKST.getMonth() + 1).padStart(2, "0")}-${String(nowKST.getDate()).padStart(2, "0")}`
+        const currentTime = `${String(nowKST.getHours()).padStart(2, "0")}:${String(nowKST.getMinutes()).padStart(2, "0")}`
+        const isToday = date === today
+
+        const availableTimes = allTimes.filter(t => {
+          if (bookedTimes.includes(t)) return false
+          if (isToday && t <= currentTime) return false
+          return true
+        })
 
         return {
           content: [{
             type: "text",
-            text: `📅 ${date} 예약 현황 (${detail.name ?? vendorId}, ${category}):\n- 시간 출처: ${source}\n- 전체 시간: ${allTimes.join(", ")}\n- 예약된 시간: ${bookedTimes.length > 0 ? bookedTimes.join(", ") : "없음"}\n- 예약 가능 시간: ${availableTimes.length > 0 ? availableTimes.join(", ") : "모두 예약됨"}`,
+            text: `📅 ${date} 예약 현황 (${detail.name ?? vendorId}, ${category}):\n- 시간 출처: ${source}\n- 전체 시간: ${allTimes.join(", ")}\n- 예약된 시간: ${bookedTimes.length > 0 ? bookedTimes.join(", ") : "없음"}${isToday ? `\n- 현재 시간: ${currentTime} (지나간 시간 제외)` : ""}\n- 예약 가능 시간: ${availableTimes.length > 0 ? availableTimes.join(", ") : "모두 예약됨"}`,
           }],
         }
       } catch (e: any) {
@@ -154,21 +165,31 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
 
   server.tool(
     "get_vendor_detail",
-    "특정 업체의 상세 정보를 조회합니다. 패키지, 가격, 리뷰 등을 확인할 수 있습니다.",
+    "특정 업체의 상세 정보(패키지, 홀, 가격)를 조회합니다. 예약 가능 시간은 여기서 알 수 없으며, 반드시 get_vendor_booked_times를 별도로 호출해야 합니다. 시간 정보를 추측하거나 임의로 말하지 마세요.",
     {
       vendorId: z.number().describe("업체 ID"),
     },
     async (params) => {
       try {
         const data = await api.get(`/vendors/${params.vendorId}`)
-        const packages = (data.packageTabs ?? []).map((p: any) =>
-          `  · ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원`
+        const packages = (data.packageTabs ?? []).map((p: any, idx: number) => {
+          const includes = (p.includes ?? []).map((i: any) => `    - ${i.label}: ${i.value}`).join("\n")
+          return `${idx + 1}. ${p.tabName}: ${p.price?.toLocaleString() ?? "가격 문의"}원${includes ? "\n" + includes : ""}`
+        }).join("\n")
+
+        const halls = (data.halls ?? []).map((h: any) =>
+          `  · [홀ID:${h.id}] ${h.name} | ${h.hallType ?? ""} | ${h.style ?? ""} | 식대 ${h.mealPrice?.toLocaleString() ?? "?"}원 | 대관 ${h.rentalPrice?.toLocaleString() ?? "?"}원 | ${h.guestMin ?? "?"}~${h.guestMax ?? "?"}명`
         ).join("\n")
+
+        let detail = `🏪 ${data.name}\n- 카테고리: ${data.category}\n- 평점: ⭐${data.rating ?? "-"}\n- 가격: ${data.price?.toLocaleString() ?? "가격 문의"}원`
+        if (packages) detail += `\n\n📦 패키지:\n${packages}`
+        if (halls) detail += `\n\n🏛️ 홀 정보:\n${halls}`
+        detail += `\n\n⚠️ 이 응답에는 시간 정보가 없습니다. 예약 가능 시간 확인은 반드시 get_vendor_booked_times를 호출하세요. 절대 임의로 시간을 추측하지 마세요.`
 
         return {
           content: [{
             type: "text",
-            text: `🏪 ${data.name}\n- 카테고리: ${data.category}\n- 평점: ⭐${data.rating ?? "-"}\n- 가격: ${data.price?.toLocaleString() ?? "가격 문의"}원\n${packages ? `\n📦 패키지:\n${packages}` : ""}`,
+            text: detail,
           }],
         }
       } catch (e: any) {

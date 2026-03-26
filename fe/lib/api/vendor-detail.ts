@@ -21,6 +21,7 @@ interface PackageTab {
   tabName: string
   price: number | null
   includes: PackageInclude[]
+  imageUrl?: string | null
 }
 
 interface AdditionalProductItem {
@@ -115,6 +116,7 @@ function buildPackages(detail: VendorDetailResponse) {
       name: item.label,
       value: item.value,
     })),
+    image: pkg.imageUrl ?? undefined,
   }))
 }
 

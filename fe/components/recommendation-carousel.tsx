@@ -123,7 +123,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
               return (
                 <div
                   key={`${rec.id}-${idx}`}
-                  className="w-[80%] flex-shrink-0 px-1.5"
+                  className="w-[55%] flex-shrink-0 px-1.5"
                 >
                   <div
                     onClick={() => {
@@ -161,7 +161,7 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                         {rec.rating != null && rec.rating > 0 && (
                           <span className="flex items-center gap-1 text-xs font-medium text-foreground/70">
                             <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
-                            {rec.rating}
+                            {rec.rating > 5 ? (rec.rating / 20).toFixed(1) : rec.rating}
                             {rec.reviewCount != null && rec.reviewCount > 0 && (
                               <span className="text-muted-foreground">({rec.reviewCount})</span>
                             )}

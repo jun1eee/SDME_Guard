@@ -81,4 +81,8 @@ public class Vendor extends BaseTimeEntity {
         this.contact = contact;
         this.crawledAt = crawledAt;
     }
+
+    public void updateHashtags(String hashtags) {
+        this.hashtags = hashtags;
+    }
 }

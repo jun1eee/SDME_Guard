@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { CalendarCheck, Clock, ChevronRight, X, Check, Pencil } from "lucide-react"
 import { getReservations, cancelReservation, updateReservation, getBookedTimes } from "@/lib/api"
+import { fetchVendorDetail } from "@/lib/api/vendor-detail"
+import { VendorDetailView } from "@/components/views/vendors-view"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
@@ -27,7 +29,7 @@ const statusStyle: Record<string, { badge: string; dot: string }> = {
 }
 
 const progressLabel: Record<string, string> = {
-  CONSULTING: "상담중",
+  CONSULTING: "예약 완료",
   DEPOSIT_PAID: "계약금 납입 완료",
   IN_PROGRESS: "서비스 진행중",
   BALANCE_PAID: "서비스 이용 완료",
@@ -46,8 +48,24 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
   const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [modalVendor, setModalVendor] = useState<any>(null)
+  const [vendorLoading, setVendorLoading] = useState(false)
+  const [directPayment, setDirectPayment] = useState(false)
 
-  useEffect(() => {
+  const openVendorModal = async (vendorId: string, payment = false) => {
+    setDirectPayment(payment)
+    setVendorLoading(true)
+    try {
+      const v = await fetchVendorDetail(vendorId)
+      setModalVendor(v)
+    } catch {
+      setModalVendor(null)
+    } finally {
+      setVendorLoading(false)
+    }
+  }
+
+  const loadReservations = () => {
     getReservations()
       .then((res) => {
         const mapped: Reservation[] = res.data.map((r) => {
@@ -72,6 +90,10 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadReservations()
   }, [])
 
   const filtered = filter === "전체" ? reservations : reservations.filter(r => r.status === filter)
@@ -184,7 +206,10 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-foreground truncate">{r.vendorName}</p>
+                      <p
+                        className="font-semibold truncate text-primary cursor-pointer hover:underline"
+                        onClick={(e) => { e.stopPropagation(); openVendorModal(r.vendorId) }}
+                      >{r.vendorName}</p>
                       {r.category && (
                         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                           {r.category === "studio" ? "스튜디오" : r.category === "dress" ? "드레스" : r.category === "makeup" ? "메이크업" : r.category === "hall" ? "웨딩홀" : r.category}
@@ -226,21 +251,31 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
                     )}
 
                     {r.status === "예정" && (
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={() => handleCancel(r.id)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-destructive py-2 text-sm text-destructive hover:bg-destructive/5"
-                        >
-                          <X className="size-4" />
-                          예약 취소
-                        </button>
-                        <button
-                          onClick={() => setEditingId(r.id)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-sm text-primary-foreground hover:bg-primary/90"
-                        >
-                          <Pencil className="size-4" />
-                          예약 변경
-                        </button>
+                      <div className="space-y-2 pt-1">
+                        {r.progress === "CONSULTING" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openVendorModal(r.vendorId, true) }}
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                          >
+                            💳 계약금 결제하기
+                          </button>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleCancel(r.id)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-destructive py-2 text-sm text-destructive hover:bg-destructive/5"
+                          >
+                            <X className="size-4" />
+                            예약 취소
+                          </button>
+                          <button
+                            onClick={() => setEditingId(r.id)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-primary py-2 text-sm text-primary hover:bg-primary/5"
+                          >
+                            <Pencil className="size-4" />
+                            예약 변경
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -258,6 +293,41 @@ export function ReservationView({ onNavigateToSchedule }: ReservationViewProps) 
           onClose={() => setEditingId(null)}
           onSave={handleUpdate}
         />
+      )}
+
+      {/* 업체 상세 모달 */}
+      {(modalVendor || vendorLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setModalVendor(null)} />
+          <div className="relative flex w-full max-w-2xl flex-col rounded-2xl bg-background shadow-2xl" style={{ maxHeight: "85vh" }}>
+            <div className="flex justify-between items-center px-4 pt-3 pb-1 shrink-0">
+              <div />
+              <button onClick={() => setModalVendor(null)} className="flex size-8 items-center justify-center rounded-full hover:bg-muted">
+                <X className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+            {vendorLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-sm text-muted-foreground">불러오는 중...</p>
+              </div>
+            ) : modalVendor && (
+              <div className="flex-1 min-h-0 overflow-y-auto [&_.sticky]:hidden">
+                <VendorDetailView
+                  vendor={modalVendor}
+                  onBack={() => setModalVendor(null)}
+                  onToggleFavorite={() => {
+                    setModalVendor((p: any) => p ? { ...p, isFavorite: !p.isFavorite } : null)
+                  }}
+                  autoOpenPayment={directPayment}
+                  onPaymentComplete={() => {
+                    setModalVendor(null)
+                    loadReservations()
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

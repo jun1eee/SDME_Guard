@@ -132,8 +132,14 @@ public class VoteService {
 
         List<VoteItem> items = voteItemRepository.findByCoupleIdAndIsActiveTrueOrderByCreatedAtDesc(user.getCoupleId());
         List<Long> vendorIds = items.stream().map(VoteItem::getVendorId).distinct().toList();
+        // PK로 조회 + sourceId로도 조회 (AI 추천 업체는 sourceId로 저장됨)
         Map<Long, Vendor> vendorMap = vendorRepository.findAllById(vendorIds)
                 .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
+        List<Long> missingIds = vendorIds.stream().filter(id -> !vendorMap.containsKey(id)).toList();
+        if (!missingIds.isEmpty()) {
+            vendorRepository.findBySourceIdIn(missingIds)
+                    .forEach(v -> vendorMap.put(v.getSourceId(), v));
+        }
 
         List<Long> itemIds = items.stream().map(VoteItem::getId).toList();
         List<Vote> allVotes = voteRepository.findByVoteItemIdIn(itemIds);

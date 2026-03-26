@@ -103,11 +103,15 @@ public class AiChatService {
     public List<AiChatHistoryResponse> getRecentMessages(Long userId) {
         if (userId == null) return Collections.emptyList();
 
-        // coupleId로 조회 시도, 없으면 userId로 fallback
+        // coupleId로 조회 시도, 결과 없으면 userId로 fallback
         Long coupleId = resolveCoupleId(userId);
-        List<AiChatMessage> messages = coupleId != null
-                ? aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId)
-                : aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
+        List<AiChatMessage> messages = List.of();
+        if (coupleId != null) {
+            messages = aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId);
+        }
+        if (messages.isEmpty()) {
+            messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
+        }
 
         return messages.stream()
                 .map(AiChatHistoryResponse::from)
@@ -222,6 +226,12 @@ public class AiChatService {
             result = result.substring(0, 800);
         }
         return result;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteSession(String sessionId) {
+        aiChatMessageRepository.deleteBySessionId(sessionId);
+        log.info("[AiChat] 세션 삭제 완료 - sessionId: {}", sessionId);
     }
 
     // ── 내부 메서드 ──
@@ -357,7 +367,7 @@ public class AiChatService {
 
             if (vendor != null) {
                 enriched.add(AiRecommendation.builder()
-                        .id(vendor.getSourceId())
+                        .id(vendor.getId())
                         .source(source)
                         .category(vendor.getCategory())
                         .name(vendor.getName())

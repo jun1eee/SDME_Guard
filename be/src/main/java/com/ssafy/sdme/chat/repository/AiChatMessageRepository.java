@@ -16,4 +16,6 @@ public interface AiChatMessageRepository extends JpaRepository<AiChatMessage, Lo
     List<AiChatMessage> findTop50ByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<AiChatMessage> findTop20BySessionIdOrderByCreatedAtDesc(String sessionId);
+
+    void deleteBySessionId(String sessionId);
 }

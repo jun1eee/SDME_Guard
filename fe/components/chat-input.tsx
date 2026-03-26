@@ -12,6 +12,7 @@ export interface DroppedVendor {
   categoryLabel: string
   price: string
   rating: number
+  coverUrl?: string
 }
 
 interface ChatInputProps {
@@ -46,15 +47,7 @@ export function ChatInput({
     if (!hasText && !hasVendorsAttached) return
     if (disabled) return
 
-    const vendorNames = attachedVendors.map((v) => `"${v.name}"`).join(", ")
-    const prefix = vendorNames ? `[${vendorNames}] ` : ""
-    const message = hasText
-      ? `${prefix}${value.trim()}`
-      : hasVendorsAttached
-        ? `${prefix}이 업체${attachedVendors.length > 1 ? "들" : ""}에 대해 알려줘`
-        : ""
-
-    onSend(message)
+    onSend(value.trim())
     setValue("")
   }
 
@@ -165,7 +158,7 @@ export function ChatInput({
           </div>
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          SDME Guard는 웨딩 플래닝에 대한 조언을 제공합니다
+          SDM Guard는 웨딩 플래닝에 대한 조언을 제공합니다
         </p>
       </form>
     </div>

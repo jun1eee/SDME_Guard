@@ -31,8 +31,7 @@ public class FavoriteService {
     public List<FavoriteResponse> getMyFavorites(Long userId) {
         List<Favorite> favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
         List<Long> vendorIds = favorites.stream().map(Favorite::getVendorId).toList();
-        Map<Long, Vendor> vendorMap = vendorRepository.findAllById(vendorIds)
-                .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
+        Map<Long, Vendor> vendorMap = resolveVendorMap(vendorIds);
 
         return favorites.stream()
                 .map(f -> FavoriteResponse.of(f, vendorMap.get(f.getVendorId())))
@@ -48,29 +47,52 @@ public class FavoriteService {
             throw new BadRequestException("커플 매칭이 필요합니다.");
         }
 
-        if (favoriteRepository.existsByUserIdAndVendorId(userId, vendorId)) {
+        // PK로 못 찾으면 sourceId로 조회
+        Long resolvedId = resolveVendorId(vendorId);
+
+        if (favoriteRepository.existsByUserIdAndVendorId(userId, resolvedId)) {
             throw new BadRequestException("이미 찜한 업체입니다.");
         }
 
         Favorite favorite = Favorite.builder()
                 .coupleId(user.getCoupleId())
-                .vendorId(vendorId)
+                .vendorId(resolvedId)
                 .userId(userId)
                 .build();
         favoriteRepository.save(favorite);
 
-        Vendor vendor = vendorRepository.findById(vendorId).orElse(null);
-        log.info("[Favorite] 찜 추가 - userId: {}, vendorId: {}", userId, vendorId);
+        Vendor vendor = vendorRepository.findById(resolvedId).orElse(null);
+        log.info("[Favorite] 찜 추가 - userId: {}, vendorId: {} (resolved: {})", userId, vendorId, resolvedId);
         return FavoriteResponse.of(favorite, vendor);
     }
 
     @Transactional
     public void removeFavorite(Long userId, Long vendorId) {
-        Favorite favorite = favoriteRepository.findByUserIdAndVendorId(userId, vendorId)
+        Long resolvedId = resolveVendorId(vendorId);
+        Favorite favorite = favoriteRepository.findByUserIdAndVendorId(userId, resolvedId)
                 .orElseThrow(() -> new NotFoundException("찜한 업체를 찾을 수 없습니다."));
 
         favoriteRepository.delete(favorite);
-        log.info("[Favorite] 찜 해제 - userId: {}, vendorId: {}", userId, vendorId);
+        log.info("[Favorite] 찜 해제 - userId: {}, vendorId: {}", userId, resolvedId);
+    }
+
+    private Long resolveVendorId(Long vendorId) {
+        // PK로 존재하면 그대로 사용, 없으면 sourceId로 조회
+        if (vendorRepository.existsById(vendorId)) return vendorId;
+        return vendorRepository.findBySourceId(vendorId)
+                .map(Vendor::getId)
+                .orElse(vendorId);
+    }
+
+    private Map<Long, Vendor> resolveVendorMap(List<Long> vendorIds) {
+        Map<Long, Vendor> map = vendorRepository.findAllById(vendorIds)
+                .stream().collect(Collectors.toMap(Vendor::getId, v -> v));
+        List<Long> missing = vendorIds.stream().filter(id -> !map.containsKey(id)).distinct().toList();
+        if (!missing.isEmpty()) {
+            vendorRepository.findBySourceIdIn(missing)
+                    .forEach(v -> map.put(v.getSourceId(), v));
+        }
+        return map;
     }
 
     @Transactional(readOnly = true)

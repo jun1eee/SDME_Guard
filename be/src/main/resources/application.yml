@@ -3,6 +3,10 @@ spring:
     import: optional:file:be/.env[.properties]
   application:
     name: sdme
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
   profiles:
     active: local
 

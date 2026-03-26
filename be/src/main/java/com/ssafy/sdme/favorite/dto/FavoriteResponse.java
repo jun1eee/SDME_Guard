@@ -17,6 +17,9 @@ public class FavoriteResponse {
     @Schema(description = "업체 ID")
     private final Long vendorId;
 
+    @Schema(description = "업체 sourceId")
+    private final Long sourceId;
+
     @Schema(description = "찜한 사용자 ID")
     private final Long userId;
 
@@ -44,6 +47,7 @@ public class FavoriteResponse {
     private FavoriteResponse(Favorite favorite, Vendor vendor) {
         this.id = favorite.getId();
         this.vendorId = favorite.getVendorId();
+        this.sourceId = vendor != null ? vendor.getSourceId() : null;
         this.userId = favorite.getUserId();
         this.name = vendor != null ? vendor.getName() : null;
         this.category = vendor != null ? vendor.getCategory() : null;

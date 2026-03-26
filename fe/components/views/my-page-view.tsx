@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken, uploadProfileImage } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -42,6 +42,7 @@ interface MyPageViewProps {
     bridePhoto?: string
   }) => void
   onDeleteAccount?: () => void
+  onCoupleDisconnect?: () => void
 }
 
 interface PreferenceSection {
@@ -65,6 +66,7 @@ export function MyPageView({
   onCoupleConnect,
   onUpdateProfile,
   onDeleteAccount,
+  onCoupleDisconnect,
 }: MyPageViewProps) {
   // ── 커플 해제 / 회원탈퇴 확인 상태 ──────────────────────────
   const [disconnectConfirm, setDisconnectConfirm] = useState(false)
@@ -96,21 +98,37 @@ export function MyPageView({
   const [tempBrideName, setTempBrideName] = useState(brideName)
   const [tempBrideNickname, setTempBrideNickname] = useState(brideNickname ?? "")
 
+  // props 변경 시 동기화 (커플 매칭 후 즉시 반영)
+  useEffect(() => {
+    setTempGroomName(groomName)
+    setTempGroomNickname(groomNickname ?? "")
+    setTempBrideName(brideName)
+    setTempBrideNickname(brideNickname ?? "")
+  }, [groomName, groomNickname, brideName, brideNickname])
+
   // ── 사진 상태 ─────────────────────────────────────────────────
   const [groomPhotoData, setGroomPhotoData] = useState<string>(groomPhoto ?? "")
   const [bridePhotoData, setBridePhotoData] = useState<string>(bridePhoto ?? "")
   const groomInputRef = useRef<HTMLInputElement>(null)
   const brideInputRef = useRef<HTMLInputElement>(null)
 
-  const handlePhotoChange = (
+  const handlePhotoChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (v: string) => void
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setter(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    try {
+      const res = await uploadProfileImage(file)
+      if (res.data) {
+        setter(res.data)
+      }
+    } catch {
+      // 업로드 실패 시 로컬 미리보기로 폴백
+      const reader = new FileReader()
+      reader.onload = (ev) => setter(ev.target?.result as string)
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleSave = async () => {
@@ -827,7 +845,7 @@ export function MyPageView({
                       try {
                         await disconnectCouple()
                         setDisconnectConfirm(false)
-                        window.location.reload()
+                        onCoupleDisconnect?.()
                       } catch {
                         alert("매칭 해제에 실패했습니다.")
                       }

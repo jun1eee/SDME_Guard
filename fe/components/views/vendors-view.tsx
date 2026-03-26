@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
-  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard,
+  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard, Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { buildVendorListEndpoint } from "@/lib/api/endpoints"
-import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor, type AiRecommendation} from "@/lib/api"
+import {createReservation, createReview, getBookedTimes, getCards, requestPayment, reportVendor, getAccessToken, type AiRecommendation} from "@/lib/api"
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,7 @@ interface VendorPackage {
   price: number
   mainItems: VendorPackageItem[]
   sections?: VendorPackageSection[]
+  image?: string
 }
 
 interface VendorAddon {
@@ -215,10 +216,10 @@ function mapListItemToVendor(item: VendorListItem): Vendor {
 }
 
 const STYLE_FILTERS: Record<string, string[]> = {
-  studio: ["다양한컨셉", "인물중심", "배경중심", "클래식", "트렌디", "내추럴", "러블리", "그리너리", "심플한"],
-  venue: ["호텔예식", "채플", "일반컨벤션", "밝은", "어두운"],
-  dress: ["화려한", "심플한", "러블리", "유니크", "세련된", "클래식", "트렌디"],
-  makeup: ["러블리", "포인트", "스모키", "깨끗한", "화려한", "내추럴", "음영"],
+  studio: ["인물중심", "인물+배경", "프라이빗촬영", "캐쥬얼씬", "흑백씬", "야간씬", "로드씬", "한복씬"],
+  venue: ["호텔 예식", "채플", "일반 컨벤션", "하우스", "야외", "밝은", "어두운", "소규모"],
+  dress: ["심플", "화려한", "우아한", "러블리", "레이스", "실크", "비즈"],
+  makeup: ["내추럴", "깨끗/화사", "러블리", "윤곽강조", "피부메이크업", "음영"],
 }
 
 // ─── Sample Data ──────────────────────────────────────────────────────────
@@ -664,23 +665,21 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
       if (v) {
         openVendorDetail(v)
       } else {
-        // AI 추천 카드에서 온 ID는 sourceId → /source/{sourceId}로 조회
+        // AI 추천 카드에서 온 ID → 업체 상세 조회
+        const isFav = favoriteVendorIds?.includes(initialVendorId) ?? false
+        const loadDetail = (id: string) =>
+          fetchVendorDetail(id)
+            .then((detail) => setSelectedVendor({ ...detail, isFavorite: isFav }))
+            .catch(() => {})
         const isSourceId = Number(initialVendorId) >= 1_000_000
         if (isSourceId) {
           import("@/lib/api/vendor-detail").then(({ fetchVendorDetailBySource }) => {
             fetchVendorDetailBySource(initialVendorId)
-              .then((detail) => setSelectedVendor(detail))
-              .catch(() => {
-                // sourceId 조회 실패 시 일반 조회 시도
-                fetchVendorDetail(initialVendorId)
-                  .then((detail) => setSelectedVendor(detail))
-                  .catch(() => {})
-              })
+              .then((detail) => setSelectedVendor({ ...detail, isFavorite: isFav }))
+              .catch(() => loadDetail(initialVendorId))
           })
         } else {
-          fetchVendorDetail(initialVendorId)
-            .then((detail) => setSelectedVendor(detail))
-            .catch(() => {})
+          loadDetail(initialVendorId)
         }
       }
     }
@@ -733,14 +732,14 @@ export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavorit
 
   const filtered = (showAiOnly ? aiVendors : vendors).filter((v) => {
     const catOk = selectedCategory === "all" || v.category === selectedCategory
-    const styleOk = !selectedStyle || (v.styleFilter?.includes(selectedStyle) ?? false)
+    const styleOk = !selectedStyle || (v.tags?.some((t) => t.includes(selectedStyle)) ?? false)
     return catOk && styleOk
   })
 
   const currentStyleFilters = selectedCategory !== "all" ? (STYLE_FILTERS[selectedCategory] ?? []) : []
 
   const toggleFavorite = (id: string) => {
-    const vendor = vendors.find((v) => v.id === id)
+    const vendor = vendors.find((v) => v.id === id) || aiVendors.find((v) => v.id === id) || (selectedVendor?.id === id ? selectedVendor : null)
     if (vendor) {
       const newFav = !vendor.isFavorite
       onFavoriteChange?.(vendor, newFav)
@@ -1012,6 +1011,8 @@ export function VendorDetailView({
   onShareVendor,
   onAddToVote,
   isLoading = false,
+  autoOpenPayment = false,
+  onPaymentComplete: onPaymentCompleteExternal,
 }: {
   vendor: Vendor
   onBack: () => void
@@ -1019,12 +1020,23 @@ export function VendorDetailView({
   onShareVendor?: (v: Vendor) => void
   onAddToVote?: (v: Vendor) => void
   isLoading?: boolean
+  autoOpenPayment?: boolean
+  onPaymentComplete?: () => void
 }) {
   const [selectedPkgId, setSelectedPkgId] = useState(vendor.packages?.[0]?.id ?? "")
+
+  useEffect(() => {
+    const firstId = vendor.packages?.[0]?.id
+    if (firstId) setSelectedPkgId(firstId)
+  }, [vendor.packages?.[0]?.id])
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
   const [showAddons, setShowAddons] = useState(false)
-  const [showReservation, setShowReservation] = useState(false)
+  const [showReservation, setShowReservation] = useState(autoOpenPayment)
   const [showReview, setShowReview] = useState(false)
+  const [fittingImage, setFittingImage] = useState<File | null>(null)
+  const [fittingResult, setFittingResult] = useState<string | null>(null)
+  const [fittingLoading, setFittingLoading] = useState(false)
+  const [fittingError, setFittingError] = useState<string | null>(null)
   const [showReport, setShowReport] = useState(false)
   const [voteAdded, setVoteAdded] = useState(false)
   const [addrCopied, setAddrCopied] = useState(false)
@@ -1130,13 +1142,12 @@ export function VendorDetailView({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
-        {/* Hero image */}
-        <div className="flex h-72 items-center justify-center overflow-hidden bg-[#f0eaf2]">
-          {vendor.coverUrl
-            ? <img src={vendor.coverUrl} alt={vendor.name} className="h-full w-full object-cover" />
-            : <span className="text-sm text-muted-foreground/40">{CATEGORIES.find((c) => c.id === vendor.category)?.label}</span>
-          }
-        </div>
+        {/* 웨딩홀 Hero 이미지 */}
+        {vendor.category === "venue" && vendor.coverUrl && (
+          <div className="overflow-hidden">
+            <img src={vendor.coverUrl} alt={vendor.name} className="h-64 w-full object-cover" />
+          </div>
+        )}
 
         <div className="px-4 pb-16">
           {/* Basic info */}
@@ -1170,8 +1181,6 @@ export function VendorDetailView({
                 </span>
               ))}
             </div>
-
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{vendor.description}</p>
           </div>
 
           {/* Payment progress - 계약금 결제 후에만 표시 */}
@@ -1244,46 +1253,19 @@ export function VendorDetailView({
           </div>
           )}
 
-          {/* Action buttons */}
-          <div className="mt-5 flex gap-2">
-            {(currentPaymentStep < 2 || hasUsedBefore) && (
-              <Button
-                onClick={() => setShowReservation(true)}
-                className="flex-1 bg-foreground text-background hover:bg-foreground/90"
-              >
-                예약 및 계약금 결제
-              </Button>
-            )}
-            {onAddToVote && (
-              <button
-                onClick={() => {
-                  if (!voteAdded) {
-                    onAddToVote(vendor)
-                    setVoteAdded(true)
-                  }
-                }}
-                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm transition-colors ${
-                  voteAdded
-                    ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <Lock className="size-4" />
-                {voteAdded ? "투표 추가됨" : "투표에 올리기"}
-              </button>
-            )}
-            <button
-              onClick={() => onShareVendor?.(vendor)}
-              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
-            >
-              <Share2 className="size-4" />
-              공유
-            </button>
-          </div>
-
           {/* Packages */}
           {vendor.packages && vendor.packages.length > 0 && (
             <div className="mt-5 rounded-2xl bg-card p-5">
+              {selectedPkg?.image && (
+                <div className="mb-4 -mx-5 -mt-5 overflow-hidden rounded-t-2xl">
+                  <img
+                    src={selectedPkg.image}
+                    alt={selectedPkg.name}
+                    className="w-full object-contain"
+                    style={{ maxHeight: "700px" }}
+                  />
+                </div>
+              )}
               <h2 className="mb-4 text-sm font-semibold text-foreground">용도별 패키지</h2>
 
               {vendor.packages.length > 1 && (
@@ -1320,12 +1302,14 @@ export function VendorDetailView({
                   </div>
 
                   <div className="space-y-2.5">
-                    {selectedPkg.mainItems.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.name}</span>
-                        <span className="text-right text-foreground">{item.value}</span>
-                      </div>
-                    ))}
+                    {selectedPkg.mainItems
+                      .filter((item) => !item.name.includes("수입드레"))
+                      .map((item, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{item.name}</span>
+                          <span className="text-right text-foreground">{item.value}</span>
+                        </div>
+                      ))}
                   </div>
 
                   {selectedPkg.sections?.map((section, si) => (
@@ -1470,6 +1454,143 @@ export function VendorDetailView({
               </div>
             )
           })()}
+
+          {/* Dress Virtual Fitting */}
+          {vendor.category === "dress" && (
+            <div className="mt-5 rounded-2xl bg-card p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <Sparkles className="size-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold text-foreground">AI 드레스 피팅</h2>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                전신 사진을 업로드하면 AI가 이 드레스를 입혀드립니다. 처리에 30~60초 정도 소요됩니다.
+              </p>
+
+              {!fittingResult ? (
+                <div className="space-y-3">
+                  {fittingLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-muted py-12">
+                      <Loader2 className="size-8 animate-spin text-primary" />
+                      <p className="text-sm font-medium text-foreground">AI가 드레스를 입혀드리는 중...</p>
+                      <p className="text-xs text-muted-foreground">30~60초 정도 소요됩니다</p>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 hover:bg-muted">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) { setFittingImage(file); setFittingError(null) }
+                          }}
+                        />
+                        {fittingImage ? (
+                          <span className="text-sm text-foreground">{fittingImage.name}</span>
+                        ) : (
+                          <>
+                            <span className="text-2xl">📷</span>
+                            <span className="text-sm text-muted-foreground">전신 사진 선택</span>
+                          </>
+                        )}
+                      </label>
+                      {fittingError && (
+                        <p className="text-xs text-red-500">{fittingError}</p>
+                      )}
+                    </>
+                  )}
+                  <Button
+                    className="w-full"
+                    disabled={!fittingImage || fittingLoading || !selectedPkg?.image}
+                    onClick={async () => {
+                      if (!fittingImage || !selectedPkg?.image) return
+                      setFittingLoading(true)
+                      setFittingError(null)
+                      try {
+                        const form = new FormData()
+                        form.append("personImage", fittingImage)
+                        form.append("dressImageUrl", selectedPkg.image)
+                        const token = getAccessToken()
+                        const res = await fetch(
+                          `${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/vendors/${vendorId}/fitting`,
+                          {
+                            method: "POST",
+                            body: form,
+                            credentials: "include",
+                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          }
+                        )
+                        if (!res.ok) throw new Error(String(res.status))
+                        const json = await res.json() as { data?: { resultImageBase64?: string } }
+                        const b64 = json.data?.resultImageBase64
+                        if (!b64) throw new Error("결과 이미지가 없습니다.")
+                        setFittingResult(b64)
+                      } catch {
+                        setFittingError("피팅 처리에 실패했습니다. 다시 시도해주세요.")
+                      } finally {
+                        setFittingLoading(false)
+                      }
+                    }}
+                  >
+                    {fittingLoading ? <><Loader2 className="mr-2 size-4 animate-spin" />AI 처리 중...</> : "피팅 시작"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <img
+                    src={`data:image/png;base64,${fittingResult}`}
+                    alt="AI 드레스 피팅 결과"
+                    className="w-full rounded-xl object-cover"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { setFittingResult(null); setFittingImage(null) }}
+                  >
+                    다시 시도
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="mt-5 flex gap-2">
+            {(currentPaymentStep < 2 || hasUsedBefore) && (
+              <Button
+                onClick={() => setShowReservation(true)}
+                className="flex-1 bg-foreground py-5 text-sm font-semibold text-background hover:bg-foreground/90"
+              >
+                예약 및 계약금 결제
+              </Button>
+            )}
+            {onAddToVote && (
+              <button
+                onClick={() => {
+                  if (!voteAdded) {
+                    onAddToVote(vendor)
+                    setVoteAdded(true)
+                  }
+                }}
+                className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
+                  voteAdded
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Lock className="size-4" />
+                {voteAdded ? "투표 추가됨" : "투표에 올리기"}
+              </button>
+            )}
+            <button
+              onClick={() => onShareVendor?.(vendor)}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted"
+            >
+              <Share2 className="size-4" />
+              공유
+            </button>
+          </div>
 
           {/* Addons */}
           {vendor.addons && vendor.addons.length > 0 && (
@@ -1711,12 +1832,6 @@ export function VendorDetailView({
             )}
           </div>
 
-          {/* AI ask button */}
-          <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-border py-4 text-sm font-medium text-foreground hover:bg-muted">
-            <MessageCircle className="size-5" />
-            AI에게 이 업체 물어보기
-          </button>
-
           {/* Report */}
           <button
             onClick={() => setShowReport(true)}
@@ -1739,6 +1854,7 @@ export function VendorDetailView({
             setCurrentPaymentStep(step as 1 | 2 | 3 | 4 | 5)
             setHasUsedBefore(false)
           }
+          onPaymentCompleteExternal?.()
         }} />
       )}
 {showReview && (
@@ -1854,32 +1970,52 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
 
   // 잔금 결제면 바로 카드 로드 + 기존 예약/결제 정보 조회
   useEffect(() => {
-    if (isBalancePayment) {
-      loadCards()
-      import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
-        // 기존 계약금 금액 조회
+    // 기존 예약 확인 → 있으면 바로 결제 화면으로
+    import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
+      getReservations()
+        .then((res) => {
+          const existing = res.data.find((r: any) =>
+            String(r.vendorId) === vendorId &&
+            r.status !== "CANCELLED" &&
+            r.progress !== "BALANCE_PAID" &&
+            r.progress !== "COMPLETED"
+          )
+          if (existing) {
+            if (existing.reservationDate) {
+              const [y, m, d] = existing.reservationDate.split("-").map(Number)
+              setSelectedDate(new Date(y, m - 1, d))
+            }
+            if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
+            if (existing.memo) setNotes(existing.memo)
+            setReservationId(existing.id)
+            // memo에서 홀/패키지 자동 선택
+            if (existing.memo) {
+              if (isVenue && halls) {
+                const matched = halls.find(h => existing.memo.includes(h.name))
+                if (matched) setSelectedHallId(matched.id)
+                else if (halls.length === 1) setSelectedHallId(halls[0].id)
+              } else if (!isVenue && packages) {
+                const matched = packages.find(p => existing.memo.includes(p.name))
+                if (matched) setSelectedPkgId(matched.id)
+                else if (packages.length === 1) setSelectedPkgId(packages[0].id)
+              }
+            }
+            // 이미 예약 있으면 바로 카드 선택 → 결제
+            loadCards()
+            setStep("payment")
+          }
+        })
+        .catch(() => {})
+      if (isBalancePayment) {
+        loadCards()
         getVendorPayments(Number(vendorId))
           .then((res) => {
             const deposit = res.data.find((p: any) => p.type === "DEPOSIT" && p.status === "DONE")
             if (deposit) setPaidDepositAmount(deposit.amount)
           })
           .catch(() => {})
-        // 기존 예약 정보 조회 (날짜, 시간)
-        getReservations()
-          .then((res) => {
-            const existing = res.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
-            if (existing) {
-              if (existing.reservationDate) {
-                const [y, m, d] = existing.reservationDate.split("-").map(Number)
-                setSelectedDate(new Date(y, m - 1, d))
-              }
-              if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
-              if (existing.memo) setNotes(existing.memo)
-            }
-          })
-          .catch(() => {})
-      })
-    }
+      }
+    })
   }, [])
 
   // 카드 목록 불러오기
@@ -1931,14 +2067,18 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         if (!existing) throw new Error("예약 정보를 찾을 수 없습니다.")
         targetReservationId = existing.id
       } else {
-        // 계약금 결제: 새 예약 생성
-        const resReservation = await createReservation(Number(vendorId), {
-          reservationDate: date,
-          serviceDate: date,
-          reservationTime: time,
-          memo: notes || undefined,
-        })
-        targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
+        // 계약금 결제: 기존 예약 있으면 재사용, 없으면 새로 생성
+        if (reservationId) {
+          targetReservationId = reservationId
+        } else {
+          const resReservation = await createReservation(Number(vendorId), {
+            reservationDate: date,
+            serviceDate: date,
+            reservationTime: time,
+            memo: notes || undefined,
+          })
+          targetReservationId = (resReservation.data as any)?.id ?? resReservation.data
+        }
       }
 
       // 결제 요청
@@ -2011,7 +2151,7 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
         </div>
       ) : step === "payment" ? (
         <>
-          <div className="overflow-y-auto max-h-[70vh] space-y-4 pr-1">
+          <div className="space-y-4">
 
             {/* 주문 정보 */}
             <div className="rounded-xl bg-muted/30 p-4 space-y-3">
@@ -2039,40 +2179,6 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
                 </div>
               )}
             </div>
-
-            {/* 추가상품 - 계약금 결제일 때만 */}
-            {!isBalancePayment && addons && addons.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold text-foreground">추가상품</p>
-                <div className="space-y-2">
-                  {addons.map((addon) => {
-                    const checked = selectedAddons.includes(addon.id)
-                    return (
-                      <button
-                        key={addon.id}
-                        className="flex w-full items-center gap-3 text-left"
-                        onClick={() => toggleAddon(addon.id)}
-                      >
-                        <div className={`size-5 shrink-0 rounded border-2 flex items-center justify-center ${
-                          checked ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                        }`}>
-                          {checked && <Check className="size-3" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-foreground">{addon.name}</span>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-foreground shrink-0">
-                          {formatPrice(addon.price)}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* 예약 정보 */}
             <div className="rounded-xl bg-muted/50 p-3 space-y-1.5">
@@ -2354,7 +2460,13 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
                 <p className="py-4 text-center text-sm text-muted-foreground">날짜를 먼저 선택해주세요</p>
               ) : (
               <div className="grid grid-cols-4 gap-2">
-                {timeSlots.map((t) => {
+                {timeSlots.filter((t) => {
+                  if (!selectedDate) return true
+                  const now = new Date()
+                  if (selectedDate.toDateString() !== now.toDateString()) return true
+                  const [h, m] = t.split(":").map(Number)
+                  return h > now.getHours() || (h === now.getHours() && m > now.getMinutes())
+                }).map((t) => {
                   const isBooked = bookedTimes.includes(t)
                   return (
                     <button

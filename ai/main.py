@@ -165,8 +165,10 @@ def shared_graph_view():
 # 라우터 등록
 from sdm.router import router as sdm_router
 from hall.router import router as hall_router
+from fitting.router import router as fitting_router
 app.include_router(sdm_router, prefix="/api/chat")
 app.include_router(hall_router)
+app.include_router(fitting_router)
 
 # Gradio 개발 테스트 UI
 try:

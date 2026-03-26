@@ -22,6 +22,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -198,5 +205,46 @@ public class UserServiceImpl implements UserService {
 
         log.info("[User] 추가 정보 수정 - userId: {}", userId);
         return UserPreferenceResponse.from(myPref);
+    }
+
+    @Override
+    @Transactional
+    public String updateProfileImage(Long userId, MultipartFile file) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        // 파일 확장자 추출
+        String originalFilename = file.getOriginalFilename();
+        String ext = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+
+        // 고유 파일명 생성
+        String filename = userId + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8) + ext;
+
+        // 저장 경로 (로컬: 시스템 임시 디렉토리, 서버/Docker: /uploads)
+        Path uploadDir;
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            uploadDir = Paths.get(System.getProperty("user.home"), "uploads", "profiles");
+        } else {
+            uploadDir = Paths.get("/uploads/profiles");
+        }
+        Path filePath = uploadDir.resolve(filename);
+
+        try {
+            Files.createDirectories(uploadDir);
+            Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            log.error("[User] 프로필 이미지 저장 실패 - userId: {}", userId, e);
+            throw new RuntimeException("프로필 이미지 저장에 실패했습니다.", e);
+        }
+
+        // URL 설정 (nginx에서 /uploads/ 로 서빙)
+        String imageUrl = "/uploads/profiles/" + filename;
+        user.updateProfileImage(imageUrl);
+
+        log.info("[User] 프로필 이미지 변경 - userId: {}, url: {}", userId, imageUrl);
+        return imageUrl;
     }
 }
