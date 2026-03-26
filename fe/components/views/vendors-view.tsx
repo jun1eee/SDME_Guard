@@ -1955,32 +1955,35 @@ function ReservationModal({ vendorId, vendorName, vendorCategory, vendorSchedule
 
   // 잔금 결제면 바로 카드 로드 + 기존 예약/결제 정보 조회
   useEffect(() => {
-    if (isBalancePayment) {
-      loadCards()
-      import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
-        // 기존 계약금 금액 조회
+    // 기존 예약 확인 → 있으면 바로 결제 화면으로
+    import("@/lib/api").then(({ getVendorPayments, getReservations }) => {
+      getReservations()
+        .then((res) => {
+          const existing = res.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
+          if (existing) {
+            if (existing.reservationDate) {
+              const [y, m, d] = existing.reservationDate.split("-").map(Number)
+              setSelectedDate(new Date(y, m - 1, d))
+            }
+            if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
+            if (existing.memo) setNotes(existing.memo)
+            setReservationId(existing.id)
+            // 이미 예약 있으면 바로 카드 선택 → 결제
+            loadCards()
+            setStep("payment")
+          }
+        })
+        .catch(() => {})
+      if (isBalancePayment) {
+        loadCards()
         getVendorPayments(Number(vendorId))
           .then((res) => {
             const deposit = res.data.find((p: any) => p.type === "DEPOSIT" && p.status === "DONE")
             if (deposit) setPaidDepositAmount(deposit.amount)
           })
           .catch(() => {})
-        // 기존 예약 정보 조회 (날짜, 시간)
-        getReservations()
-          .then((res) => {
-            const existing = res.data.find((r: any) => String(r.vendorId) === vendorId && r.status !== "CANCELLED")
-            if (existing) {
-              if (existing.reservationDate) {
-                const [y, m, d] = existing.reservationDate.split("-").map(Number)
-                setSelectedDate(new Date(y, m - 1, d))
-              }
-              if (existing.reservationTime) setTime(existing.reservationTime.substring(0, 5))
-              if (existing.memo) setNotes(existing.memo)
-            }
-          })
-          .catch(() => {})
-      })
-    }
+      }
+    })
   }, [])
 
   // 카드 목록 불러오기
