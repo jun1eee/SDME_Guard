@@ -195,12 +195,15 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Budget 테이블도 동기화
+        // Budget 테이블도 동기화 (없으면 생성)
         if (user.getCoupleId() != null && request.getTotalBudget() != null) {
-            budgetRepository.findByCoupleId(user.getCoupleId()).ifPresent(budget -> {
-                budget.updateTotal(request.getTotalBudget() * 10000);
-                log.info("[User] Budget 동기화 - coupleId: {}, totalBudget: {}", user.getCoupleId(), request.getTotalBudget() * 10000);
-            });
+            Budget budget = budgetRepository.findByCoupleId(user.getCoupleId())
+                    .orElseGet(() -> budgetRepository.save(Budget.builder()
+                            .coupleId(user.getCoupleId())
+                            .totalBudget(0)
+                            .build()));
+            budget.updateTotal(request.getTotalBudget() * 10000);
+            log.info("[User] Budget 동기화 - coupleId: {}, totalBudget: {}", user.getCoupleId(), request.getTotalBudget() * 10000);
         }
 
         log.info("[User] 추가 정보 수정 - userId: {}", userId);
