@@ -685,6 +685,7 @@ export default function ChatPage() {
   }
 
   const handleSend = async (content: string) => {
+    const currentVendors = [...attachedVendors]
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -694,8 +695,17 @@ export default function ChatPage() {
     setAttachedVendors([])
     setIsTyping(true)
 
+    let messageToSend = content
+    if (currentVendors.length > 0) {
+      const catLabel: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀", STUDIO: "스튜디오", DRESS: "드레스", MAKEUP: "메이크업", HALL: "웨딩홀" }
+      const vendorInfo = currentVendors.map(v =>
+        `${v.name} (${catLabel[v.category] || v.category}${v.price ? `, ${v.price}` : ""}${v.rating ? `, ⭐${v.rating}` : ""})`
+      ).join(", ")
+      messageToSend = `${content || (currentVendors.length >= 2 ? "비교해줘" : "이 업체에 대해 알려줘")} [업체: ${vendorInfo}]`
+    }
+
     try {
-      const res = await sendAiChat({ message: content, sessionId: aiSessionId })
+      const res = await sendAiChat({ message: messageToSend, sessionId: aiSessionId })
       setAiSessionId(res.data.sessionId)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
