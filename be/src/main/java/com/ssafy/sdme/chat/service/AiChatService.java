@@ -3,11 +3,10 @@ package com.ssafy.sdme.chat.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.sdme.chat.domain.AiChatMessage;
-import com.ssafy.sdme.chat.dto.AiChatHistoryResponse;
-import com.ssafy.sdme.chat.dto.AiChatRequest;
-import com.ssafy.sdme.chat.dto.AiChatResponse;
-import com.ssafy.sdme.chat.dto.AiRecommendation;
+import com.ssafy.sdme.chat.domain.CoupleChatRoom;
+import com.ssafy.sdme.chat.dto.*;
 import com.ssafy.sdme.chat.repository.AiChatMessageRepository;
+import com.ssafy.sdme.chat.repository.CoupleChatRoomRepository;
 import com.ssafy.sdme.couple.domain.Couple;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
 import com.ssafy.sdme.vendor.application.VendorIdConverter;
@@ -33,6 +32,7 @@ public class AiChatService {
     private final VendorIdConverter idConverter;
     private final AiChatMessageRepository aiChatMessageRepository;
     private final CoupleRepository coupleRepository;
+    private final CoupleChatRoomRepository coupleChatRoomRepository;
     private final ObjectMapper objectMapper;
 
     public AiChatService(
@@ -42,6 +42,7 @@ public class AiChatService {
             VendorIdConverter idConverter,
             AiChatMessageRepository aiChatMessageRepository,
             CoupleRepository coupleRepository,
+            CoupleChatRoomRepository coupleChatRoomRepository,
             ObjectMapper objectMapper
     ) {
         this.restTemplate = restTemplate;
@@ -50,6 +51,7 @@ public class AiChatService {
         this.idConverter = idConverter;
         this.aiChatMessageRepository = aiChatMessageRepository;
         this.coupleRepository = coupleRepository;
+        this.coupleChatRoomRepository = coupleChatRoomRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -110,6 +112,116 @@ public class AiChatService {
         return messages.stream()
                 .map(AiChatHistoryResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    @SuppressWarnings("unchecked")
+    public AiChatResponse coupleChat(CoupleAiChatRequest request, Long userId) {
+        log.info("[AiChat] 커플 AI 요청 - sessionId: {}, message: {}", request.getSessionId(), request.getMessage());
+
+        Long coupleId = resolveCoupleId(userId);
+
+        try {
+            // 기본 요청 바디 구성
+            Map<String, Object> body = new HashMap<>();
+            body.put("message", request.getMessage());
+            if (request.getSessionId() != null) {
+                body.put("session_id", request.getSessionId());
+            }
+
+            Map<String, Object> context = new HashMap<>();
+            context.put("user_id", userId);
+            if (coupleId != null) {
+                context.put("couple_id", coupleId);
+            }
+            body.put("context", context);
+
+            // 커플 컨텍스트 구성
+            if (coupleId != null) {
+                Couple couple = coupleRepository.findByGroomIdOrBrideId(userId, userId).orElse(null);
+                if (couple != null) {
+                    CoupleChatRoom room = coupleChatRoomRepository.findByCoupleId(couple.getId()).orElse(null);
+                    if (room != null) {
+                        Map<String, Object> coupleContext = new HashMap<>();
+                        String groomSessionId = room.getGroomAiSessionId();
+                        String brideSessionId = room.getBrideAiSessionId();
+
+                        if (groomSessionId != null) {
+                            coupleContext.put("groom_summary", buildSessionSummary(groomSessionId));
+                        }
+                        if (brideSessionId != null) {
+                            coupleContext.put("bride_summary", buildSessionSummary(brideSessionId));
+                        }
+                        body.put("couple_context", coupleContext);
+                    }
+                }
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    aiServerUrl + "/api/chat/sdm",
+                    HttpMethod.POST,
+                    entity,
+                    Map.class
+            );
+
+            AiChatResponse chatResponse = parseResponse(response.getBody(), request.getSessionId());
+
+            // 메시지 영속화
+            if (chatResponse.isSuccess() && chatResponse.getSessionId() != null) {
+                saveMessages(coupleId, userId, chatResponse.getSessionId(),
+                        request.getMessage(), chatResponse);
+            }
+
+            return chatResponse;
+        } catch (RestClientException e) {
+            log.error("[AiChat] AI 서버 연결 실패", e);
+            return AiChatResponse.error("AI 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+        } catch (Exception e) {
+            log.error("[AiChat] 처리 중 오류", e);
+            return AiChatResponse.error("AI 서버 오류가 발생했습니다.");
+        }
+    }
+
+    public String buildSessionSummary(String sessionId) {
+        List<AiChatMessage> messages = aiChatMessageRepository.findTop20BySessionIdOrderByCreatedAtDesc(sessionId);
+        // 역순으로 정렬하여 시간순으로 변경
+        Collections.reverse(messages);
+
+        StringBuilder summary = new StringBuilder();
+        for (AiChatMessage msg : messages) {
+            if ("user".equals(msg.getRole())) {
+                String content = msg.getContent();
+                if (content != null && content.length() > 100) {
+                    content = content.substring(0, 100);
+                }
+                summary.append("- 질문: ").append(content).append("\n");
+            } else if ("assistant".equals(msg.getRole()) && msg.getRecommendations() != null) {
+                try {
+                    List<Map<String, Object>> recs = objectMapper.readValue(
+                            msg.getRecommendations(),
+                            objectMapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+                    );
+                    List<String> names = recs.stream()
+                            .map(r -> (String) r.getOrDefault("name", ""))
+                            .filter(n -> !n.isEmpty())
+                            .collect(Collectors.toList());
+                    if (!names.isEmpty()) {
+                        summary.append("- 추천 업체: ").append(String.join(", ", names)).append("\n");
+                    }
+                } catch (Exception e) {
+                    log.warn("[AiChat] recommendations 파싱 실패", e);
+                }
+            }
+        }
+
+        String result = summary.toString();
+        if (result.length() > 800) {
+            result = result.substring(0, 800);
+        }
+        return result;
     }
 
     // ── 내부 메서드 ──
