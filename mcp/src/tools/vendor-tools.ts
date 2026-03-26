@@ -165,7 +165,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
 
   server.tool(
     "get_vendor_detail",
-    "특정 업체의 상세 정보를 조회합니다. 패키지, 가격, 리뷰 등을 확인할 수 있습니다.",
+    "특정 업체의 상세 정보를 조회합니다. 패키지, 가격, 리뷰 등을 확인할 수 있습니다. 주의: 여기서 보여주는 시간은 전체 스케줄이며, 실제 예약 가능 시간은 반드시 get_vendor_booked_times로 확인해야 합니다. 오늘 날짜는 지나간 시간이 제외될 수 있습니다.",
     {
       vendorId: z.number().describe("업체 ID"),
     },
