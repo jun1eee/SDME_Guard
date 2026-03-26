@@ -82,8 +82,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   const [isTyping, setIsTyping] = useState(false)
   const [aiMode, setAiMode] = useState(false)
   const [aiSessions, setAiSessions] = useState<{ groomAiSessionId: string | null; brideAiSessionId: string | null }>({ groomAiSessionId: null, brideAiSessionId: null })
-  const [myAiSessions, setMyAiSessions] = useState<Array<{ sessionId: string; preview: string }>>([])
-  const [showSessionPanel, setShowSessionPanel] = useState(false)
+  const [myAiSessions, setMyAiSessions] = useState<Array<{ sessionId: string; firstMessage: string; messageCount: number; lastDate: string }>>([])
+  const [showSessionModal, setShowSessionModal] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<import("@/components/chat-input").DroppedVendor[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const stompClientRef = useRef<Client | null>(null)
@@ -242,14 +242,28 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
       .catch(() => {})
     getAiChatSessions()
       .then((res) => {
-        const grouped = new Map<string, string>()
+        const grouped = new Map<string, { firstMessage: string; count: number; lastDate: string }>()
         for (const item of res.data) {
-          if (!grouped.has(item.sessionId)) {
-            grouped.set(item.sessionId, item.content)
+          const existing = grouped.get(item.sessionId)
+          if (!existing) {
+            // 첫 user 메시지를 미리보기로 사용
+            const preview = item.role === "user" ? item.content : ""
+            grouped.set(item.sessionId, { firstMessage: preview, count: 1, lastDate: item.createdAt })
+          } else {
+            existing.count++
+            if (!existing.firstMessage && item.role === "user") {
+              existing.firstMessage = item.content
+            }
+            existing.lastDate = item.createdAt
           }
         }
         setMyAiSessions(
-          Array.from(grouped.entries()).map(([sessionId, preview]) => ({ sessionId, preview }))
+          Array.from(grouped.entries()).map(([sessionId, info]) => ({
+            sessionId,
+            firstMessage: info.firstMessage?.slice(0, 40) || "AI 상담",
+            messageCount: info.count,
+            lastDate: new Date(info.lastDate).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }),
+          }))
         )
       })
       .catch(() => {})
@@ -461,82 +475,130 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
       {/* AI 모드 배너 */}
       {aiMode && (
-        <div className="border-b border-primary/20 bg-primary/5">
-          <div className="flex items-center justify-between px-6 py-2">
+        <div className="border-b border-primary/20 bg-primary/5 px-6 py-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-primary">
               <Bot className="size-3.5" />
-              AI 동행 모드 — 모든 메시지에 AI 플래너가 함께 응답합니다
+              AI 동행 모드
             </div>
             <button
-              onClick={() => setShowSessionPanel((prev) => !prev)}
-              className="rounded-md px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+              onClick={() => setShowSessionModal(true)}
+              className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
             >
-              {showSessionPanel ? "접기" : "AI 컨텍스트 세션 선택"}
+              개인 상담 연동
             </button>
           </div>
-          {showSessionPanel && (
-            <div className="border-t border-primary/10 px-6 py-3">
-              {/* 현재 선택 상태 */}
-              <div className="mb-2 rounded-lg bg-white/60 px-3 py-2 text-xs text-muted-foreground">
-                [AI 컨텍스트] 신랑: &quot;{aiSessions.groomAiSessionId
-                  ? (myAiSessions.find((s) => s.sessionId === aiSessions.groomAiSessionId)?.preview?.slice(0, 20) + "..." || aiSessions.groomAiSessionId.slice(0, 8))
-                  : "미선택"}&quot; | 신부: &quot;{aiSessions.brideAiSessionId
-                  ? (myAiSessions.find((s) => s.sessionId === aiSessions.brideAiSessionId)?.preview?.slice(0, 20) + "..." || aiSessions.brideAiSessionId.slice(0, 8))
-                  : "미선택"}&quot;
-              </div>
-              {/* 세션 목록 */}
-              <div className="max-h-32 space-y-1 overflow-y-auto">
-                {myAiSessions.length === 0 && (
-                  <p className="py-2 text-center text-xs text-muted-foreground">개인 AI 채팅 세션이 없습니다</p>
-                )}
-                {myAiSessions.map((session) => {
-                  const isSelected =
-                    (currentUser === "groom" && aiSessions.groomAiSessionId === session.sessionId) ||
-                    (currentUser === "bride" && aiSessions.brideAiSessionId === session.sessionId)
-                  return (
-                    <button
-                      key={session.sessionId}
-                      onClick={async () => {
-                        try {
-                          await selectCoupleAiSession(session.sessionId)
-                          setAiSessions((prev) =>
-                            currentUser === "groom"
-                              ? { ...prev, groomAiSessionId: session.sessionId }
-                              : { ...prev, brideAiSessionId: session.sessionId }
-                          )
-                          setShowSessionPanel(false)
-                        } catch (e) { console.error("세션 선택 실패:", e) }
-                      }}
-                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
-                        isSelected
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "hover:bg-muted text-foreground"
-                      }`}
-                    >
-                      <span className="flex-1 truncate">{session.preview}</span>
-                      {isSelected && <span className="text-primary text-[10px]">선택됨</span>}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* 선택 해제 버튼 */}
-              <button
-                onClick={async () => {
-                  try {
-                    await clearCoupleAiSession()
-                    setAiSessions((prev) =>
-                      currentUser === "groom"
-                        ? { ...prev, groomAiSessionId: null }
-                        : { ...prev, brideAiSessionId: null }
-                    )
-                  } catch { /* ignore */ }
-                }}
-                className="mt-2 w-full rounded-lg border border-border py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-              >
-                선택 해제
-              </button>
+          {/* 선택된 세션 요약 배너 */}
+          {(aiSessions.groomAiSessionId || aiSessions.brideAiSessionId) && (
+            <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="size-2 rounded-full bg-blue-400" />
+                신랑: {aiSessions.groomAiSessionId
+                  ? myAiSessions.find((s) => s.sessionId === aiSessions.groomAiSessionId)?.firstMessage || "연동됨"
+                  : "미선택"}
+              </span>
+              <span className="text-border">|</span>
+              <span className="inline-flex items-center gap-1">
+                <span className="size-2 rounded-full bg-pink-400" />
+                신부: {aiSessions.brideAiSessionId
+                  ? myAiSessions.find((s) => s.sessionId === aiSessions.brideAiSessionId)?.firstMessage || "연동됨"
+                  : "미선택"}
+              </span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 세션 선택 모달 */}
+      {showSessionModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowSessionModal(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">개인 AI 상담 연동</h3>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">내 개인 상담 내용을 커플 AI에 공유합니다</p>
+              </div>
+              <button onClick={() => setShowSessionModal(false)} className="flex size-7 items-center justify-center rounded-full hover:bg-muted transition-colors">
+                <X className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* 세션 목록 */}
+            <div className="max-h-64 overflow-y-auto px-5 py-3">
+              {myAiSessions.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Bot className="mx-auto size-8 text-muted-foreground/40" />
+                  <p className="mt-2 text-xs text-muted-foreground">개인 AI 상담 내역이 없습니다</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground/60">먼저 개인 AI 채팅에서 상담을 진행해주세요</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {myAiSessions.map((session) => {
+                    const isSelected =
+                      (currentUser === "groom" && aiSessions.groomAiSessionId === session.sessionId) ||
+                      (currentUser === "bride" && aiSessions.brideAiSessionId === session.sessionId)
+                    return (
+                      <button
+                        key={session.sessionId}
+                        onClick={async () => {
+                          try {
+                            if (isSelected) {
+                              await clearCoupleAiSession()
+                              setAiSessions((prev) =>
+                                currentUser === "groom"
+                                  ? { ...prev, groomAiSessionId: null }
+                                  : { ...prev, brideAiSessionId: null }
+                              )
+                            } else {
+                              await selectCoupleAiSession(session.sessionId)
+                              setAiSessions((prev) =>
+                                currentUser === "groom"
+                                  ? { ...prev, groomAiSessionId: session.sessionId }
+                                  : { ...prev, brideAiSessionId: session.sessionId }
+                              )
+                            }
+                          } catch { /* ignore */ }
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${
+                          isSelected
+                            ? "bg-primary/10 ring-1 ring-primary/30"
+                            : "hover:bg-muted/60"
+                        }`}
+                      >
+                        <div className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                          isSelected ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                        }`}>
+                          <Bot className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-sm ${isSelected ? "font-semibold text-primary" : "font-medium text-foreground"}`}>
+                            {session.firstMessage}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {session.lastDate} · 메시지 {session.messageCount}개
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-white">연동중</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 모달 하단 */}
+            <div className="border-t border-border px-5 py-3">
+              <button
+                onClick={() => setShowSessionModal(false)}
+                className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -637,7 +699,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
             onClick={() => {
               const next = !aiMode
               setAiMode(next)
-              if (next) setShowSessionPanel(true)
+              if (next) setShowSessionModal(true)
             }}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
               aiMode
