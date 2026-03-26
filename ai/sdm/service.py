@@ -4,9 +4,9 @@ import re
 from typing import Any
 
 from config import Settings
-from schemas.chat import ChatPayload, ChatRequest, RecommendationCard
+from schemas.chat import ChatPayload, ChatRequest, CoupleContext, RecommendationCard
 from sdm.graphrag import SdmGraphRagEngine
-from sdm.prompts import CATEGORY_LABELS, SYSTEM_PROMPT
+from sdm.prompts import CATEGORY_LABELS, COUPLE_CONTEXT_TEMPLATE, SYSTEM_PROMPT
 from sdm.tools import TOOLS_SCHEMA, ToolRegistry
 from session_store import InMemorySessionStore, SessionState
 
@@ -28,7 +28,7 @@ class SdmChatService:
         log_lines = [f"[input] {message}"]
 
         try:
-            messages = self._build_messages(session, message)
+            messages = self._build_messages(session, message, couple_context=request.couple_context)
             response = self.engine.run_chat_completion(
                 messages=messages, tools=TOOLS_SCHEMA, tool_choice="auto", temperature=0,
             )
@@ -181,8 +181,21 @@ class SdmChatService:
 
     # ── 내부 ──
 
-    def _build_messages(self, session: SessionState, message: str) -> list[dict[str, Any]]:
-        messages = [{"role": "system", "content": self._build_dynamic_system_prompt(session)}]
+    @staticmethod
+    def _build_couple_system_prompt(couple_context: CoupleContext) -> str:
+        return COUPLE_CONTEXT_TEMPLATE.format(
+            groom_summary=couple_context.groom_summary or "",
+            groom_vendors=couple_context.groom_vendors or "",
+            bride_summary=couple_context.bride_summary or "",
+            bride_vendors=couple_context.bride_vendors or "",
+        )
+
+    def _build_messages(self, session: SessionState, message: str,
+                        couple_context: CoupleContext | None = None) -> list[dict[str, Any]]:
+        system_prompt = self._build_dynamic_system_prompt(session)
+        if couple_context:
+            system_prompt = self._build_couple_system_prompt(couple_context) + "\n" + system_prompt
+        messages = [{"role": "system", "content": system_prompt}]
         messages.extend(session.history[-self.settings.session_history_limit:])
         messages.append({"role": "user", "content": message})
         return messages

@@ -1,0 +1,3 @@
+ALTER TABLE COUPLE_CHAT_ROOMS
+    ADD COLUMN groom_ai_session_id VARCHAR(100) NULL,
+    ADD COLUMN bride_ai_session_id VARCHAR(100) NULL;

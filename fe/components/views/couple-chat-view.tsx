@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
-import { getChatMessages } from "@/lib/api"
+import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat } from "@/lib/api"
 
 export interface VendorShare {
   id: string
@@ -81,6 +81,9 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   ])
   const [isTyping, setIsTyping] = useState(false)
   const [aiMode, setAiMode] = useState(false)
+  const [aiSessions, setAiSessions] = useState<{ groomAiSessionId: string | null; brideAiSessionId: string | null }>({ groomAiSessionId: null, brideAiSessionId: null })
+  const [myAiSessions, setMyAiSessions] = useState<Array<{ sessionId: string; preview: string }>>([])
+  const [showSessionPanel, setShowSessionPanel] = useState(false)
   const [attachedVendors, setAttachedVendors] = useState<import("@/components/chat-input").DroppedVendor[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const stompClientRef = useRef<Client | null>(null)
@@ -231,6 +234,27 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     }
   }, [coupleId, userId])
 
+  // AI 모드 켜질 때 세션 정보 로드
+  useEffect(() => {
+    if (!aiMode) return
+    getCoupleAiSessions()
+      .then((res) => setAiSessions(res.data))
+      .catch(() => {})
+    getAiChatSessions()
+      .then((res) => {
+        const grouped = new Map<string, string>()
+        for (const item of res.data) {
+          if (!grouped.has(item.sessionId)) {
+            grouped.set(item.sessionId, item.content)
+          }
+        }
+        setMyAiSessions(
+          Array.from(grouped.entries()).map(([sessionId, preview]) => ({ sessionId, preview }))
+        )
+      })
+      .catch(() => {})
+  }, [aiMode])
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -239,25 +263,47 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     scrollToBottom()
   }, [messages, isTyping])
 
-  const triggerAiResponse = (content: string, vendors: typeof attachedVendors = []) => {
+  const triggerAiResponse = async (content: string, vendors: typeof attachedVendors = []) => {
     setIsTyping(true)
-    setTimeout(() => {
-      setIsTyping(false)
-      let responseContent: string
+    try {
+      let messageToSend = content
       if (vendors.length >= 2) {
-        // 업체 비교 응답 생성
-        responseContent = generateComparisonResponse(vendors, content)
-      } else {
-        responseContent = getCoupleChatResponse(content, currentUser, groomName, brideName)
+        // 업체 비교 요청 시 업체 정보를 메시지에 포함
+        const vendorNames = vendors.map(v => v.name).join(", ")
+        messageToSend = `${content} (업체: ${vendorNames})`
       }
+      const res = await sendCoupleAiChat({ message: messageToSend })
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: responseContent,
+        content: res.data.answer,
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, aiResponse])
-    }, 1500)
+
+      // AI 응답을 WebSocket으로 상대방에게도 전달
+      if (stompClientRef.current?.connected && coupleId && userId) {
+        stompClientRef.current.publish({
+          destination: "/app/chat.send",
+          body: JSON.stringify({
+            senderId: userId,
+            coupleId: coupleId,
+            content: `🤖 **AI 플래너 응답**\n\n${res.data.answer}`,
+            messageType: "text",
+          }),
+        })
+      }
+    } catch {
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "AI 응답을 가져오는 데 실패했습니다. 잠시 후 다시 시도해주세요.",
+        createdAt: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, errorResponse])
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   const generateComparisonResponse = (vendors: typeof attachedVendors, userMsg: string) => {
@@ -415,9 +461,81 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
       {/* AI 모드 배너 */}
       {aiMode && (
-        <div className="flex items-center gap-2 border-b border-primary/20 bg-primary/5 px-6 py-2 text-xs text-primary">
-          <Bot className="size-3.5" />
-          AI 동행 모드 — 모든 메시지에 AI 플래너가 함께 응답합니다
+        <div className="border-b border-primary/20 bg-primary/5">
+          <div className="flex items-center justify-between px-6 py-2">
+            <div className="flex items-center gap-2 text-xs text-primary">
+              <Bot className="size-3.5" />
+              AI 동행 모드 — 모든 메시지에 AI 플래너가 함께 응답합니다
+            </div>
+            <button
+              onClick={() => setShowSessionPanel((prev) => !prev)}
+              className="rounded-md px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              {showSessionPanel ? "접기" : "AI 컨텍스트 세션 선택"}
+            </button>
+          </div>
+          {showSessionPanel && (
+            <div className="border-t border-primary/10 px-6 py-3">
+              {/* 현재 선택 상태 */}
+              <div className="mb-2 rounded-lg bg-white/60 px-3 py-2 text-xs text-muted-foreground">
+                [AI 컨텍스트] 신랑: &quot;{aiSessions.groomAiSessionId
+                  ? (myAiSessions.find((s) => s.sessionId === aiSessions.groomAiSessionId)?.preview?.slice(0, 20) + "..." || aiSessions.groomAiSessionId.slice(0, 8))
+                  : "미선택"}&quot; | 신부: &quot;{aiSessions.brideAiSessionId
+                  ? (myAiSessions.find((s) => s.sessionId === aiSessions.brideAiSessionId)?.preview?.slice(0, 20) + "..." || aiSessions.brideAiSessionId.slice(0, 8))
+                  : "미선택"}&quot;
+              </div>
+              {/* 세션 목록 */}
+              <div className="max-h-32 space-y-1 overflow-y-auto">
+                {myAiSessions.length === 0 && (
+                  <p className="py-2 text-center text-xs text-muted-foreground">개인 AI 채팅 세션이 없습니다</p>
+                )}
+                {myAiSessions.map((session) => {
+                  const isSelected =
+                    (currentUser === "groom" && aiSessions.groomAiSessionId === session.sessionId) ||
+                    (currentUser === "bride" && aiSessions.brideAiSessionId === session.sessionId)
+                  return (
+                    <button
+                      key={session.sessionId}
+                      onClick={async () => {
+                        try {
+                          await selectCoupleAiSession(session.sessionId)
+                          setAiSessions((prev) =>
+                            currentUser === "groom"
+                              ? { ...prev, groomAiSessionId: session.sessionId }
+                              : { ...prev, brideAiSessionId: session.sessionId }
+                          )
+                        } catch { /* ignore */ }
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      <span className="flex-1 truncate">{session.preview}</span>
+                      {isSelected && <span className="text-primary text-[10px]">선택됨</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* 선택 해제 버튼 */}
+              <button
+                onClick={async () => {
+                  try {
+                    await clearCoupleAiSession()
+                    setAiSessions((prev) =>
+                      currentUser === "groom"
+                        ? { ...prev, groomAiSessionId: null }
+                        : { ...prev, brideAiSessionId: null }
+                    )
+                  } catch { /* ignore */ }
+                }}
+                className="mt-2 w-full rounded-lg border border-border py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+              >
+                선택 해제
+              </button>
+            </div>
+          )}
         </div>
       )}
 
