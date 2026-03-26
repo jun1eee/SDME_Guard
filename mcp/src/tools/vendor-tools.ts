@@ -5,7 +5,7 @@ import { ApiClient } from "../api-client.js"
 export function registerVendorTools(server: McpServer, api: ApiClient, userId?: number) {
   server.tool(
     "search_vendors",
-    "웨딩 업체를 검색합니다. 업체 이름이나 키워드로 검색합니다. 업체를 찾을 때 반드시 이 도구를 먼저 사용하세요. 검색 결과가 없으면 카테고리 없이 키워드만으로 다시 시도하세요. 공유 목록이나 찜 목록에서 찾지 마세요.",
+    "웨딩 업체를 이름 또는 키워드로 검색합니다. 업체를 찾을 때 반드시 이 도구를 사용하세요. 절대 '검색 기능이 없다'고 말하지 마세요 - 이 도구가 검색 기능입니다. 결과가 없으면 키워드를 더 짧게 줄여서(2~3글자) 다시 시도하세요. 예: '겐그레아' 검색 실패 → '겐그' 또는 '그레아'로 재시도.",
     {
       category: z.enum(["studio", "dress", "makeup", "hall"]).optional().describe("카테고리 (studio, dress, makeup, hall)"),
       keyword: z.string().optional().describe("검색 키워드"),
@@ -22,7 +22,7 @@ export function registerVendorTools(server: McpServer, api: ApiClient, userId?: 
         const data = await api.get(`/vendors?${query}`)
         const vendors = data.items ?? data.vendors ?? data.content ?? data
         if (!vendors || (Array.isArray(vendors) && vendors.length === 0)) {
-          return { content: [{ type: "text", text: "검색 결과가 없습니다." }] }
+          return { content: [{ type: "text", text: `'${params.keyword ?? params.category ?? ""}' 검색 결과가 없습니다. 키워드를 더 짧게 줄여서(앞 2~3글자) 다시 search_vendors를 호출해보세요.` }] }
         }
 
         const list = (Array.isArray(vendors) ? vendors : []).map((v: any) =>
