@@ -419,7 +419,7 @@ class ToolRegistry:
             if style_tags:
                 features.append(style_tags[0])
             reason = ", ".join(features[:3]) if features else ""
-            lines.append(f"{i+1}. **{h.name}** — {reason}" if reason else f"{i+1}. **{h.name}**")
+            lines.append(f"{i+1}) **{h.name}** — {reason}" if reason else f"{i+1}) **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
         return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
@@ -486,7 +486,7 @@ class ToolRegistry:
             rating = r.get("rating", "")
             rating_str = f"평점 {rating}" if rating else ""
             parts = [p for p in [dist, rating_str] if p]
-            lines.append(f"{i+1}. **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}. **{r['name']}**")
+            lines.append(f"{i+1}) **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}) **{r['name']}**")
         text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
         return ToolResult(result_type="direct", data=text,
                           vendors=[r["name"] for r in records])
@@ -777,7 +777,7 @@ class ToolRegistry:
         timeline_lines = []
         step = 1
         for item in schedule:
-            timeline_lines.append(f"{step}. **{item['time']}** {item['activity']}")
+            timeline_lines.append(f"{step}) **{item['time']}** {item['activity']}")
             step += 1
         timeline_text = (
             f"**{start_location or '출발지'}**에서 {transport_label}로 {visit_label} 투어:\n\n"
@@ -1119,9 +1119,9 @@ class ToolRegistry:
                 if price and price > 0:
                     features.append(f"{price // 10000}만원")
                 reason = ", ".join(features[:3])
-                lines.append(f"{i+1}. **{name}** — {reason}" if reason else f"{i+1}. **{name}**")
+                lines.append(f"{i+1}) **{name}** — {reason}" if reason else f"{i+1}) **{name}**")
             else:
-                lines.append(f"{i+1}. **{name}**")
+                lines.append(f"{i+1}) **{name}**")
         text = "\n".join(lines)
         if cat_label:
             text += f"\n\n{cat_label} 추천 결과입니다. 궁금한 곳이 있으면 말씀해주세요!"
