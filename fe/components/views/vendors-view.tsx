@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import {
   ArrowLeft, Star, Heart, Share2, MapPin, Clock, Phone,
   Navigation, Car, Building2, Flag, ChevronDown, ChevronUp,
-  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard,
+  MessageCircle, Copy, Check, Search, Send, X, Sparkles, Lock, CalendarCheck, CreditCard, Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -1464,27 +1464,37 @@ export function VendorDetailView({
 
               {!fittingResult ? (
                 <div className="space-y-3">
-                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 hover:bg-muted">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) { setFittingImage(file); setFittingError(null) }
-                      }}
-                    />
-                    {fittingImage ? (
-                      <span className="text-sm text-foreground">{fittingImage.name}</span>
-                    ) : (
-                      <>
-                        <span className="text-2xl">📷</span>
-                        <span className="text-sm text-muted-foreground">전신 사진 선택</span>
-                      </>
-                    )}
-                  </label>
-                  {fittingError && (
-                    <p className="text-xs text-red-500">{fittingError}</p>
+                  {fittingLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-muted py-12">
+                      <Loader2 className="size-8 animate-spin text-primary" />
+                      <p className="text-sm font-medium text-foreground">AI가 드레스를 입혀드리는 중...</p>
+                      <p className="text-xs text-muted-foreground">30~60초 정도 소요됩니다</p>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-8 hover:bg-muted">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) { setFittingImage(file); setFittingError(null) }
+                          }}
+                        />
+                        {fittingImage ? (
+                          <span className="text-sm text-foreground">{fittingImage.name}</span>
+                        ) : (
+                          <>
+                            <span className="text-2xl">📷</span>
+                            <span className="text-sm text-muted-foreground">전신 사진 선택</span>
+                          </>
+                        )}
+                      </label>
+                      {fittingError && (
+                        <p className="text-xs text-red-500">{fittingError}</p>
+                      )}
+                    </>
                   )}
                   <Button
                     className="w-full"
@@ -1519,7 +1529,7 @@ export function VendorDetailView({
                       }
                     }}
                   >
-                    {fittingLoading ? "AI 처리 중..." : "피팅 시작"}
+                    {fittingLoading ? <><Loader2 className="mr-2 size-4 animate-spin" />AI 처리 중...</> : "피팅 시작"}
                   </Button>
                 </div>
               ) : (
