@@ -119,6 +119,21 @@ class SdmGraphRagEngine:
             logging.getLogger(__name__).warning("취향 조회 실패: %s", e)
             return None
 
+    def get_couple_user_ids(self, couple_id: int) -> tuple[int | None, int | None]:
+        """COUPLE 테이블에서 groom_id, bride_id 조회"""
+        if not self.mysql_conn:
+            return None, None
+        try:
+            cur = self.mysql_conn.cursor(dictionary=True)
+            cur.execute("SELECT groom_id, bride_id FROM COUPLE WHERE id = %s", (couple_id,))
+            row = cur.fetchone()
+            cur.close()
+            if row:
+                return row.get("groom_id"), row.get("bride_id")
+            return None, None
+        except Exception:
+            return None, None
+
     def get_user_likes(self, couple_id: int) -> list[dict[str, Any]]:
         fallback = [{"name": "더미업체", "category": "스튜디오"}]
         if not self.mysql_conn:

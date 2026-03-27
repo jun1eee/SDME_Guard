@@ -717,22 +717,44 @@ class ToolRegistry:
         }
         parts = []
         if info_type in ("preference", "all"):
-            pref = self.engine.get_user_preference(user_id) if user_id else None
-            if pref:
+            my_pref = self.engine.get_user_preference(user_id) if user_id else None
+            # 파트너 취향도 조회
+            partner_pref = None
+            if couple_id:
+                groom_id, bride_id = self.engine.get_couple_user_ids(couple_id)
+                partner_id = bride_id if user_id == groom_id else groom_id if user_id == bride_id else None
+                if partner_id:
+                    partner_pref = self.engine.get_user_preference(partner_id)
+
+            if my_pref:
                 lines = []
-                for k, v in pref.items():
+                for k, v in my_pref.items():
                     if k not in _PREF_LABELS or not v:
                         continue
-                    # JSON 문자열 필드 파싱
                     if isinstance(v, str) and v.startswith("["):
                         try:
                             v = ", ".join(json.loads(v))
                         except (json.JSONDecodeError, TypeError):
                             pass
                     lines.append(f"- {_PREF_LABELS[k]}: {v}")
-                parts.append("취향 정보:\n" + "\n".join(lines))
+                parts.append("내 취향 정보:\n" + "\n".join(lines))
             else:
-                parts.append("저장된 취향 정보가 없습니다.")
+                parts.append("내 취향: 저장된 정보가 없습니다.")
+
+            if partner_pref:
+                lines = []
+                for k, v in partner_pref.items():
+                    if k not in _PREF_LABELS or not v:
+                        continue
+                    if isinstance(v, str) and v.startswith("["):
+                        try:
+                            v = ", ".join(json.loads(v))
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    lines.append(f"- {_PREF_LABELS[k]}: {v}")
+                parts.append("상대방 취향 정보:\n" + "\n".join(lines))
+            else:
+                parts.append("상대방 취향: 저장된 정보가 없습니다.")
         if info_type in ("likes", "all"):
             likes = self.engine.get_user_likes(couple_id)
             if likes:
