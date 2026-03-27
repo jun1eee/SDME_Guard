@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
 import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat, saveCoupleChatMessage } from "@/lib/api"
+import { RecommendationCarousel } from "@/components/recommendation-carousel"
 
 export interface VendorShare {
   id: string
@@ -35,6 +36,8 @@ interface Message {
   sender?: string
   vendorShare?: VendorShare
   vendorShares?: VendorShare[]
+  recommendations?: import("@/lib/api").AiRecommendation[]
+  suggestions?: string[]
   comment?: string
   createdAt?: string
 }
@@ -347,6 +350,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: res.data.answer,
+        recommendations: res.data.recommendations || [],
+        suggestions: res.data.suggestions || [],
         createdAt: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, aiResponse])
@@ -731,12 +736,14 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                       createdAt={message.createdAt}
                       vendorShare={message.vendorShare}
                       vendorShares={message.vendorShares}
+                      recommendations={message.recommendations}
                       comment={message.comment}
                       onAddToVote={onAddToVote}
                       onFavoriteVendor={onFavoriteVendor}
                       onUnfavoriteVendor={onUnfavoriteVendor}
                       favoriteVendorIds={favoriteVendorIds}
                       onOpenVendor={(vendorId) => onOpenTab?.(`vendor:${vendorId}`)}
+                      onCardClick={(rec) => { if (rec.id) onOpenTab?.(`vendor:${rec.id}`) }}
                       isMine={!!message.vendorShare && message.role === currentUser}
                       onUnshare={(vendorId) => setUnshareTarget(vendorId)}
                     />
@@ -1026,12 +1033,14 @@ function CoupleChatMessage({
   createdAt,
   vendorShare,
   vendorShares,
+  recommendations,
   comment,
   onAddToVote,
   onFavoriteVendor,
   onUnfavoriteVendor,
   favoriteVendorIds = [],
   onOpenVendor,
+  onCardClick,
   isMine = false,
   onUnshare,
 }: {
@@ -1042,12 +1051,14 @@ function CoupleChatMessage({
   createdAt?: string
   vendorShare?: VendorShare
   vendorShares?: VendorShare[]
+  recommendations?: import("@/lib/api").AiRecommendation[]
   comment?: string
   onAddToVote?: (vendor: VendorShare) => void
   onFavoriteVendor?: (vendor: VendorShare) => void
   onUnfavoriteVendor?: (vendorId: string) => void
   favoriteVendorIds?: string[]
   onOpenVendor?: (vendorId: string) => void
+  onCardClick?: (rec: import("@/lib/api").AiRecommendation) => void
   isMine?: boolean
   onUnshare?: (vendorId: string) => void
 }) {
@@ -1138,6 +1149,9 @@ function CoupleChatMessage({
             >
               {content}
             </ReactMarkdown>
+            {recommendations && recommendations.length > 0 && (
+              <RecommendationCarousel recommendations={recommendations} onCardClick={onCardClick} />
+            )}
           </div>
         ) : (
           <div className={isGroom ? "rounded-2xl bg-blue-500 px-4 py-3 text-white" : "rounded-2xl bg-primary px-4 py-3 text-white"}>
