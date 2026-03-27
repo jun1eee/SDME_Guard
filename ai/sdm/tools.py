@@ -438,6 +438,8 @@ class ToolRegistry:
         unmatched = self._detect_unmatched_hall_terms(query, criteria)
         if unmatched:
             text = f"참고: '{', '.join(unmatched)}' 조건은 데이터에서 지원되지 않아 반영되지 않았습니다.\n\n" + text
+        if len(halls) < count:
+            text = f"참고: 요청하신 {count}곳 중 {len(halls)}곳만 찾았습니다.\n\n" + text
         return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
 
@@ -530,6 +532,8 @@ class ToolRegistry:
                 parts.append(f"{price // 10000}만원")
             lines.append(f"{i+1}) **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}) **{r['name']}**")
         text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
+        if len(records) < count:
+            text = f"참고: 요청하신 {count}곳 중 {len(records)}곳만 찾았습니다.\n\n" + text
         return ToolResult(result_type="direct", data=text,
                           vendors=[r["name"] for r in records])
 
