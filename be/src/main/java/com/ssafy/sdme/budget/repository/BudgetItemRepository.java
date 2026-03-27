@@ -8,4 +8,5 @@ import java.util.List;
 public interface BudgetItemRepository extends JpaRepository<BudgetItem, Long> {
     List<BudgetItem> findByBudgetCategoryIdOrderByCreatedAtDesc(Long budgetCategoryId);
     List<BudgetItem> findByBudgetCategoryIdInOrderByCreatedAtDesc(List<Long> budgetCategoryIds);
+    List<BudgetItem> findByBudgetCategoryIdInAndVendorId(List<Long> budgetCategoryIds, Long vendorId);
 }

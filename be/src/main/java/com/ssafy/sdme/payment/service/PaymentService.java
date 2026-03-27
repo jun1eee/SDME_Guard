@@ -92,15 +92,22 @@ public class PaymentService {
 
             log.info("[Payment] 결제 성공 - orderId: {}, amount: {}, paymentKey: {}", orderId, request.getAmount(), paymentKey);
 
-            // 계약금 결제 시 예산 항목에 실제 결제 총액(계약금 * 10)으로 추가
+            // 계약금 결제 → 예산 항목 미확정으로 추가 / 잔금 결제 → 기존 항목 확정 처리
             if (type == Payment.PaymentType.DEPOSIT) {
                 try {
                     String budgetCategory = mapBudgetCategory(vendor.getCategory());
                     int totalAmount = request.getAmount() * 10; // 계약금 10% → 총액 역산
-                    budgetService.addItemPaid(userId, new BudgetItemRequest(budgetCategory, vendor.getName(), vendor.getId(), totalAmount));
-                    log.info("[Payment] 예산 항목 자동 추가 - vendor: {}, amount: {}", vendor.getName(), totalAmount);
+                    budgetService.addItem(userId, new BudgetItemRequest(budgetCategory, vendor.getName(), vendor.getId(), totalAmount));
+                    log.info("[Payment] 예산 항목 추가 (미확정) - vendor: {}, amount: {}", vendor.getName(), totalAmount);
                 } catch (Exception ex) {
-                    log.warn("[Payment] 예산 항목 자동 추가 실패 - {}", ex.getMessage());
+                    log.warn("[Payment] 예산 항목 추가 실패 - {}", ex.getMessage());
+                }
+            } else if (type == Payment.PaymentType.BALANCE) {
+                try {
+                    budgetService.markVendorItemPaid(userId, vendor.getId());
+                    log.info("[Payment] 예산 항목 확정 처리 - vendorId: {}", vendor.getId());
+                } catch (Exception ex) {
+                    log.warn("[Payment] 예산 항목 확정 처리 실패 - {}", ex.getMessage());
                 }
             }
         } catch (Exception e) {
