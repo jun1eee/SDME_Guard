@@ -129,7 +129,16 @@ export default function ChatPage() {
 
   // 뒤로가기 시 URL 기반 뷰 복원
   useEffect(() => {
-    const handlePopState = () => {
+    // 뒤로가기로 카카오 등 외부 페이지로 이동 후 bfcache 복원 시 앞으로 이동
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.history.forward()
+      }
+    }
+    window.addEventListener("pageshow", handlePageShow)
+
+    const handlePopState = (e: PopStateEvent) => {
+      window.history.pushState(null, "", window.location.href)
       const path = window.location.pathname
       const pathMap: Record<string, ViewType> = {
         "/reservation": "reservation",
@@ -143,8 +152,11 @@ export default function ChatPage() {
       }
       setCurrentView(pathMap[path] || null)
     }
-    window.addEventListener("popstate", handlePopState)
-    return () => window.removeEventListener("popstate", handlePopState)
+    window.addEventListener("popstate", handlePopState, true)
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow)
+      window.removeEventListener("popstate", handlePopState, true)
+    }
   }, [])
 
   // 로그인 체크: 미인증이면 /login, 미가입이면 /signup으로 리다이렉트
@@ -1001,6 +1013,9 @@ export default function ChatPage() {
     clearAccessToken()
     sessionStorage.removeItem("testAccessToken")
     sessionStorage.removeItem("loggedIn")
+    localStorage.removeItem("aiSessionId")
+    localStorage.removeItem("pinnedChats")
+    localStorage.removeItem("cachedFavs")
     router.replace("/login")
   }
 

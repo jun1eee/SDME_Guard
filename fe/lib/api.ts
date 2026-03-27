@@ -457,6 +457,18 @@ export async function unshareVendor(vendorId: number) {
   return fetchApi(`/vendors/${vendorId}/share`, { method: "DELETE" })
 }
 
+export async function saveCoupleChatMessage(data: {
+  senderId: number
+  coupleId: number
+  content: string
+  messageType: string
+}) {
+  return fetchApi<{ id: number }>("/chat/couple/messages", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
 export async function getChatMessages() {
   return fetchApi<{
     id: number

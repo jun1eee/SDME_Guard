@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
-import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat } from "@/lib/api"
+import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat, saveCoupleChatMessage } from "@/lib/api"
 import { RecommendationCarousel } from "@/components/recommendation-carousel"
 
 export interface VendorShare {
@@ -103,7 +103,29 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
         }
         const CAT_LABEL: Record<string, string> = { studio: "스튜디오", dress: "드레스", makeup: "메이크업", venue: "웨딩홀" }
 
-        const loaded: Message[] = res.data.map((m) => {
+        const loaded = res.data.reduce<Message[]>((acc, m) => {
+          if (m.messageType === "ai_response") {
+            try {
+              const data = JSON.parse(m.content)
+              if ((data.vendors?.length > 0) || data.question) {
+                acc.push({
+                  id: `${m.id}-req`,
+                  role: m.senderRole as "groom" | "bride",
+                  content: data.question || "",
+                  sender: m.senderName,
+                  vendorShares: data.vendors?.length > 0 ? data.vendors : undefined,
+                  createdAt: m.createdAt,
+                })
+              }
+              acc.push({
+                id: `${m.id}-res`,
+                role: "assistant" as const,
+                content: data.answer || "",
+                createdAt: m.createdAt,
+              })
+              return acc
+            } catch { /* fall through */ }
+          }
           if (m.messageType === "vendor_share") {
             try {
               const vendorInfo = JSON.parse(m.content)
@@ -123,7 +145,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 sharedBy: m.senderRole as "groom" | "bride",
                 comment: vendorInfo.comment || undefined,
               }
-              return {
+              acc.push({
                 id: m.id.toString(),
                 role: m.senderRole as "groom" | "bride",
                 content: "",
@@ -131,26 +153,29 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 vendorShare: vs,
                 comment: vendorInfo.comment || undefined,
                 createdAt: m.createdAt,
-              }
+              })
+              return acc
             } catch { /* fall through */ }
           }
           if (m.messageType === "system") {
-            return {
+            acc.push({
               id: m.id.toString(),
-              role: "system",
+              role: "system" as const,
               content: m.content,
               sender: "시스템",
               createdAt: m.createdAt,
-            }
+            })
+            return acc
           }
-          return {
+          acc.push({
             id: m.id.toString(),
             role: m.senderRole as "groom" | "bride",
             content: m.content,
             sender: m.senderName,
             createdAt: m.createdAt,
-          }
-        })
+          })
+          return acc
+        }, [])
         if (loaded.length > 0) {
           setMessages((prev) => [prev[0], ...loaded])
         }
@@ -178,6 +203,31 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
           // 내가 보낸 메시지는 이미 로컬에 추가했으므로 무시 (일반 메시지만)
           if (data.senderId === userId && data.messageType !== "vendor_share") return
+
+          if (data.messageType === "ai_response") {
+            try {
+              const aiData = JSON.parse(data.content)
+              const newMsgs: Message[] = []
+              if ((aiData.vendors?.length > 0) || aiData.question) {
+                newMsgs.push({
+                  id: `ws-req-${data.id}`,
+                  role: data.senderRole as "groom" | "bride",
+                  content: aiData.question || "",
+                  sender: data.senderName,
+                  vendorShares: aiData.vendors?.length > 0 ? aiData.vendors : undefined,
+                  createdAt: data.createdAt,
+                })
+              }
+              newMsgs.push({
+                id: `ws-res-${data.id}`,
+                role: "assistant" as const,
+                content: aiData.answer || "",
+                createdAt: data.createdAt,
+              })
+              setMessages((prev) => [...prev, ...newMsgs])
+            } catch { /* ignore */ }
+            return
+          }
 
           if (data.messageType === "vendor_share") {
             try {
@@ -281,7 +331,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     scrollToBottom()
   }, [messages, isTyping])
 
-  const triggerAiResponse = async (content: string, vendors: typeof attachedVendors = []) => {
+  const triggerAiResponse = async (content: string, vendors: typeof attachedVendors = [], vendorShares: VendorShare[] = []) => {
     setIsTyping(true)
     try {
       let messageToSend = content
@@ -306,16 +356,22 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
       }
       setMessages((prev) => [...prev, aiResponse])
 
-      // AI 응답을 WebSocket으로 상대방에게도 전달
-      if (stompClientRef.current?.connected && coupleId && userId) {
-        stompClientRef.current.publish({
-          destination: "/app/chat.send",
-          body: JSON.stringify({
-            senderId: userId,
-            coupleId: coupleId,
-            content: `🤖 **AI 플래너 응답**\n\n${res.data.answer}`,
-            messageType: "text",
+      // AI 응답을 REST API로 DB 저장 (ai_response 타입: 질문+업체+답변 포함)
+      console.log("[AI save] coupleId:", coupleId, "userId:", userId)
+      if (coupleId && userId) {
+        const savePayload = {
+          senderId: userId,
+          coupleId: coupleId,
+          content: JSON.stringify({
+            question: content,
+            vendors: vendorShares,
+            answer: res.data.answer,
           }),
+          messageType: "ai_response",
+        }
+        saveCoupleChatMessage(savePayload).catch((e) => {
+          console.error("[AI save 실패] 재시도 중...", e)
+          setTimeout(() => saveCoupleChatMessage(savePayload).catch(console.error), 2000)
         })
       }
     } catch {
@@ -411,7 +467,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
     if (aiMode) {
       // AI 모드: AI 응답만, 상대방에게 안 보냄
-      triggerAiResponse(cleanContent || content, currentAttached)
+      triggerAiResponse(cleanContent || content, currentAttached, vendorSharesForMsg)
       setAttachedVendors([])
     } else if (isAiMention) {
       // @AI 멘션: 상대방에게도 보내고 AI 응답도
@@ -1052,9 +1108,17 @@ function CoupleChatMessage({
               ))}
             </div>
             {content && (
-              <div className={`mt-2 ${isMe ? "rounded-2xl bg-primary px-4 py-3 text-white" : "rounded-2xl bg-muted px-4 py-3"}`}>
-                <p className="text-sm whitespace-pre-line">{content}</p>
-              </div>
+              isAssistant ? (
+                <div className="mt-2 px-1 text-sm leading-relaxed text-foreground">
+                  <ReactMarkdown remarkPlugins={[[remarkGfm, { singleTilde: false }]]}>
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className={`mt-2 ${isMe ? "rounded-2xl bg-primary px-4 py-3 text-white" : "rounded-2xl bg-muted px-4 py-3"}`}>
+                  <p className="text-sm whitespace-pre-line">{content}</p>
+                </div>
+              )
             )}
           </div>
         ) : vendorShare ? (
@@ -1062,7 +1126,7 @@ function CoupleChatMessage({
         ) : isAssistant ? (
           <div className="px-1 text-sm leading-relaxed text-foreground">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
               components={{
                 p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                 strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,

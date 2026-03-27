@@ -103,15 +103,8 @@ public class AiChatService {
     public List<AiChatHistoryResponse> getRecentMessages(Long userId) {
         if (userId == null) return Collections.emptyList();
 
-        // coupleId로 조회 시도, 결과 없으면 userId로 fallback
-        Long coupleId = resolveCoupleId(userId);
-        List<AiChatMessage> messages = List.of();
-        if (coupleId != null) {
-            messages = aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId);
-        }
-        if (messages.isEmpty()) {
-            messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
-        }
+        // AI 채팅은 개인 채팅이므로 userId로만 조회 (coupleId 사용 시 상대방 채팅이 섞임)
+        List<AiChatMessage> messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
 
         return messages.stream()
                 .map(AiChatHistoryResponse::from)
@@ -173,12 +166,7 @@ public class AiChatService {
 
             AiChatResponse chatResponse = parseResponse(response.getBody(), request.getSessionId());
 
-            // 메시지 영속화
-            if (chatResponse.isSuccess() && chatResponse.getSessionId() != null) {
-                saveMessages(coupleId, userId, chatResponse.getSessionId(),
-                        request.getMessage(), chatResponse);
-            }
-
+            // 커플 AI 채팅은 개인 MY CHATS에 노출되지 않도록 저장하지 않음
             return chatResponse;
         } catch (RestClientException e) {
             log.error("[AiChat] AI 서버 연결 실패", e);
