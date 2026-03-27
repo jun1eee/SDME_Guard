@@ -14,7 +14,8 @@ public record ScheduleResponse(
     String memo,
     Schedule.ScheduleCategory category,
     Schedule.ScheduleStatus status,
-    Schedule.ScheduleSource source
+    Schedule.ScheduleSource source,
+    Long vendorId
 ) {
     public static ScheduleResponse from(Schedule schedule) {
         return new ScheduleResponse(
@@ -26,7 +27,23 @@ public record ScheduleResponse(
             schedule.getMemo(),
             schedule.getCategory(),
             schedule.getStatus(),
-            schedule.getSource()
+            schedule.getSource(),
+            null
+        );
+    }
+
+    public static ScheduleResponse from(Schedule schedule, Long vendorId) {
+        return new ScheduleResponse(
+            schedule.getId(),
+            schedule.getTitle(),
+            schedule.getDate(),
+            schedule.getTime(),
+            schedule.getLocation(),
+            schedule.getMemo(),
+            schedule.getCategory(),
+            schedule.getStatus(),
+            schedule.getSource(),
+            vendorId
         );
     }
 }

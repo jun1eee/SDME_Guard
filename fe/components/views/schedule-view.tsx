@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getAccessToken } from "@/lib/api"
+import { fetchVendorDetail } from "@/lib/api/vendor-detail"
+import { VendorDetailView } from "@/components/views/vendors-view"
 
 interface ScheduleItem {
   id: string
@@ -24,6 +26,7 @@ interface ScheduleItem {
   location: string
   category: string
   status: "진행중" | "대기중" | "완료"
+  vendorId?: string
 }
 
 interface ScheduleApiItem {
@@ -34,6 +37,7 @@ interface ScheduleApiItem {
   location: string
   category: string
   status: string
+  vendorId?: number
 }
 
 function mapApiItem(item: ScheduleApiItem): ScheduleItem {
@@ -42,9 +46,10 @@ function mapApiItem(item: ScheduleApiItem): ScheduleItem {
     title: item.title,
     date: item.date ?? "",
     time: item.time ?? "00:00",
-    location: item.location ?? "미정",
+    location: item.location ?? "",
     category: item.category ?? "STUDIO",
     status: (item.status as ScheduleItem["status"]) ?? "대기중",
+    vendorId: item.vendorId != null ? String(item.vendorId) : undefined,
   }
 }
 
@@ -122,7 +127,7 @@ function ScheduleForm({
       title,
       date,
       time: time || "00:00",
-      location: location || "미정",
+      location: location || "",
       category,
       status,
     })
@@ -196,6 +201,20 @@ export function ScheduleView() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [modalVendor, setModalVendor] = useState<any>(null)
+  const [vendorLoading, setVendorLoading] = useState(false)
+
+  const openVendorModal = async (vendorId: string) => {
+    setVendorLoading(true)
+    try {
+      const v = await fetchVendorDetail(vendorId)
+      setModalVendor(v)
+    } catch {
+      setModalVendor(null)
+    } finally {
+      setVendorLoading(false)
+    }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -236,7 +255,9 @@ export function ScheduleView() {
     return items.filter((item) => item.date === dateStr)
   }
 
+  const currentMonthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`
   const upcomingEvents = [...items]
+    .filter((item) => item.date?.startsWith(currentMonthPrefix))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const calendarDays: (number | null)[] = []
@@ -433,7 +454,7 @@ export function ScheduleView() {
         {/* Event List */}
         <div className="rounded-2xl bg-card border border-border shadow-sm">
           <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-foreground">전체 일정</h2>
+            <h2 className="text-sm font-semibold text-foreground">{month + 1}월 일정</h2>
           </div>
 
           {upcomingEvents.length === 0 ? (
@@ -509,16 +530,21 @@ export function ScheduleView() {
                               {event.status}
                             </span>
                           </div>
-                          <h3 className="font-semibold text-foreground">{event.title}</h3>
+                          <h3
+                            className={`font-semibold text-foreground ${event.vendorId ? "cursor-pointer text-primary hover:underline" : ""}`}
+                            onClick={() => event.vendorId && openVendorModal(event.vendorId)}
+                          >{event.title}</h3>
                           <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Clock className="size-3" />
-                              <span>{event.time}</span>
+                              <span>{event.time?.slice(0, 5)}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="size-3" />
-                              <span className="truncate">{event.location}</span>
-                            </div>
+                            {event.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="size-3" />
+                                <span className="truncate">{event.location}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -550,6 +576,36 @@ export function ScheduleView() {
 
         <div className="h-6" />
       </div>
+
+      {/* 업체 상세 모달 */}
+      {(modalVendor || vendorLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setModalVendor(null)} />
+          <div className="relative flex w-full max-w-2xl flex-col rounded-2xl bg-background shadow-2xl" style={{ maxHeight: "85vh" }}>
+            <div className="flex justify-between items-center px-4 pt-3 pb-1 shrink-0">
+              <div />
+              <button onClick={() => setModalVendor(null)} className="flex size-8 items-center justify-center rounded-full hover:bg-muted">
+                <X className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+            {vendorLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <p className="text-sm text-muted-foreground">불러오는 중...</p>
+              </div>
+            ) : modalVendor && (
+              <div className="flex-1 min-h-0 overflow-y-auto [&_.sticky]:hidden">
+                <VendorDetailView
+                  vendor={modalVendor}
+                  onBack={() => setModalVendor(null)}
+                  onToggleFavorite={() => {
+                    setModalVendor((p: any) => p ? { ...p, isFavorite: !p.isFavorite } : null)
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Schedule Modal */}
       {showAddForm && (

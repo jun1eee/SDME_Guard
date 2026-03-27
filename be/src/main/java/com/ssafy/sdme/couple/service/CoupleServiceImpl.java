@@ -23,6 +23,7 @@ import com.ssafy.sdme.user.repository.UserPreferenceRepository;
 import com.ssafy.sdme.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,8 @@ public class CoupleServiceImpl implements CoupleService {
     private final UserPreferenceRepository userPreferenceRepository;
     private final CoupleChatRoomRepository chatRoomRepository;
     private final CoupleChatMessageRepository chatMessageRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final com.ssafy.sdme.budget.repository.BudgetRepository budgetRepository;
 
     @Override
     public CoupleInviteResponse createInviteCode(Long userId) {
@@ -130,6 +133,36 @@ public class CoupleServiceImpl implements CoupleService {
         } catch (Exception e) {
             log.warn("[Couple] 선호도 비교 메시지 전송 실패 - {}", e.getMessage());
         }
+
+        // Budget 동기화: 양쪽 UserPreference에서 totalBudget 중 큰 값으로 설정
+        try {
+            Integer inviterBudget = userPreferenceRepository.findByUserId(inviter.getId())
+                    .map(p -> p.getTotalBudget() != null ? p.getTotalBudget() : 0).orElse(0);
+            Integer acceptorBudget = userPreferenceRepository.findByUserId(acceptor.getId())
+                    .map(p -> p.getTotalBudget() != null ? p.getTotalBudget() : 0).orElse(0);
+            int totalBudgetWon = Math.max(inviterBudget, acceptorBudget) * 10000;
+
+            com.ssafy.sdme.budget.domain.Budget budget = budgetRepository.findByCoupleId(couple.getId())
+                    .orElseGet(() -> budgetRepository.save(
+                            com.ssafy.sdme.budget.domain.Budget.builder()
+                                    .coupleId(couple.getId())
+                                    .totalBudget(0)
+                                    .build()
+                    ));
+            if (totalBudgetWon > 0) {
+                budget.updateTotal(totalBudgetWon);
+            }
+            log.info("[Couple] Budget 동기화 - coupleId: {}, totalBudget: {}", couple.getId(), totalBudgetWon);
+        } catch (Exception e) {
+            log.warn("[Couple] Budget 동기화 실패 - {}", e.getMessage());
+        }
+
+        // 양쪽에 커플 매칭 완료 WebSocket push
+        java.util.Map<String, Object> matchPayload = new java.util.HashMap<>();
+        matchPayload.put("type", "MATCHED");
+        matchPayload.put("coupleId", couple.getId());
+        messagingTemplate.convertAndSend("/topic/couple/" + inviter.getId(), (Object) matchPayload);
+        messagingTemplate.convertAndSend("/topic/couple/" + acceptor.getId(), (Object) matchPayload);
 
         return CoupleConnectResponse.of(couple.getId(), inviter.getNickname());
     }
@@ -225,6 +258,14 @@ public class CoupleServiceImpl implements CoupleService {
         }
 
         log.info("[Couple] 커플 매칭 해제 - userId: {}, coupleId: {}", userId, couple.getId());
+
+        // 양쪽에 커플 해제 WebSocket push
+        java.util.Map<String, Object> disconnectPayload = new java.util.HashMap<>();
+        disconnectPayload.put("type", "DISCONNECTED");
+        messagingTemplate.convertAndSend("/topic/couple/" + userId, (Object) disconnectPayload);
+        if (partner != null) {
+            messagingTemplate.convertAndSend("/topic/couple/" + partner.getId(), (Object) disconnectPayload);
+        }
     }
 
     private void sendPreferenceDiffMessage(Couple couple, User inviter, User acceptor) {

@@ -5,18 +5,40 @@ import { ApiClient } from "../api-client.js"
 export function registerScheduleTools(server: McpServer, api: ApiClient) {
   server.tool(
     "get_schedules",
-    "커플의 전체 일정을 조회합니다",
+    "커플의 전체 일정을 조회합니다. 결혼식 날짜, D-day 정보도 포함됩니다.",
     {},
     async () => {
       try {
-        const data = await api.get("/schedules")
-        if (!data || (Array.isArray(data) && data.length === 0)) {
-          return { content: [{ type: "text", text: "등록된 일정이 없습니다." }] }
+        const [data, pref] = await Promise.allSettled([
+          api.get("/schedules"),
+          api.get("/users/preference"),
+        ])
+
+        const schedules = data.status === "fulfilled" ? data.value : []
+        const weddingDate = pref.status === "fulfilled" ? pref.value?.weddingDate : null
+
+        let text = ""
+
+        // 결혼식 날짜 & D-day
+        if (weddingDate) {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const wedding = new Date(weddingDate + "T00:00:00")
+          const dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+          const dDayText = dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-Day" : `D+${Math.abs(dDay)}`
+          text += `💍 결혼식 날짜: ${weddingDate} (${dDayText})\n\n`
         }
-        const list = data.map((s: any) =>
-          `- [ID:${s.id}] ${s.title} | ${s.date ?? "미정"}${s.time ? " " + s.time : ""} | ${s.category ?? ""} | ${s.status ?? ""}`
-        ).join("\n")
-        return { content: [{ type: "text", text: `📅 일정 목록:\n${list}` }] }
+
+        if (!schedules || (Array.isArray(schedules) && schedules.length === 0)) {
+          text += "등록된 일정이 없습니다."
+        } else {
+          const list = schedules.map((s: any) =>
+            `- [ID:${s.id}] ${s.title} | ${s.date ?? "미정"}${s.time ? " " + s.time : ""}${s.location ? " | " + s.location : ""} | ${s.category ?? ""} | ${s.status ?? ""}`
+          ).join("\n")
+          text += `📅 일정 목록:\n${list}`
+        }
+
+        return { content: [{ type: "text", text }] }
       } catch (e: any) {
         return { content: [{ type: "text", text: `일정 조회 실패: ${e.message}` }] }
       }
@@ -30,7 +52,9 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
       title: z.string().describe("일정 제목 (예: 셀린아뜰리에 드레스 피팅)"),
       date: z.string().describe("날짜 (YYYY-MM-DD 형식)"),
       time: z.string().optional().describe("시간 (HH:mm 형식, 선택)"),
-      category: z.enum(["STUDIO", "DRESS", "MAKEUP", "HALL"]).describe("카테고리"),
+      location: z.string().optional().describe("장소 (선택)"),
+      category: z.enum(["STUDIO", "DRESS", "MAKEUP", "HALL", "ETC"]).describe("카테고리. 스튜디오→STUDIO, 드레스→DRESS, 메이크업→MAKEUP, 웨딩홀→HALL, 그 외→ETC"),
+      memo: z.string().optional().describe("메모 (선택)"),
     },
     async (params) => {
       try {
@@ -38,12 +62,14 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
           title: params.title,
           date: params.date,
           time: params.time ?? null,
+          location: params.location ?? null,
           category: params.category,
+          memo: params.memo ?? null,
         })
         return {
           content: [{
             type: "text",
-            text: `✅ 일정이 등록되었습니다!\n- 제목: ${params.title}\n- 날짜: ${params.date}${params.time ? " " + params.time : ""}\n- 카테고리: ${params.category}`,
+            text: `✅ 일정이 등록되었습니다!\n- 제목: ${params.title}\n- 날짜: ${params.date}${params.time ? " " + params.time : ""}${params.location ? "\n- 장소: " + params.location : ""}\n- 카테고리: ${params.category}`,
           }],
         }
       } catch (e: any) {
@@ -60,14 +86,18 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
       title: z.string().optional().describe("변경할 제목"),
       date: z.string().optional().describe("변경할 날짜 (YYYY-MM-DD)"),
       time: z.string().optional().describe("변경할 시간 (HH:mm)"),
+      location: z.string().optional().describe("변경할 장소"),
+      category: z.enum(["STUDIO", "DRESS", "MAKEUP", "HALL", "ETC"]).optional().describe("변경할 카테고리"),
       memo: z.string().optional().describe("변경할 메모"),
     },
-    async ({ scheduleId, title, date, time, memo }) => {
+    async ({ scheduleId, title, date, time, location, category, memo }) => {
       try {
         const body: any = {}
         if (title) body.title = title
         if (date) body.date = date
         if (time) body.time = time
+        if (location) body.location = location
+        if (category) body.category = category
         if (memo) body.memo = memo
         await api.patch(`/schedules/${scheduleId}`, body)
         return {
