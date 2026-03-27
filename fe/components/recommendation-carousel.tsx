@@ -146,11 +146,8 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
                   <div
                     onClick={() => {
                       if (dragRef.current.moved) return
-                      if (!isActive) {
-                        goTo(idx)
-                      } else {
-                        onCardClick?.(rec)
-                      }
+                      if (!isActive) goTo(idx)
+                      onCardClick?.(rec)
                     }}
                     className={cn(
                       "cursor-pointer rounded-xl border bg-card shadow-sm transition-all duration-200 overflow-hidden",
