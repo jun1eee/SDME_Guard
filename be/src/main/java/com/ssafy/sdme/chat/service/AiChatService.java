@@ -285,10 +285,18 @@ public class AiChatService {
         if (request.getSessionId() != null) {
             body.put("session_id", request.getSessionId());
         }
+        Map<String, Object> context = new HashMap<>();
         if (userId != null) {
-            body.put("context", Map.of("user_id", userId));
+            context.put("user_id", userId);
+            Long coupleId = resolveCoupleId(userId);
+            if (coupleId != null) {
+                context.put("couple_id", coupleId);
+            }
         } else if (request.getUserId() != null) {
-            body.put("context", Map.of("user_id", request.getUserId()));
+            context.put("user_id", request.getUserId());
+        }
+        if (!context.isEmpty()) {
+            body.put("context", context);
         }
         return body;
     }
