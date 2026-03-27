@@ -319,11 +319,13 @@ export function MyPageView({
     name,
     inputRef,
     onPhotoChange,
+    editing: isEditing,
   }: {
     photoData: string
     name: string
-    inputRef: React.RefObject<HTMLInputElement | null>
-    onPhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    inputRef?: React.RefObject<HTMLInputElement | null>
+    onPhotoChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+    editing?: boolean
   }) => (
     <div className="relative">
       {photoData ? (
@@ -340,23 +342,26 @@ export function MyPageView({
           {name.charAt(0)}
         </div>
       )}
-      {/* 히든 파일 인풋 */}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={onPhotoChange}
-      />
-      {/* 카메라 버튼 */}
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-opacity hover:bg-primary/90"
-        title="사진 변경"
-      >
-        <Camera className="size-3.5" />
-      </button>
+      {/* 카메라 버튼 - 수정 모드 + 본인 프로필에만 표시 */}
+      {isEditing && inputRef && onPhotoChange && (
+        <>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPhotoChange}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="absolute bottom-0.5 right-0.5 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-opacity hover:bg-primary/90"
+            title="사진 변경"
+          >
+            <Camera className="size-3.5" />
+          </button>
+        </>
+      )}
     </div>
   )
 
@@ -458,7 +463,11 @@ export function MyPageView({
             {editing ? (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setTempGroomNickname(groomNickname ?? "")
+                    setTempBrideNickname(brideNickname ?? "")
+                    setEditing(false)
+                  }}
                   className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
                 >
                   취소
@@ -498,6 +507,7 @@ export function MyPageView({
                 name={userRole === "groom" ? tempGroomName : tempBrideName}
                 inputRef={userRole === "groom" ? groomInputRef : brideInputRef}
                 onPhotoChange={(e) => handlePhotoChange(e, userRole === "groom" ? setGroomPhotoData : setBridePhotoData)}
+                editing={editing}
               />
               <div className="text-center">
                 <p className="font-medium text-foreground">{userRole === "groom" ? tempGroomName : tempBrideName}</p>
@@ -545,8 +555,6 @@ export function MyPageView({
                   <Avatar
                     photoData={userRole === "groom" ? bridePhotoData : groomPhotoData}
                     name={userRole === "groom" ? tempBrideName : tempGroomName}
-                    inputRef={userRole === "groom" ? brideInputRef : groomInputRef}
-                    onPhotoChange={(e) => handlePhotoChange(e, userRole === "groom" ? setBridePhotoData : setGroomPhotoData)}
                   />
                   <div className="text-center">
                     <p className="font-medium text-foreground">{userRole === "groom" ? tempBrideName : tempGroomName}</p>

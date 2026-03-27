@@ -19,6 +19,9 @@ export default function LoginPage() {
     setTestError("")
     try {
       clearAccessToken()
+      localStorage.removeItem("aiSessionId")
+      localStorage.removeItem("pinnedChats")
+      localStorage.removeItem("cachedFavs")
       const res = await testLogin(id)
       setAccessToken(res.data.accessToken)
       // 새로고침해도 유지되도록 sessionStorage에 저장
@@ -33,6 +36,14 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
+    // bfcache 복원 시에도 로그인 상태 확인 (뒤로가기로 /login 복원 시)
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && sessionStorage.getItem("loggedIn")) {
+        router.replace("/main")
+      }
+    }
+    window.addEventListener("pageshow", handlePageShow)
+
     const check = async () => {
       // 이미 accessToken이 있거나 refreshToken으로 재발급 가능하면
       // 브라우저 세션이 살아있으면(새로고침 등) 자동 로그인 시도
@@ -55,6 +66,7 @@ export default function LoginPage() {
       setChecking(false)
     }
     check()
+    return () => window.removeEventListener("pageshow", handlePageShow)
   }, [router])
 
   if (checking) {
@@ -86,6 +98,7 @@ export default function LoginPage() {
           type="button"
           onClick={() => {
             const redirectUri = `${window.location.origin}/login/callback`
+            sessionStorage.setItem("historyLengthBeforeKakao", String(window.history.length))
             window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=d143e4e938c56d6325443d24bbebb2ac&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&prompt=login`
           }}
           className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#FEE500] py-3 text-sm font-medium text-[#191919] transition-all hover:bg-[#FEE500]/90"
