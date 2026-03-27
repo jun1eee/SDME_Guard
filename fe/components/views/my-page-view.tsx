@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect, useCallback } from "react"
-import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken, uploadProfileImage, updateBudgetTotal } from "@/lib/api"
+import { getPreference, getCouplePreferences, updateTastes, updateSharedInfo, disconnectCouple, withdraw, editUser, getCards, deleteCard, getTossClientKey, registerCard, getMcpToken, refreshMcpToken, uploadProfileImage, deleteProfileImage, updateBudgetTotal } from "@/lib/api"
 import {
   Heart,
   Palette,
@@ -111,32 +111,60 @@ export function MyPageView({
   const [bridePhotoData, setBridePhotoData] = useState<string>(bridePhoto ?? "")
   const groomInputRef = useRef<HTMLInputElement>(null)
   const brideInputRef = useRef<HTMLInputElement>(null)
+  // 수정 전 원본 사진/닉네임 (취소 시 복원용)
+  const [originalGroomPhoto, setOriginalGroomPhoto] = useState<string>(groomPhoto ?? "")
+  const [originalBridePhoto, setOriginalBridePhoto] = useState<string>(bridePhoto ?? "")
+  const [originalGroomNickname, setOriginalGroomNickname] = useState<string>(groomNickname ?? "")
+  const [originalBrideNickname, setOriginalBrideNickname] = useState<string>(brideNickname ?? "")
+  // 저장 시 업로드할 파일 (파일 선택 즉시 업로드하지 않음)
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null)
 
-  const handlePhotoChange = async (
+  // 사진 props 변경 시 동기화 (커플 매칭 후 즉시 반영, 수정 중이 아닐 때만)
+  useEffect(() => {
+    if (!editing) {
+      setGroomPhotoData(groomPhoto ?? "")
+      setBridePhotoData(bridePhoto ?? "")
+    }
+  }, [groomPhoto, bridePhoto]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePhotoChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (v: string) => void
   ) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // 로컬 미리보기만 표시, 실제 업로드는 저장 시 수행
+    setPendingPhotoFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setter(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handlePhotoDelete = async (setter: (v: string) => void) => {
     try {
-      const res = await uploadProfileImage(file)
-      if (res.data) {
-        setter(res.data)
-      }
+      await deleteProfileImage()
+      setter("")
+      setPendingPhotoFile(null)
     } catch {
-      // 업로드 실패 시 로컬 미리보기로 폴백
-      const reader = new FileReader()
-      reader.onload = (ev) => setter(ev.target?.result as string)
-      reader.readAsDataURL(file)
+      alert("프로필 이미지 삭제에 실패했습니다.")
     }
   }
 
   const handleSave = async () => {
     const newNickname = userRole === "groom" ? tempGroomNickname : tempBrideNickname
     try {
+      // 파일이 선택된 경우 저장 시점에 업로드
+      if (pendingPhotoFile) {
+        const res = await uploadProfileImage(pendingPhotoFile)
+        if (res.data) {
+          if (userRole === "groom") setGroomPhotoData(res.data)
+          else setBridePhotoData(res.data)
+        }
+        setPendingPhotoFile(null)
+      }
       await editUser({ nickname: newNickname })
     } catch {
-      alert("닉네임 수정에 실패했습니다.")
+      alert("저장에 실패했습니다.")
     }
     setEditing(false)
   }
@@ -319,12 +347,14 @@ export function MyPageView({
     name,
     inputRef,
     onPhotoChange,
+    onPhotoDelete,
     editing: isEditing,
   }: {
     photoData: string
     name: string
     inputRef?: React.RefObject<HTMLInputElement | null>
     onPhotoChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+    onPhotoDelete?: () => void
     editing?: boolean
   }) => (
     <div className="relative">
@@ -360,6 +390,17 @@ export function MyPageView({
           >
             <Camera className="size-3.5" />
           </button>
+          {/* X 버튼 - 이미지 있을 때만 표시 */}
+          {photoData && onPhotoDelete && (
+            <button
+              type="button"
+              onClick={onPhotoDelete}
+              className="absolute right-0.5 top-0.5 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90"
+              title="사진 삭제"
+            >
+              <X className="size-3" />
+            </button>
+          )}
         </>
       )}
     </div>
@@ -464,8 +505,11 @@ export function MyPageView({
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setTempGroomNickname(groomNickname ?? "")
-                    setTempBrideNickname(brideNickname ?? "")
+                    setTempGroomNickname(originalGroomNickname)
+                    setTempBrideNickname(originalBrideNickname)
+                    setGroomPhotoData(originalGroomPhoto)
+                    setBridePhotoData(originalBridePhoto)
+                    setPendingPhotoFile(null)
                     setEditing(false)
                   }}
                   className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
@@ -481,7 +525,13 @@ export function MyPageView({
               </div>
             ) : (
               <button
-                onClick={() => setEditing(true)}
+                onClick={() => {
+                  setOriginalGroomPhoto(groomPhotoData)
+                  setOriginalBridePhoto(bridePhotoData)
+                  setOriginalGroomNickname(tempGroomNickname)
+                  setOriginalBrideNickname(tempBrideNickname)
+                  setEditing(true)
+                }}
                 className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
               >
                 수정
@@ -507,6 +557,7 @@ export function MyPageView({
                 name={userRole === "groom" ? tempGroomName : tempBrideName}
                 inputRef={userRole === "groom" ? groomInputRef : brideInputRef}
                 onPhotoChange={(e) => handlePhotoChange(e, userRole === "groom" ? setGroomPhotoData : setBridePhotoData)}
+                onPhotoDelete={() => handlePhotoDelete(userRole === "groom" ? setGroomPhotoData : setBridePhotoData)}
                 editing={editing}
               />
               <div className="text-center">
@@ -634,12 +685,6 @@ export function MyPageView({
                             )}
                           </span>
                         ))}
-                        {isViewingMyOwn && (
-                          <button className="flex items-center gap-1 rounded-full border-2 border-dashed border-muted-foreground px-3 py-1.5 text-sm text-muted-foreground hover:border-primary hover:text-primary">
-                            <Plus className="size-3" />
-                            추가
-                          </button>
-                        )}
                         {!isViewingMyOwn && section.selected.length === 0 && (
                           <span className="text-sm text-muted-foreground">선택된 항목이 없습니다</span>
                         )}

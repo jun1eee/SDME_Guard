@@ -219,28 +219,20 @@ function CompactVoteRow({
       {/* 펼쳐진 영역 */}
       {isExpanded && (
         <div className="border-t border-border/60 bg-muted/20 px-4 py-3 space-y-3">
-          {/* 상단: 파트너 상태 + 삭제 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {item.partnerVoted ? (
-                <>
-                  <CheckCircle2 className="size-3.5 text-emerald-500" />
-                  <span>{currentUser === "groom" ? "신부" : "신랑"} 투표 완료</span>
-                  {!myVote && <Lock className="size-3 opacity-60" />}
-                </>
-              ) : (
-                <>
-                  <Clock className="size-3.5" />
-                  <span>{currentUser === "groom" ? "신부" : "신랑"} 아직 투표 안 함</span>
-                </>
-              )}
-            </div>
-            <button
-              onClick={() => setConfirmItemDelete(true)}
-              className="rounded p-1 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
+          {/* 파트너 상태 */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {item.partnerVoted ? (
+              <>
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                <span>{currentUser === "groom" ? "신부" : "신랑"} 투표 완료</span>
+                {!myVote && <Lock className="size-3 opacity-60" />}
+              </>
+            ) : (
+              <>
+                <Clock className="size-3.5" />
+                <span>{currentUser === "groom" ? "신부" : "신랑"} 아직 투표 안 함</span>
+              </>
+            )}
           </div>
 
           {/* 항목 삭제 확인 */}
@@ -532,6 +524,7 @@ export function VoteView({
   const [filter, setFilter] = useState<"전체" | "미투표" | "투표완료">("전체")
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER))
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<string | null>(null)
 
   const handleVoteSubmit = (id: string, score: VoteScore, reason: string) => {
     setMyVotes(prev => ({
@@ -668,25 +661,70 @@ export function VoteView({
               return (
                 <div key={category} className="overflow-hidden rounded-2xl bg-card border border-border shadow-sm">
                   {/* 카테고리 헤더 */}
-                  <button
-                    onClick={() => setCollapsedCategories(prev => {
-                      const next = new Set(prev)
-                      next.has(category) ? next.delete(category) : next.add(category)
-                      return next
-                    })}
-                    className="flex w-full items-center justify-between px-4 py-3 bg-muted/30 transition-colors hover:bg-muted/50"
-                  >
-                    <h3 className="text-sm font-semibold text-foreground">
-                      <span className="mr-1.5">{CATEGORY_ICON[category]}</span>
-                      {category}
-                    </h3>
-                    <div className="flex items-center gap-2">
+                  <div className="flex w-full items-center justify-between px-4 py-3 bg-muted/30">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setCollapsedCategories(prev => {
+                          const next = new Set(prev)
+                          next.has(category) ? next.delete(category) : next.add(category)
+                          return next
+                        })}
+                        className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
+                      >
+                        <h3 className="text-sm font-semibold text-foreground">
+                          <span className="mr-1.5">{CATEGORY_ICON[category]}</span>
+                          {category}
+                        </h3>
+                      </button>
+                      {/* 카테고리 항목 삭제 버튼 */}
+                      <button
+                        onClick={() => setConfirmDeleteCategory(category)}
+                        className="rounded p-1 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        title="항목 삭제"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setCollapsedCategories(prev => {
+                        const next = new Set(prev)
+                        next.has(category) ? next.delete(category) : next.add(category)
+                        return next
+                      })}
+                      className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+                    >
                       <span className="text-xs text-muted-foreground">
                         {votedCount}/{catItems.length} 투표
                       </span>
                       <ChevronDown className={`size-4 text-muted-foreground transition-transform ${collapsedCategories.has(category) ? "-rotate-90" : ""}`} />
+                    </button>
+                  </div>
+
+                  {/* 카테고리 항목 삭제 확인 */}
+                  {confirmDeleteCategory === category && (
+                    <div className="mx-3 mb-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2.5">
+                      <p className="text-sm text-foreground font-medium">
+                        {catItems.length === 1 ? "이 항목을 삭제할까요?" : `${category} 항목 ${catItems.length}개를 모두 삭제할까요?`}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmDeleteCategory(null)}
+                          className="flex-1 rounded-lg border border-border py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => {
+                            catItems.forEach(i => handleItemDelete(i.id))
+                            setConfirmDeleteCategory(null)
+                          }}
+                          className="flex-1 rounded-lg bg-destructive py-2 text-xs font-medium text-white hover:bg-destructive/90 transition-colors"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
-                  </button>
+                  )}
 
                   {/* 업체 리스트 */}
                   {!collapsedCategories.has(category) && catItems.map(item => (
