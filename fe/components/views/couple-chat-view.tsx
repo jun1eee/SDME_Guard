@@ -121,6 +121,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 id: `${m.id}-res`,
                 role: "assistant" as const,
                 content: data.answer || "",
+                recommendations: data.recommendations || [],
                 createdAt: m.createdAt,
               })
               return acc
@@ -222,6 +223,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                 id: `ws-res-${data.id}`,
                 role: "assistant" as const,
                 content: aiData.answer || "",
+                recommendations: aiData.recommendations || [],
                 createdAt: data.createdAt,
               })
               setMessages((prev) => [...prev, ...newMsgs])
@@ -366,6 +368,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
             question: content,
             vendors: vendorShares,
             answer: res.data.answer,
+            recommendations: res.data.recommendations || [],
           }),
           messageType: "ai_response",
         }
