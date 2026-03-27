@@ -25,6 +25,7 @@ class SdmChatService:
         session = self.session_store.get_or_create(request.session_id)
         message = request.message.strip()
         couple_id = self._resolve_couple_id(request)
+        user_id = request.context.user_id if request.context else None
         log_lines = [f"[input] {message}"]
 
         try:
@@ -103,7 +104,7 @@ class SdmChatService:
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
 
                 try:
-                    tool_result = self.tools.execute(tool_name=tool_name, couple_id=couple_id, **tool_args)
+                    tool_result = self.tools.execute(tool_name=tool_name, couple_id=couple_id, user_id=user_id, **tool_args)
                 except Exception as exc:
                     log_lines.append(f"[tool_error] {tool_name}: {exc}")
                     messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": f"오류: {exc}"})

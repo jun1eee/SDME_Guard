@@ -105,16 +105,18 @@ class SdmGraphRagEngine:
 
     # ── MySQL (사용자 데이터) ──
 
-    def get_user_preference(self, couple_id: int) -> dict[str, Any] | None:
+    def get_user_preference(self, user_id: int) -> dict[str, Any] | None:
         if not self.mysql_conn:
             return None
         try:
             cur = self.mysql_conn.cursor(dictionary=True)
-            cur.execute("SELECT * FROM couple_preferences WHERE couple_id = %s", (couple_id,))
+            cur.execute("SELECT * FROM USER_PREFERENCE WHERE user_id = %s", (user_id,))
             row = cur.fetchone()
             cur.close()
             return row if row else None
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("취향 조회 실패: %s", e)
             return None
 
     def get_user_likes(self, couple_id: int) -> list[dict[str, Any]]:
