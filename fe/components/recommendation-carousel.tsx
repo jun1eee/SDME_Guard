@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { ChevronLeft, ChevronRight, Star, Phone, MapPin } from "lucide-react"
 import type { AiRecommendation } from "@/lib/api"
@@ -12,24 +12,44 @@ interface RecommendationCarouselProps {
 
 export function RecommendationCarousel({ recommendations, onCardClick }: RecommendationCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef({ startX: 0, isDragging: false, moved: false })
 
   if (!recommendations || recommendations.length === 0) return null
 
   const total = recommendations.length
-  const canPrev = total > 1
-  const canNext = total > 1
+  const CARD_WIDTH = 70 // % per card slide
 
-  const prev = () => setCurrentIndex((i) => (i - 1 + total) % total)
-  const next = () => setCurrentIndex((i) => (i + 1) % total)
+  const goTo = useCallback((idx: number) => {
+    setCurrentIndex(((idx % total) + total) % total)
+  }, [total])
 
-  const categoryLabel: Record<string, string> = {
-    studio: "STUDIO",
-    dress: "DRESS",
-    makeup: "MAKEUP",
-    venue: "HALL",
+  const prev = () => goTo(currentIndex - 1)
+  const next = () => goTo(currentIndex + 1)
+
+  // ── 드래그 핸들러 ──
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragRef.current = { startX: e.clientX, isDragging: true, moved: false }
   }
 
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current.isDragging) return
+    const diff = Math.abs(e.clientX - dragRef.current.startX)
+    if (diff > 8) dragRef.current.moved = true
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current.isDragging) return
+    const diff = e.clientX - dragRef.current.startX
+    dragRef.current.isDragging = false
+    if (Math.abs(diff) > 40) {
+      diff > 0 ? prev() : next()
+    }
+  }
+
+  // ── 유틸 ──
+  const categoryLabel: Record<string, string> = {
+    studio: "STUDIO", dress: "DRESS", makeup: "MAKEUP", venue: "HALL",
+  }
   const categoryColor: Record<string, string> = {
     studio: "bg-blue-50 text-blue-600 border-blue-200",
     dress: "bg-pink-50 text-pink-600 border-pink-200",
@@ -43,20 +63,16 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
     return `${price.toLocaleString()}원`
   }
 
-  /** 주소를 구/동 수준으로 축약 (건물명/층수 제거) */
   const shortenAddress = (addr: string | null): string | null => {
     if (!addr) return null
-    // "서울특별시 강남구 도산대로38길 30 1층" → "서울 강남구 도산대로38길"
-    // "경기도 하남시 미사동로 40번길 124-10" → "경기 하남시 미사동로"
     let short = addr
-      .replace(/특별시|광역시/g, "")         // 서울특별시 → 서울
-      .replace(/\d+층/g, "")                // 층수 제거
-      .replace(/\s+지하\d?F?/gi, "")        // 지하1F 제거
-      .replace(/\(.*?\)/g, "")              // (동명) 제거
-      .replace(/\d+-\d+/g, "")              // 번지 제거 (124-10)
-      .replace(/\s+\d+$/, "")               // 끝 번호 제거
+      .replace(/특별시|광역시/g, "")
+      .replace(/\d+층/g, "")
+      .replace(/\s+지하\d?F?/gi, "")
+      .replace(/\(.*?\)/g, "")
+      .replace(/\d+-\d+/g, "")
+      .replace(/\s+\d+$/, "")
       .trim()
-    // 너무 길면 구/동까지만
     const parts = short.split(/\s+/)
     if (parts.length > 3) short = parts.slice(0, 3).join(" ")
     return short || null
@@ -64,19 +80,10 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
 
   const parseTags = (rec: AiRecommendation): string[] => {
     const src = rec.hashtags || rec.reason || ""
-    const isValidTag = (tag: string): boolean => {
-      if (/^\d+$/.test(tag)) return false
-      if (/^\d{1,3}(,\d{3})+$/.test(tag)) return false
-      if (/식대\s*\d/.test(tag)) return false
-      if (/\d+원/.test(tag)) return false
-      if (tag.length < 2 || tag.length > 15) return false
-      return true
-    }
-    return src
-      .split(/[|,]/)
-      .map((t) => t.trim())
-      .filter(isValidTag)
-      .slice(0, 5)
+    const isValid = (tag: string) =>
+      tag.length >= 2 && tag.length <= 15 &&
+      !/^\d+$/.test(tag) && !/\d+원/.test(tag) && !/식대\s*\d/.test(tag)
+    return src.split(/[|,]/).map((t) => t.trim()).filter(isValid).slice(0, 5)
   }
 
   const cleanDescription = (desc: string | null): string | null => {
@@ -87,132 +94,122 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
       .replace(/\s*-\s*/g, " · ")
       .replace(/\s{2,}/g, " ")
       .trim()
-    if (cleaned.length > 150) cleaned = cleaned.slice(0, 150) + "..."
+    if (cleaned.length > 120) cleaned = cleaned.slice(0, 120) + "..."
     return cleaned || null
   }
 
   return (
-    <div className="my-3 w-full">
+    <div className="my-3 w-full select-none">
       <div className="relative">
-        {canPrev && (
-          <button
-            onClick={prev}
-            className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-1.5 shadow-md border border-border hover:bg-muted transition-colors"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-        )}
-        {canNext && (
-          <button
-            onClick={next}
-            className="absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-1.5 shadow-md border border-border hover:bg-muted transition-colors"
-          >
-            <ChevronRight className="size-4" />
-          </button>
+        {/* 좌우 화살표 */}
+        {total > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute -left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-1.5 shadow-md border border-border hover:bg-muted transition-colors"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              onClick={next}
+              className="absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-background/90 p-1.5 shadow-md border border-border hover:bg-muted transition-colors"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </>
         )}
 
-        <div ref={containerRef} className="overflow-hidden rounded-xl">
+        {/* 캐러셀 본체 */}
+        <div
+          className="overflow-hidden rounded-xl touch-pan-y"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+        >
           <div
             className="flex transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${currentIndex * 80}%)` }}
+            style={{ transform: `translateX(-${currentIndex * CARD_WIDTH}%)` }}
           >
             {recommendations.map((rec, idx) => {
               const tags = parseTags(rec)
               const desc = cleanDescription(rec.description)
               const priceStr = formatPrice(rec.price)
+              const isActive = idx === currentIndex
 
               return (
                 <div
                   key={`${rec.id}-${idx}`}
-                  className="w-[55%] flex-shrink-0 px-1.5"
+                  className="flex-shrink-0 px-1.5"
+                  style={{ width: `${CARD_WIDTH}%` }}
                 >
                   <div
                     onClick={() => {
-                      if (idx !== currentIndex) {
-                        setCurrentIndex(idx)
+                      if (dragRef.current.moved) return
+                      if (!isActive) {
+                        goTo(idx)
                       } else {
                         onCardClick?.(rec)
                       }
                     }}
                     className={cn(
                       "cursor-pointer rounded-xl border bg-card shadow-sm transition-all duration-200 overflow-hidden",
-                      "hover:shadow-lg hover:border-primary/40 hover:-translate-y-1",
-                      "active:scale-[0.98] active:shadow-sm",
-                      idx === currentIndex ? "opacity-100 scale-100 border-primary/20" : "opacity-60 scale-95"
+                      "hover:shadow-lg hover:border-primary/40",
+                      isActive
+                        ? "opacity-100 scale-100 border-primary/20"
+                        : "opacity-50 scale-[0.92]"
                     )}
                   >
-                    {/* 이미지 */}
                     {rec.imageUrl && (
-                      <img
-                        src={rec.imageUrl}
-                        alt={rec.name}
-                        className="h-40 w-full object-cover"
-                      />
+                      <img src={rec.imageUrl} alt={rec.name} className="h-36 w-full object-cover" draggable={false} />
                     )}
-
-                    <div className="p-3.5 space-y-2">
-                      {/* 상단: 카테고리 + 평점 */}
+                    <div className="p-3 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className={cn(
-                          "rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide",
+                          "rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide",
                           categoryColor[rec.category] || "bg-gray-50 text-gray-600 border-gray-200"
                         )}>
                           {categoryLabel[rec.category] || rec.category}
                         </span>
                         {rec.rating != null && rec.rating > 0 && (
-                          <span className="flex items-center gap-1 text-xs font-medium text-foreground/70">
-                            <Star className="size-3.5 fill-yellow-400 text-yellow-400" />
+                          <span className="flex items-center gap-0.5 text-xs font-medium text-foreground/70">
+                            <Star className="size-3 fill-yellow-400 text-yellow-400" />
                             {rec.rating > 5 ? (rec.rating / 20).toFixed(1) : rec.rating}
                             {rec.reviewCount != null && rec.reviewCount > 0 && (
-                              <span className="text-muted-foreground">({rec.reviewCount})</span>
+                              <span className="text-muted-foreground text-[10px]">({rec.reviewCount})</span>
                             )}
                           </span>
                         )}
                       </div>
 
-                      {/* 업체명 */}
-                      <h3 className="text-[15px] font-bold text-foreground leading-tight">
-                        {rec.name}
-                      </h3>
+                      <h3 className="text-sm font-bold text-foreground leading-tight truncate">{rec.name}</h3>
 
-                      {/* 가격 */}
-                      {priceStr && (
-                        <p className="text-sm font-semibold text-primary">{priceStr}</p>
-                      )}
+                      {priceStr && <p className="text-sm font-semibold text-primary">{priceStr}</p>}
 
-                      {/* 위치 (구/동 수준 축약) */}
                       {rec.address && (
-                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <MapPin className="size-3 flex-shrink-0" />
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <MapPin className="size-2.5 flex-shrink-0" />
                           <span className="truncate">{shortenAddress(rec.address)}</span>
                         </div>
                       )}
 
-                      {/* 태그 뱃지 */}
                       {tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {tags.map((tag, i) => (
-                            <span
-                              key={i}
-                              className="rounded-full bg-muted/80 px-2 py-0.5 text-[11px] text-muted-foreground"
-                            >
+                            <span key={i} className="rounded-full bg-muted/80 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               {tag}
                             </span>
                           ))}
                         </div>
                       )}
 
-                      {/* 설명 */}
                       {desc && (
-                        <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-3">
-                          {desc}
-                        </p>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground/80 line-clamp-2">{desc}</p>
                       )}
 
-                      {/* 연락처 */}
                       {rec.contact && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t border-border/40">
-                          <Phone className="size-3 flex-shrink-0" />
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-1.5 border-t border-border/40">
+                          <Phone className="size-2.5 flex-shrink-0" />
                           <span>{rec.contact}</span>
                         </div>
                       )}
@@ -224,26 +221,21 @@ export function RecommendationCarousel({ recommendations, onCardClick }: Recomme
           </div>
         </div>
 
-        {/* 페이지 인디케이터 */}
-        {recommendations.length > 1 && (
-          <div className="mt-3 flex items-center justify-center gap-1.5">
-            {recommendations.map((_, idx) => {
-              const distance = Math.abs(idx - currentIndex)
-              return (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentIndex(idx)}
-                  className={cn(
-                    "rounded-full transition-all duration-200",
-                    idx === currentIndex
-                      ? "w-5 h-2 bg-primary"
-                      : distance === 1
-                        ? "w-2 h-2 bg-muted-foreground/40"
-                        : "w-1.5 h-1.5 bg-muted-foreground/20"
-                  )}
-                />
-              )
-            })}
+        {/* 인디케이터 */}
+        {total > 1 && (
+          <div className="mt-2.5 flex items-center justify-center gap-1.5">
+            {recommendations.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => goTo(idx)}
+                className={cn(
+                  "rounded-full transition-all duration-200",
+                  idx === currentIndex
+                    ? "w-5 h-2 bg-primary"
+                    : "w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                )}
+              />
+            ))}
           </div>
         )}
       </div>
