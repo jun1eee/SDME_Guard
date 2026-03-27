@@ -19,12 +19,25 @@ function CallbackHandler() {
         setAccessToken(res.data.accessToken)
 
         sessionStorage.setItem("loggedIn", "true")
+
+        // 카카오 로그인 중 쌓인 히스토리(카카오 페이지들) 제거
+        const destination = res.data.isNewUser ? "/signup" : "/main"
         if (res.data.isNewUser) {
           sessionStorage.setItem("kakaoNickname", res.data.kakaoNickname || "")
           sessionStorage.setItem("kakaoProfileImage", res.data.kakaoProfileImage || "")
-          window.location.replace('/signup') // 신규 → 회원가입 (히스토리 교체)
+        }
+
+        // historyLengthBeforeKakao 는 카카오 이동 전 history.length
+        // window.location.href 로 이동했으므로 /login 엔트리가 살아있음
+        // history.go(-stepsBack) → /login 으로 돌아가면 /login 이 로그인 감지 후 /main 으로 리다이렉트
+        const lengthBefore = parseInt(sessionStorage.getItem("historyLengthBeforeKakao") || "0")
+        const stepsBack = lengthBefore > 0 ? window.history.length - lengthBefore : 0
+        sessionStorage.removeItem("historyLengthBeforeKakao")
+
+        if (stepsBack > 0) {
+          window.history.go(-stepsBack)
         } else {
-          window.location.replace('/main') // 기존 → 메인 (히스토리 교체)
+          window.location.replace(destination)
         }
       })
       .catch(() => {

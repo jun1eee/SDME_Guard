@@ -1030,7 +1030,6 @@ export function VendorDetailView({
     if (firstId) setSelectedPkgId(firstId)
   }, [vendor.packages?.[0]?.id])
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
-  const [showAddons, setShowAddons] = useState(false)
   const [showReservation, setShowReservation] = useState(autoOpenPayment)
   const [showReview, setShowReview] = useState(false)
   const [fittingImage, setFittingImage] = useState<File | null>(null)
@@ -1592,39 +1591,6 @@ export function VendorDetailView({
             </button>
           </div>
 
-          {/* Addons */}
-          {vendor.addons && vendor.addons.length > 0 && (
-            <div className="mt-3 overflow-hidden rounded-2xl bg-card">
-              <button
-                onClick={() => setShowAddons(!showAddons)}
-                className="flex w-full items-center justify-between p-5"
-              >
-                <span className="font-semibold text-foreground">추가상품</span>
-                {showAddons ? (
-                  <ChevronUp className="size-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-5 text-muted-foreground" />
-                )}
-              </button>
-              {showAddons && (
-                <div className="border-t border-border px-5 pb-5">
-                  <div className="mt-4 space-y-3">
-                    {vendor.addons.map((addon) => (
-                      <div key={addon.id} className="flex justify-between text-sm">
-                        <div>
-                          <span className="font-medium text-foreground">{addon.name}</span>
-                          {addon.description && (
-                            <p className="text-xs text-muted-foreground">{addon.description}</p>
-                          )}
-                        </div>
-                        <span className="font-medium text-foreground">{formatPrice(addon.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Memo Content (e.g. hall info) */}
           {vendor.memoContent && (

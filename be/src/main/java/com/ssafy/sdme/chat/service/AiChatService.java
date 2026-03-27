@@ -103,15 +103,8 @@ public class AiChatService {
     public List<AiChatHistoryResponse> getRecentMessages(Long userId) {
         if (userId == null) return Collections.emptyList();
 
-        // coupleId로 조회 시도, 결과 없으면 userId로 fallback
-        Long coupleId = resolveCoupleId(userId);
-        List<AiChatMessage> messages = List.of();
-        if (coupleId != null) {
-            messages = aiChatMessageRepository.findTop50ByCoupleIdOrderByCreatedAtDesc(coupleId);
-        }
-        if (messages.isEmpty()) {
-            messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
-        }
+        // AI 채팅은 개인 채팅이므로 userId로만 조회 (coupleId 사용 시 상대방 채팅이 섞임)
+        List<AiChatMessage> messages = aiChatMessageRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
 
         return messages.stream()
                 .map(AiChatHistoryResponse::from)
