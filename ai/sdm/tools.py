@@ -388,20 +388,21 @@ class ToolRegistry:
     def search(self, query: str, category: str, couple_id: int, **_) -> ToolResult:
         if category == "hall":
             return self._search_hall(query)
+        count = _extract_count(query)
         # 스드메: Text2Cypher 검색 (정형)
         answer, vendors = self.engine.search_structured(query=query, category=category)
         # 결과 없으면 거리 기반 fallback
         if answer and any(p in answer for p in NO_RESULT_PHRASES):
             lat, lng, _ = geocode_query(query)
-            count = _extract_count(query)
             if lat and lng and self.engine.driver:
                 records = _search_nearest(self.engine.driver, "Vendor", category, lat, lng, limit=count * 2)
                 if records:
                     self._add_distance_text(records)
                     records = _dedup_vendors(records)[:count]
                     vendors = [r["name"] for r in records]
-        # vendor 있으면 통일된 번호목록 생성 (direct)
+        # 요청 개수에 맞게 제한
         if vendors:
+            vendors = vendors[:count]
             return self._build_vendor_list(vendors, category)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
@@ -491,12 +492,14 @@ class ToolRegistry:
 
     def search_style(self, query: str, category: str, couple_id: int,
                      region: str = None, max_price: int = None, **_) -> ToolResult:
+        count = _extract_count(query)
         # 비정형 검색 (VectorCypher)
         answer, vendors = self.engine.search_semantic(
             query=query, category=category, region=region, max_price=max_price,
         )
-        # vendor 있으면 통일된 번호목록 (direct)
+        # 요청 개수에 맞게 제한
         if vendors:
+            vendors = vendors[:count]
             return self._build_vendor_list(vendors, category)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
