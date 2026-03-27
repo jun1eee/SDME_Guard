@@ -377,11 +377,11 @@ class ToolRegistry:
         self._checklist_completed: dict[int, list[str]] = {}  # couple_id → 완료 항목
         self._last_tour: dict | None = None  # 마지막 투어 정보 (modify_tour용)
 
-    def execute(self, tool_name: str, couple_id: int, **kwargs: Any) -> ToolResult:
+    def execute(self, tool_name: str, couple_id: int, user_id: int | None = None, **kwargs: Any) -> ToolResult:
         fn = self.tool_map.get(tool_name)
         if not fn:
             return ToolResult(result_type="direct", data=f"알 수 없는 tool: {tool_name}", vendors=[])
-        return fn(couple_id=couple_id, **kwargs)
+        return fn(couple_id=couple_id, user_id=user_id, **kwargs)
 
     # ── 1. search: 통합 검색 ──
 
@@ -434,6 +434,10 @@ class ToolRegistry:
             reason = ", ".join(features) if features else ""
             lines.append(f"{i+1}) **{h.name}** — {reason}" if reason else f"{i+1}) **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
+        # 미인식 키워드 안내
+        unmatched = self._detect_unmatched_hall_terms(query, criteria)
+        if unmatched:
+            text = f"참고: '{', '.join(unmatched)}' 조건은 데이터에서 지원되지 않아 반영되지 않았습니다.\n\n" + text
         return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
 
@@ -461,6 +465,25 @@ class ToolRegistry:
         if not remaining_words:
             return ""
         return cleaned
+
+    @staticmethod
+    def _detect_unmatched_hall_terms(query: str, criteria) -> list[str]:
+        """쿼리에서 criteria로 캡처되지 않은 의미있는 키워드 감지"""
+        filler = {
+            "있는", "있어", "있나", "있을까", "알려줘", "찾아줘", "추천해줘",
+            "보여줘", "만원", "이하", "이상", "웨딩홀", "웨딩", "예식장",
+            "제공하는", "제공", "해줘", "뷔페", "코스", "정도", "어때",
+            "어떤", "좋은", "괜찮은", "해주세요", "알려주세요", "추천해주세요",
+        }
+        words = re.findall(r"[가-힣]{2,}", query)
+        matched: set[str] = set()
+        for attr in ("regions", "styles", "features", "stations"):
+            for val in (getattr(criteria, attr, None) or []):
+                matched.add(val)
+        if getattr(criteria, "budget", None):
+            matched.add(str(criteria.budget))
+        return [w for w in words if w not in filler and w not in matched
+                and not any(w in m or m in w for m in matched)]
 
     # ── 2. search_style: 스타일 검색 ──
 
@@ -670,18 +693,29 @@ class ToolRegistry:
 
     # ── 8. get_user_info: 사용자 정보 ──
 
-    def get_user_info(self, info_type: str, couple_id: int, **_) -> ToolResult:
+    def get_user_info(self, info_type: str, couple_id: int, user_id: int | None = None, **_) -> ToolResult:
         _PREF_LABELS = {
-            "region": "지역", "sub_region": "세부 지역",
-            "studio_style": "스튜디오 스타일", "dress_style": "드레스 스타일",
-            "makeup_style": "메이크업 스타일",
+            "wedding_date": "결혼 예정일", "total_budget": "총 예산",
+            "sdm_budget": "스드메 예산", "hall_budget": "웨딩홀 예산",
+            "hall_style": "웨딩홀 스타일", "guest_count": "하객 수",
+            "preferred_regions": "선호 지역", "styles": "선호 스타일",
+            "colors": "선호 색상", "moods": "선호 분위기", "foods": "선호 음식",
         }
         parts = []
         if info_type in ("preference", "all"):
-            pref = self.engine.get_user_preference(couple_id)
+            pref = self.engine.get_user_preference(user_id) if user_id else None
             if pref:
-                lines = [f"- {_PREF_LABELS.get(k, k)}: {v}" for k, v in pref.items()
-                         if k in _PREF_LABELS and v]
+                lines = []
+                for k, v in pref.items():
+                    if k not in _PREF_LABELS or not v:
+                        continue
+                    # JSON 문자열 필드 파싱
+                    if isinstance(v, str) and v.startswith("["):
+                        try:
+                            v = ", ".join(json.loads(v))
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    lines.append(f"- {_PREF_LABELS[k]}: {v}")
                 parts.append("취향 정보:\n" + "\n".join(lines))
             else:
                 parts.append("저장된 취향 정보가 없습니다.")
