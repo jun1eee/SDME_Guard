@@ -417,7 +417,7 @@ class ToolRegistry:
         # 예산 필터링
         if criteria.budget and "이하" in query:
             halls = [h for h in halls if not h.min_total_price or h.min_total_price <= criteria.budget]
-        elif criteria.budget and "이상" in query:
+        elif criteria.budget and any(w in query for w in ("이상", "넘는", "넘어", "초과", "부터", "위")):
             halls = [h for h in halls if h.min_total_price and h.min_total_price >= criteria.budget]
         halls = halls[:count]
         if not halls:
@@ -438,7 +438,7 @@ class ToolRegistry:
             lines.append(f"{i+1}) **{h.name}** — {reason}" if reason else f"{i+1}) **{h.name}**")
         text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
         # 미인식 키워드 안내
-        unmatched = self._detect_unmatched_hall_terms(query, criteria)
+        unmatched = self._detect_unmatched_conditions(query, criteria)
         if unmatched:
             text = f"참고: '{', '.join(unmatched)}' 조건은 데이터에서 지원되지 않아 반영되지 않았습니다.\n\n" + text
         if len(halls) < count:
@@ -472,23 +472,23 @@ class ToolRegistry:
         return cleaned
 
     @staticmethod
-    def _detect_unmatched_hall_terms(query: str, criteria) -> list[str]:
-        """쿼리에서 criteria로 캡처되지 않은 의미있는 키워드 감지"""
-        filler = {
-            "있는", "있어", "있나", "있을까", "알려줘", "찾아줘", "추천해줘",
-            "보여줘", "만원", "이하", "이상", "웨딩홀", "웨딩", "예식장",
-            "제공하는", "제공", "해줘", "뷔페", "코스", "정도", "어때",
-            "어떤", "좋은", "괜찮은", "해주세요", "알려주세요", "추천해주세요",
+    def _detect_unmatched_conditions(query: str, criteria) -> list[str]:
+        """쿼리의 조건 중 criteria에 반영되지 않은 것을 조건 단위로 감지"""
+        unmatched = []
+        # 1) 예산 언급했는데 criteria에 없는 경우
+        if re.search(r"\d+\s*(천|백)?\s*만원", query) and not getattr(criteria, "budget", None):
+            unmatched.append("예산")
+        # 2) 특수 서비스/시설 키워드 — criteria.features에 없으면 안내
+        _SPECIAL = {
+            "컵케이크": "컵케이크", "디저트": "디저트", "케이크": "케이크",
+            "루프탑": "루프탑", "야외": "야외결혼식", "정원": "가든/정원",
+            "수영장": "수영장", "한옥": "한옥", "성당": "성당",
         }
-        words = re.findall(r"[가-힣]{2,}", query)
-        matched: set[str] = set()
-        for attr in ("regions", "styles", "features", "stations"):
-            for val in (getattr(criteria, attr, None) or []):
-                matched.add(val)
-        if getattr(criteria, "budget", None):
-            matched.add(str(criteria.budget))
-        return [w for w in words if w not in filler and w not in matched
-                and not any(w in m or m in w for m in matched)]
+        features = set(getattr(criteria, "features", None) or [])
+        for term, label in _SPECIAL.items():
+            if term in query and not any(term in f or f in term for f in features):
+                unmatched.append(label)
+        return unmatched
 
     # ── 2. search_style: 스타일 검색 ──
 
