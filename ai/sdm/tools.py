@@ -632,8 +632,26 @@ class ToolRegistry:
                     hall = self.hall_engine.get_hall_details(n)
                     if hall:
                         records.append(self._hall_to_dict(hall))
-        return ToolResult(result_type="raw",
-                          data=json.dumps(records, ensure_ascii=False, default=str),
+        if not records:
+            return ToolResult(result_type="direct", data="비교할 업체 정보를 찾지 못했습니다.", vendors=[])
+        # 코드에서 직접 비교 텍스트 생성 (LLM 넘버링 깨짐 방지)
+        lines = []
+        for i, r in enumerate(records):
+            name = r.get("name", "")
+            parts = []
+            region = r.get("region") or r.get("subRegion") or ""
+            if region:
+                parts.append(f"위치: {region}")
+            price = r.get("price") or r.get("minTotalPrice")
+            if price and isinstance(price, (int, float)) and price > 0:
+                parts.append(f"예산: {int(price) // 10000}만원")
+            tags = _filter_tags(r.get("tags") or [])[:3]
+            if tags:
+                parts.append(f"특징: {', '.join(tags)}")
+            detail = " / ".join(parts) if parts else ""
+            lines.append(f"{i+1}) **{name}** — {detail}" if detail else f"{i+1}) **{name}**")
+        text = "\n".join(lines) + "\n\n궁금한 점이 있으면 말씀해주세요!"
+        return ToolResult(result_type="direct", data=text,
                           vendors=list(dict.fromkeys(r.get("name", "") for r in records)))
 
     # ── 7. filter_sort: 필터/정렬 ──
