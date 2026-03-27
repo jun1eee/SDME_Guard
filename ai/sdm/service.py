@@ -205,13 +205,17 @@ class SdmChatService:
         state_lines: list[str] = []
         if session.category:
             state_lines.append(f"현재 카테고리: {CATEGORY_LABELS.get(session.category, session.category)}")
-        if session.vendors:
-            state_lines.append(f"추천 업체 목록: {', '.join(session.vendors[:10])}")
         if session.last_mentioned and session.last_mentioned != session.vendors:
             state_lines.append(f"직전 언급 업체: {', '.join(session.last_mentioned[:5])}")
         for cat, vendors in session.vendor_history.items():
-            if cat != session.category and vendors:
-                state_lines.append(f"이전 {CATEGORY_LABELS.get(cat, cat)} 추천: {', '.join(vendors[:5])}")
+            if vendors:
+                label = CATEGORY_LABELS.get(cat, cat)
+                state_lines.append(f"{label} 추천 업체: {', '.join(vendors[:8])}")
+        # vendor_history에 없는 현재 추천 업체 (첫 검색 직후 등)
+        if session.vendors and not any(
+            set(session.vendors) <= set(v) for v in session.vendor_history.values()
+        ):
+            state_lines.append(f"추천 업체 목록: {', '.join(session.vendors[:10])}")
         if not state_lines:
             return SYSTEM_PROMPT
         return SYSTEM_PROMPT + "\n\n[현재 대화 상태]\n" + "\n".join(state_lines)

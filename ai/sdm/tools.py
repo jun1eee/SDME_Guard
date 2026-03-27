@@ -438,6 +438,8 @@ class ToolRegistry:
         unmatched = self._detect_unmatched_hall_terms(query, criteria)
         if unmatched:
             text = f"참고: '{', '.join(unmatched)}' 조건은 데이터에서 지원되지 않아 반영되지 않았습니다.\n\n" + text
+        if len(halls) < count:
+            text = f"참고: 요청하신 {count}곳 중 {len(halls)}곳만 찾았습니다.\n\n" + text
         return ToolResult(result_type="direct", data=text,
                           vendors=[h.name for h in halls])
 
@@ -530,6 +532,8 @@ class ToolRegistry:
                 parts.append(f"{price // 10000}만원")
             lines.append(f"{i+1}) **{r['name']}** — {', '.join(parts)}" if parts else f"{i+1}) **{r['name']}**")
         text = "\n".join(lines) + "\n\n가까운 순서로 추천드립니다!"
+        if len(records) < count:
+            text = f"참고: 요청하신 {count}곳 중 {len(records)}곳만 찾았습니다.\n\n" + text
         return ToolResult(result_type="direct", data=text,
                           vendors=[r["name"] for r in records])
 
@@ -657,6 +661,20 @@ class ToolRegistry:
                         records.append(self._hall_to_dict(hall))
         if not records:
             return ToolResult(result_type="direct", data="비교할 업체 정보를 찾지 못했습니다.", vendors=[])
+        # 같은 이름 업체 중복 제거 (패키지별 레코드 합침)
+        seen: dict[str, dict] = {}
+        deduped: list[dict] = []
+        for r in records:
+            name = r.get("name", "")
+            if name in seen:
+                existing = seen[name]
+                existing_tags = set(existing.get("tags") or [])
+                new_tags = set(r.get("tags") or [])
+                existing["tags"] = list(existing_tags | new_tags)[:6]
+            else:
+                seen[name] = r
+                deduped.append(r)
+        records = deduped
         # 코드에서 직접 비교 텍스트 생성 (LLM 넘버링 깨짐 방지)
         lines = []
         for i, r in enumerate(records):
@@ -703,22 +721,44 @@ class ToolRegistry:
         }
         parts = []
         if info_type in ("preference", "all"):
-            pref = self.engine.get_user_preference(user_id) if user_id else None
-            if pref:
+            my_pref = self.engine.get_user_preference(user_id) if user_id else None
+            # 파트너 취향도 조회
+            partner_pref = None
+            if couple_id:
+                groom_id, bride_id = self.engine.get_couple_user_ids(couple_id)
+                partner_id = bride_id if user_id == groom_id else groom_id if user_id == bride_id else None
+                if partner_id:
+                    partner_pref = self.engine.get_user_preference(partner_id)
+
+            if my_pref:
                 lines = []
-                for k, v in pref.items():
+                for k, v in my_pref.items():
                     if k not in _PREF_LABELS or not v:
                         continue
-                    # JSON 문자열 필드 파싱
                     if isinstance(v, str) and v.startswith("["):
                         try:
                             v = ", ".join(json.loads(v))
                         except (json.JSONDecodeError, TypeError):
                             pass
                     lines.append(f"- {_PREF_LABELS[k]}: {v}")
-                parts.append("취향 정보:\n" + "\n".join(lines))
+                parts.append("내 취향 정보:\n" + "\n".join(lines))
             else:
-                parts.append("저장된 취향 정보가 없습니다.")
+                parts.append("내 취향: 저장된 정보가 없습니다.")
+
+            if partner_pref:
+                lines = []
+                for k, v in partner_pref.items():
+                    if k not in _PREF_LABELS or not v:
+                        continue
+                    if isinstance(v, str) and v.startswith("["):
+                        try:
+                            v = ", ".join(json.loads(v))
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    lines.append(f"- {_PREF_LABELS[k]}: {v}")
+                parts.append("상대방 취향 정보:\n" + "\n".join(lines))
+            else:
+                parts.append("상대방 취향: 저장된 정보가 없습니다.")
         if info_type in ("likes", "all"):
             likes = self.engine.get_user_likes(couple_id)
             if likes:
@@ -1193,6 +1233,20 @@ class ToolRegistry:
         """vendor 이름 목록 → 번호목록 텍스트 생성 (direct)
         source_name/source_tags 있으면: 공유 태그 기반 추천 이유 생성"""
         records = self.engine.query_vendors_by_names(vendor_names)
+        # 같은 이름 업체 중복 제거 (패키지별 레코드 합침)
+        seen: dict[str, dict] = {}
+        deduped: list[dict] = []
+        for r in records:
+            name = r.get("name", "")
+            if name in seen:
+                existing = seen[name]
+                existing_tags = set(existing.get("tags") or [])
+                new_tags = set(r.get("tags") or [])
+                existing["tags"] = list(existing_tags | new_tags)[:6]
+            else:
+                seen[name] = r
+                deduped.append(r)
+        records = deduped
         source_tag_set = set(source_tags) if source_tags else set()
         lines = []
         cat_label = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}.get(category, "")
