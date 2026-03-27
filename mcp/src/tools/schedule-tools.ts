@@ -4,6 +4,37 @@ import { ApiClient } from "../api-client.js"
 
 export function registerScheduleTools(server: McpServer, api: ApiClient) {
   server.tool(
+    "get_wedding_date",
+    "결혼 날짜와 D-day를 조회합니다. '결혼날짜', '결혼일', 'D-day', '웨딩 날짜' 등을 물어볼 때 사용하세요.",
+    {},
+    async () => {
+      try {
+        const pref = await api.get("/users/preference")
+        const weddingDate = pref?.weddingDate
+
+        if (!weddingDate) {
+          return { content: [{ type: "text", text: "아직 결혼 예정일이 등록되지 않았어요. 마이페이지 > 추가 정보에서 설정할 수 있어요." }] }
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const wedding = new Date(weddingDate + "T00:00:00")
+        const dDay = Math.ceil((wedding.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        const dDayText = dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-Day" : `D+${Math.abs(dDay)}`
+
+        return {
+          content: [{
+            type: "text",
+            text: `💍 결혼 예정일: ${weddingDate} (${dDayText})`,
+          }],
+        }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `결혼 날짜 조회 실패: ${e.message}` }] }
+      }
+    }
+  )
+
+  server.tool(
     "get_schedules",
     "커플의 전체 일정을 조회합니다. 결혼식 날짜, D-day 정보도 포함됩니다.",
     {},
@@ -129,6 +160,27 @@ export function registerScheduleTools(server: McpServer, api: ApiClient) {
         }
       } catch (e: any) {
         return { content: [{ type: "text", text: `일정 삭제 실패: ${e.message}` }] }
+      }
+    }
+  )
+
+  server.tool(
+    "get_my_info",
+    "내 정보를 조회합니다. 이름, 닉네임, 역할(신랑/신부), 커플 연결 여부 등을 확인할 수 있습니다. '내 이름', '내 닉네임', '나는 누구', '내 정보' 등을 물어볼 때 사용하세요.",
+    {},
+    async () => {
+      try {
+        const data = await api.get("/users/me")
+        const role = data.role === "g" ? "신랑" : data.role === "b" ? "신부" : "미설정"
+        const coupled = data.coupleId ? "커플 연결됨" : "커플 미연결"
+        return {
+          content: [{
+            type: "text",
+            text: `👤 내 정보:\n- 이름: ${data.name ?? "미설정"}\n- 닉네임: ${data.nickname ?? "미설정"}\n- 역할: ${role}\n- 상태: ${coupled}`,
+          }],
+        }
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `내 정보 조회 실패: ${e.message}` }] }
       }
     }
   )

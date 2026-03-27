@@ -112,9 +112,15 @@ export function registerBudgetTools(server: McpServer, api: ApiClient) {
             return `  📁 ${c.name}\n${items}`
           }).join("\n")
 
+        // totalSpent는 isPaid=true 항목 합산으로 직접 계산
+        const paidSpent = (data.categories ?? [])
+          .flatMap((c: any) => c.items ?? [])
+          .filter((i: any) => i.isPaid)
+          .reduce((sum: number, i: any) => sum + (i.amount ?? 0), 0)
+
         const totalBudget = data.totalBudget?.toLocaleString() ?? "0"
-        const totalSpent = data.totalSpent?.toLocaleString() ?? "0"
-        const totalRemaining = data.totalRemaining?.toLocaleString() ?? "0"
+        const totalSpent = paidSpent.toLocaleString()
+        const totalRemaining = ((data.totalBudget ?? 0) - paidSpent).toLocaleString()
 
         return {
           content: [{

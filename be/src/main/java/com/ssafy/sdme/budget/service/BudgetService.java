@@ -189,6 +189,23 @@ public class BudgetService {
         return getBudget(userId);
     }
 
+    @Transactional
+    public void markVendorItemPaid(Long userId, Long vendorId) {
+        User user = getUser(userId);
+        Budget budget = getOrCreateBudget(user.getCoupleId(), user);
+        List<Long> categoryIds = categoryRepository.findByBudgetIdOrderByIdAsc(budget.getId())
+                .stream().map(BudgetCategory::getId).toList();
+        if (categoryIds.isEmpty()) return;
+
+        List<BudgetItem> items = itemRepository.findByBudgetCategoryIdInAndVendorId(categoryIds, vendorId);
+        items.forEach(item -> {
+            if (!item.getIsPaid()) {
+                item.markPaid();
+            }
+        });
+        log.info("[Budget] 잔금 결제 → 예산 항목 확정 처리 - vendorId: {}, items: {}건", vendorId, items.size());
+    }
+
     private User getUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
