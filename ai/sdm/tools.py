@@ -657,6 +657,20 @@ class ToolRegistry:
                         records.append(self._hall_to_dict(hall))
         if not records:
             return ToolResult(result_type="direct", data="비교할 업체 정보를 찾지 못했습니다.", vendors=[])
+        # 같은 이름 업체 중복 제거 (패키지별 레코드 합침)
+        seen: dict[str, dict] = {}
+        deduped: list[dict] = []
+        for r in records:
+            name = r.get("name", "")
+            if name in seen:
+                existing = seen[name]
+                existing_tags = set(existing.get("tags") or [])
+                new_tags = set(r.get("tags") or [])
+                existing["tags"] = list(existing_tags | new_tags)[:6]
+            else:
+                seen[name] = r
+                deduped.append(r)
+        records = deduped
         # 코드에서 직접 비교 텍스트 생성 (LLM 넘버링 깨짐 방지)
         lines = []
         for i, r in enumerate(records):
@@ -1193,6 +1207,20 @@ class ToolRegistry:
         """vendor 이름 목록 → 번호목록 텍스트 생성 (direct)
         source_name/source_tags 있으면: 공유 태그 기반 추천 이유 생성"""
         records = self.engine.query_vendors_by_names(vendor_names)
+        # 같은 이름 업체 중복 제거 (패키지별 레코드 합침)
+        seen: dict[str, dict] = {}
+        deduped: list[dict] = []
+        for r in records:
+            name = r.get("name", "")
+            if name in seen:
+                existing = seen[name]
+                existing_tags = set(existing.get("tags") or [])
+                new_tags = set(r.get("tags") or [])
+                existing["tags"] = list(existing_tags | new_tags)[:6]
+            else:
+                seen[name] = r
+                deduped.append(r)
+        records = deduped
         source_tag_set = set(source_tags) if source_tags else set()
         lines = []
         cat_label = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}.get(category, "")
