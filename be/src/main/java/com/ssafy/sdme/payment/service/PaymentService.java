@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,17 @@ public class PaymentService {
                 .orElseThrow(() -> new NotFoundException("업체를 찾을 수 없습니다."));
 
         Payment.PaymentType type = Payment.PaymentType.valueOf(request.getType());
+
+        // 잔금 결제는 서비스 시간 이후에만 가능
+        if (type == Payment.PaymentType.BALANCE
+                && reservation.getServiceDate() != null
+                && reservation.getReservationTime() != null) {
+            LocalDateTime serviceDateTime = LocalDateTime.of(reservation.getServiceDate(), reservation.getReservationTime());
+            if (LocalDateTime.now().isBefore(serviceDateTime)) {
+                throw new BadRequestException("잔금 결제는 서비스 시간(" + reservation.getServiceDate() + " " + reservation.getReservationTime() + ") 이후에 가능합니다.");
+            }
+        }
+
         String orderId = "ORDER_" + reservation.getId() + "_" + type.name() + "_" + System.currentTimeMillis();
         String orderName = vendor.getName() + " " + (type == Payment.PaymentType.DEPOSIT ? "계약금" : "잔금");
 

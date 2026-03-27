@@ -1056,6 +1056,7 @@ export function VendorDetailView({
   const [reviews, setReviews] = useState<VendorReview[]>(vendor.reviews ?? [])
   const [currentPaymentStep, setCurrentPaymentStep] = useState<number>(vendor.paymentStep)
   const [reservationDate, setReservationDate] = useState<string | null>(null)
+  const [reservationTime, setReservationTime] = useState<string | null>(null)
   const [hasUsedBefore, setHasUsedBefore] = useState(false)
   const vendorId = vendor.id
 
@@ -1087,8 +1088,10 @@ export function VendorDetailView({
             Number(r.vendorId) === vid && r.status !== "CANCELLED"
           )
           if (existing) {
-            const d = (existing.reservationDate || existing.serviceDate || "").substring(0, 10)
+            const d = (existing.serviceDate || existing.reservationDate || "").substring(0, 10)
             if (d) setReservationDate(d)
+            const t = (existing.reservationTime || "").substring(0, 5)
+            if (t) setReservationTime(t)
           }
         })
         .catch(() => {})
@@ -1243,8 +1246,14 @@ export function VendorDetailView({
 
             {/* 잔금 결제 버튼 - 계약금 결제 후 & 이용완료 아닐 때만 */}
             {currentPaymentStep >= 2 && !hasUsedBefore && (() => {
-              const today = new Date().toISOString().substring(0, 10)
-              const canPayBalance = reservationDate && today >= reservationDate
+              const now = new Date()
+              const canPayBalance = (() => {
+                if (!reservationDate) return false
+                const [y, m, d] = reservationDate.split("-").map(Number)
+                const [h, min] = (reservationTime ?? "00:00").split(":").map(Number)
+                const serviceAt = new Date(y, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0)
+                return now >= serviceAt
+              })()
               return (
                 <div className="mt-3">
                   {canPayBalance ? (
@@ -1256,7 +1265,7 @@ export function VendorDetailView({
                     </Button>
                   ) : (
                     <Button disabled className="w-full opacity-50 cursor-not-allowed">
-                      잔금 결제 ({reservationDate ? (() => { const [,m,d] = reservationDate.split("-"); return `${Number(m)}월 ${Number(d)}일` })() : "예약일"} 이후 가능)
+                      잔금 결제 ({reservationDate ? (() => { const [,m,d] = reservationDate.split("-"); return `${Number(m)}월 ${Number(d)}일 ${reservationTime ?? ""} 이후 가능` })() : "예약일 이후 가능"})
                     </Button>
                   )}
                 </div>
