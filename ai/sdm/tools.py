@@ -771,7 +771,7 @@ class ToolRegistry:
                 parts.append(f"찜 목록 ({len(likes)}건):\n" + "\n".join(lines))
             else:
                 parts.append("찜 목록: 없음")
-        return ToolResult(result_type="direct", data="\n\n".join(parts), vendors=[])
+        return ToolResult(result_type="raw", data="\n\n".join(parts), vendors=[])
 
     # ── 9. plan_tour: 통합 투어 (홀+스드메) ──
 
