@@ -417,7 +417,7 @@ class ToolRegistry:
         # 예산 필터링
         if criteria.budget and "이하" in query:
             halls = [h for h in halls if not h.min_total_price or h.min_total_price <= criteria.budget]
-        elif criteria.budget and "이상" in query:
+        elif criteria.budget and any(w in query for w in ("이상", "넘는", "넘어", "초과", "부터", "위")):
             halls = [h for h in halls if h.min_total_price and h.min_total_price >= criteria.budget]
         halls = halls[:count]
         if not halls:
@@ -475,10 +475,13 @@ class ToolRegistry:
     def _detect_unmatched_hall_terms(query: str, criteria) -> list[str]:
         """쿼리에서 criteria로 캡처되지 않은 의미있는 키워드 감지"""
         filler = {
-            "있는", "있어", "있나", "있을까", "알려줘", "찾아줘", "추천해줘",
-            "보여줘", "만원", "이하", "이상", "웨딩홀", "웨딩", "예식장",
-            "제공하는", "제공", "해줘", "뷔페", "코스", "정도", "어때",
-            "어떤", "좋은", "괜찮은", "해주세요", "알려주세요", "추천해주세요",
+            "있는", "있어", "있나", "있을까", "뭐있어", "뭐있는", "뭐야",
+            "알려줘", "찾아줘", "추천해줘", "보여줘", "해줘", "해주세요",
+            "알려주세요", "추천해주세요", "찾아주세요",
+            "만원", "천만원", "백만원", "이하", "이상", "넘는", "넘어", "초과", "부터",
+            "근처", "근처로", "근처의", "주변", "가까운",
+            "웨딩홀", "웨딩", "예식장", "제공하는", "제공",
+            "뷔페", "코스", "정도", "어때", "어떤", "좋은", "괜찮은",
         }
         words = re.findall(r"[가-힣]{2,}", query)
         matched: set[str] = set()
