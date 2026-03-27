@@ -186,7 +186,7 @@ export function MyPageView({
   ], [])
 
   const [preferences, setPreferences] = useState<PreferenceSection[]>(() => buildPreferences([], [], [], []))
-  const [expandedSections, setExpandedSections] = useState<string[]>(["style", "color"])
+  const [expandedSections, setExpandedSections] = useState<string[]>([])
 
   // API에서 선호도 불러오기
   useEffect(() => {

@@ -34,7 +34,7 @@ public class McpTokenController {
     @Transactional
     public ApiResponse<Map<String, String>> getOrCreateToken(HttpServletRequest request) {
         Long userId = (Long) request.getAttribute("userId");
-        McpToken token = mcpTokenRepository.findByUserId(userId)
+        McpToken token = mcpTokenRepository.findFirstByUserId(userId)
                 .orElseGet(() -> mcpTokenRepository.save(new McpToken(userId)));
 
         log.info("[MCP] 토큰 조회/발급 - userId: {}", userId);

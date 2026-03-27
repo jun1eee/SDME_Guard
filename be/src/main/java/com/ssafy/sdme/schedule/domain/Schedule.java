@@ -42,7 +42,7 @@ public class Schedule {
     private String memo;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('STUDIO','DRESS','MAKEUP','HALL')")
+    @Column(columnDefinition = "ENUM('STUDIO','DRESS','MAKEUP','HALL','ETC')")
     private ScheduleCategory category;
 
     @Enumerated(EnumType.STRING)

@@ -342,47 +342,51 @@ export default function ChatPage() {
 
         setAuthChecked(true)
 
-        // 5초마다 커플 상태 확인 (매칭/해제 실시간 감지)
-        let wasConnected = coupleConnected
-        const coupleCheckInterval = setInterval(async () => {
-          try {
-            const checkRes = await getCoupleProfile()
-            const isNowConnected = !!(checkRes.data && checkRes.data.groom && checkRes.data.bride)
-            if (!wasConnected && isNowConnected) {
-              // 매칭됨
-              wasConnected = true
-              setCoupleConnected(true)
-              setCoupleId(checkRes.data.coupleId)
-              const g = checkRes.data.groom
-              const b = checkRes.data.bride
-              setWeddingConfig((prev) => ({
-                ...prev,
-                groomName: g?.name || prev.groomName,
-                brideName: b?.name || prev.brideName,
-                groomNickname: g?.nickname || prev.groomNickname,
-                brideNickname: b?.nickname || prev.brideNickname,
-                groomPhoto: g?.profileImage || prev.groomPhoto,
-                bridePhoto: b?.profileImage || prev.bridePhoto,
-              }))
-              reloadFavorites()
-            } else if (wasConnected && !isNowConnected) {
-              // 매칭 해제됨 - 본인 정보 유지
-              wasConnected = false
-              setCoupleConnected(false)
-              setCoupleId(null)
-              toast.info("커플 매칭이 해제되었습니다.")
-            }
-          } catch {
-            // 에러 시 해제로 간주
-            if (wasConnected) {
-              wasConnected = false
-              setCoupleConnected(false)
-              setCoupleId(null)
-              toast.info("커플 매칭이 해제되었습니다.")
-            }
-          }
-        }, 5000)
-        ;(window as any).__coupleCheckInterval = coupleCheckInterval
+        // 커플 상태 WebSocket 구독 (매칭/해제 실시간 감지)
+        const currentUserId = res.data.id
+        try {
+          const SockJS = require("sockjs-client")
+          const { Client } = require("@stomp/stompjs")
+          const coupleClient = new Client({
+            webSocketFactory: () => new SockJS(window.location.hostname !== "localhost" ? `${window.location.origin}/ws` : "http://localhost:8080/ws"),
+            reconnectDelay: 5000,
+            onConnect: () => {
+              coupleClient.subscribe(`/topic/couple/${currentUserId}`, async (message: any) => {
+                const data = JSON.parse(message.body)
+                if (data.type === "MATCHED") {
+                  try {
+                    const checkRes = await getCoupleProfile()
+                    const g = checkRes.data.groom
+                    const b = checkRes.data.bride
+                    setCoupleConnected(true)
+                    setCoupleId(checkRes.data.coupleId)
+                    setWeddingConfig((prev) => ({
+                      ...prev,
+                      groomName: g?.name || prev.groomName,
+                      brideName: b?.name || prev.brideName,
+                      groomNickname: g?.nickname || prev.groomNickname,
+                      brideNickname: b?.nickname || prev.brideNickname,
+                      groomPhoto: g?.profileImage || prev.groomPhoto,
+                      bridePhoto: b?.profileImage || prev.bridePhoto,
+                    }))
+                    reloadFavorites()
+                  } catch {}
+                } else if (data.type === "DISCONNECTED") {
+                  setCoupleConnected(false)
+                  setCoupleId(null)
+                  toast.info("커플 매칭이 해제되었습니다.")
+                  createInviteCode()
+                    .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+                    .catch(() => {})
+                }
+              })
+            },
+          })
+          coupleClient.activate()
+          ;(window as any).__coupleWsClient = coupleClient
+        } catch (e) {
+          // WebSocket 연결 실패 시 무시
+        }
       } catch {
         clearAccessToken()
         router.replace("/login")
@@ -391,6 +395,7 @@ export default function ChatPage() {
     init()
     return () => {
       if ((window as any).__favInterval) clearInterval((window as any).__favInterval)
+      if ((window as any).__coupleWsClient) (window as any).__coupleWsClient.deactivate()
     }
   }, [router])
 
@@ -1346,6 +1351,9 @@ export default function ChatPage() {
               setCoupleConnected(false)
               setCoupleId(null)
               toast.success("커플 매칭이 해제되었습니다.")
+              createInviteCode()
+                .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
+                .catch(() => {})
             }}
           />
         )

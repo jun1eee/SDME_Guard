@@ -35,7 +35,14 @@ public class ScheduleService {
         List<Schedule> schedules = user.getCoupleId() != null
             ? scheduleRepository.findByCoupleIdAndDeletedAtIsNullOrderByDateAscCreatedAtDesc(user.getCoupleId())
             : scheduleRepository.findByUserIdAndDeletedAtIsNullOrderByDateAscCreatedAtDesc(userId);
-        return schedules.stream().map(ScheduleResponse::from).toList();
+        return schedules.stream().map(s -> {
+            if (s.getReservationId() != null) {
+                Long vendorId = reservationRepository.findById(s.getReservationId())
+                    .map(Reservation::getVendorId).orElse(null);
+                return ScheduleResponse.from(s, vendorId);
+            }
+            return ScheduleResponse.from(s);
+        }).toList();
     }
 
     @Transactional

@@ -78,7 +78,7 @@ public class ReservationService {
         try {
             Vendor vendor = vendorRepository.findById(request.getVendorId()).orElse(null);
             if (vendor != null && request.getReservationDate() != null) {
-                scheduleService.createScheduleWithReservation(userId, vendor.getName() + " 방문",
+                scheduleService.createScheduleWithReservation(userId, vendor.getName(),
                         request.getReservationDate(), request.getReservationTime(),
                         request.getMemo(), mapCategory(vendor.getCategory()), reservation.getId());
                 log.info("[Reservation] 일정 자동 추가 - vendorName: {}, date: {}, reservationId: {}",

@@ -6,6 +6,8 @@ import com.ssafy.sdme.budget.repository.BudgetRepository;
 import com.ssafy.sdme.couple.domain.Couple;
 import com.ssafy.sdme.couple.domain.CoupleStatus;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
+import com.ssafy.sdme.schedule.domain.Schedule;
+import com.ssafy.sdme.schedule.repository.ScheduleRepository;
 import com.ssafy.sdme.user.domain.Role;
 import com.ssafy.sdme.user.domain.User;
 import com.ssafy.sdme.user.domain.UserPreference;
@@ -40,6 +42,7 @@ public class UserServiceImpl implements UserService {
     private final CoupleRepository coupleRepository;
     private final UserPreferenceRepository userPreferenceRepository;
     private final BudgetRepository budgetRepository;
+    private final ScheduleRepository scheduleRepository;
 
     @Override
     public UserResponse getMyInfo(Long userId) {
@@ -204,6 +207,29 @@ public class UserServiceImpl implements UserService {
                             .build()));
             budget.updateTotal(request.getTotalBudget() * 10000);
             log.info("[User] Budget 동기화 - coupleId: {}, totalBudget: {}", user.getCoupleId(), request.getTotalBudget() * 10000);
+        }
+
+        // 결혼 예정일 → 일정 캘린더 upsert
+        if (request.getWeddingDate() != null) {
+            String WEDDING_TITLE = "결혼식";
+            Schedule existing = user.getCoupleId() != null
+                ? scheduleRepository.findByCoupleIdAndTitleAndDeletedAtIsNull(user.getCoupleId(), WEDDING_TITLE).orElse(null)
+                : scheduleRepository.findByUserIdAndTitleAndDeletedAtIsNull(userId, WEDDING_TITLE).orElse(null);
+
+            if (existing != null) {
+                existing.update(WEDDING_TITLE, request.getWeddingDate(), existing.getTime(),
+                        existing.getLocation(), existing.getMemo(), existing.getCategory());
+            } else {
+                scheduleRepository.save(Schedule.builder()
+                        .userId(userId)
+                        .coupleId(user.getCoupleId())
+                        .title(WEDDING_TITLE)
+                        .date(request.getWeddingDate())
+                        .category(Schedule.ScheduleCategory.HALL)
+                        .source(Schedule.ScheduleSource.USER)
+                        .build());
+            }
+            log.info("[User] 결혼식 일정 upsert - userId: {}, date: {}", userId, request.getWeddingDate());
         }
 
         log.info("[User] 추가 정보 수정 - userId: {}", userId);
