@@ -414,9 +414,11 @@ class ToolRegistry:
         # 쿼리에서 예산/개수 등 숫자 조건 제거 → tokenizer가 의미없는 토큰 생성 방지
         clean_query = self._clean_hall_query(query)
         halls = self.hall_engine.search(query=clean_query, criteria=criteria, limit=count * 2)
-        # 예산 "이하" 명시 시 엄격 필터링
+        # 예산 필터링
         if criteria.budget and "이하" in query:
             halls = [h for h in halls if not h.min_total_price or h.min_total_price <= criteria.budget]
+        elif criteria.budget and "이상" in query:
+            halls = [h for h in halls if h.min_total_price and h.min_total_price >= criteria.budget]
         halls = halls[:count]
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
