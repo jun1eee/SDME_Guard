@@ -873,7 +873,11 @@ export default function ChatPage() {
     studio: "bg-purple-100", dress: "bg-pink-100", makeup: "bg-amber-100", venue: "bg-rose-100",
   }
 
-  const handleAddToVote = (vendor: { id: string; name: string; category: string; price: string; address: string }, source: "my-wish" | "partner-share") => {
+  const handleAddToVote = (vendor: { id: string; name: string; category: string; price: string; address: string }, source: "my-wish" | "partner-share"): boolean => {
+    if (!coupleConnected) {
+      toast.error("커플 매칭 후 투표에 추가할 수 있어요")
+      return false
+    }
     const newItem: VendorItem = {
       id: `vote-${vendor.id}-${Date.now()}`,
       category: VOTE_CATEGORY_MAP[vendor.category] ?? "웨딩홀",
@@ -898,6 +902,7 @@ export default function ChatPage() {
       toast.error(err.message || "투표 항목 추가에 실패했습니다.")
     })
     toast.success("비밀 투표에 추가됐어요", { description: vendor.name, duration: 3000 })
+    return true
   }
 
   const handleFavoriteChange = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, isFavorite: boolean) => {

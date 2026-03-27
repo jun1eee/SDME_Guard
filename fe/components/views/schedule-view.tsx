@@ -11,9 +11,13 @@ import {
   Trash2,
   X,
   Check,
+  CalendarIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 import { getAccessToken } from "@/lib/api"
 import { fetchVendorDetail } from "@/lib/api/vendor-detail"
 import { VendorDetailView } from "@/components/views/vendors-view"
@@ -81,7 +85,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const statusColors = {
   진행중: "bg-primary text-primary-foreground",
-  대기중: "bg-muted text-muted-foreground",
+  대기중: "bg-foreground text-background",
   완료: "bg-green-100 text-green-700",
 }
 
@@ -114,51 +118,115 @@ function ScheduleForm({
   title: string
 }) {
   const [title, setTitle] = useState(initial?.title ?? "")
-  const [date, setDate] = useState(initial?.date ?? "")
-  const [time, setTime] = useState(initial?.time ?? "")
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(() => {
+    if (!initial?.date) return undefined
+    const [y, m, d] = initial.date.split("-").map(Number)
+    return new Date(y, (m ?? 1) - 1, d ?? 1)
+  })
+  const [hour, setHour] = useState(() => initial?.time?.split(":")[0] ?? "09")
+  const [minute, setMinute] = useState(() => initial?.time?.split(":")[1] ?? "00")
   const [location, setLocation] = useState(initial?.location ?? "")
   const [category, setCategory] = useState(initial?.category ?? "STUDIO")
   const [status, setStatus] = useState<ScheduleItem["status"]>(initial?.status ?? "대기중")
 
+  const dateStr = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
+    : ""
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title || !date) return
+    if (!title || !dateStr) return
     onSave({
       title,
-      date,
-      time: time || "00:00",
+      date: dateStr,
+      time: `${hour}:${minute}`,
       location: location || "",
       category,
       status,
     })
   }
 
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"))
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"))
+
+  const formatDisplayDate = (d: Date) =>
+    `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})`
+
   return (
     <form onSubmit={handleSubmit} className={formTitle ? "mb-6 rounded-2xl bg-card p-5 shadow-sm border border-border" : ""}>
       {formTitle && <h3 className="mb-4 font-semibold text-foreground">{formTitle}</h3>}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm text-muted-foreground">일정명 *</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">일정명 *</label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 드레스 피팅" />
         </div>
+
+        {/* 날짜 */}
         <div>
-          <label className="mb-1 block text-sm text-muted-foreground">날짜 *</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">날짜 *</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-lg border border-input bg-background px-3 py-2.5 text-sm transition-colors hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring",
+                  !selectedDate && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span>{selectedDate ? formatDisplayDate(selectedDate) : "날짜를 선택하세요"}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                autoFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
+
+        {/* 시간 */}
         <div>
-          <label className="mb-1 block text-sm text-muted-foreground">시간</label>
-          <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">시간</label>
+          <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2.5 transition-colors focus-within:ring-2 focus-within:ring-ring">
+            <Clock className="size-4 shrink-0 text-muted-foreground" />
+            <div className="flex flex-1 items-center gap-1.5">
+              <select
+                value={hour}
+                onChange={(e) => setHour(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+              >
+                {hours.map((h) => (
+                  <option key={h} value={h}>{h}시</option>
+                ))}
+              </select>
+              <span className="text-muted-foreground font-medium">:</span>
+              <select
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+              >
+                {minutes.map((m) => (
+                  <option key={m} value={m}>{m}분</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
+
         <div>
-          <label className="mb-1 block text-sm text-muted-foreground">장소</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">장소</label>
           <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="예: 메종 블랑쉬 아틀리에" />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-muted-foreground">카테고리</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">카테고리</label>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -166,7 +234,7 @@ function ScheduleForm({
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="mb-1 block text-sm text-muted-foreground">상태</label>
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">상태</label>
           <div className="flex gap-2">
             {(["대기중", "진행중", "완료"] as const).map((s) => (
               <button
@@ -185,7 +253,7 @@ function ScheduleForm({
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>취소</Button>
-        <Button type="submit" className="bg-primary text-primary-foreground" disabled={!title || !date}>
+        <Button type="submit" className="bg-primary text-primary-foreground" disabled={!title || !dateStr}>
           저장
         </Button>
       </div>

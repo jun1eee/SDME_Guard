@@ -209,7 +209,8 @@ public class UserServiceImpl implements UserService {
             log.info("[User] Budget 동기화 - coupleId: {}, totalBudget: {}", user.getCoupleId(), request.getTotalBudget() * 10000);
         }
 
-        // 결혼 예정일 → 일정 캘린더 upsert
+
+        // 결혼 예정일 → 일정 캘린더 upsert (카테고리 없음)
         if (request.getWeddingDate() != null) {
             String WEDDING_TITLE = "결혼식";
             Schedule existing = user.getCoupleId() != null
@@ -275,5 +276,31 @@ public class UserServiceImpl implements UserService {
 
         log.info("[User] 프로필 이미지 변경 - userId: {}, url: {}", userId, imageUrl);
         return imageUrl;
+    }
+
+    @Override
+    @Transactional
+    public void deleteProfileImage(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+
+        String existingUrl = user.getProfileImage();
+        if (existingUrl != null && existingUrl.startsWith("/uploads/")) {
+            try {
+                String filename = existingUrl.substring(existingUrl.lastIndexOf("/") + 1);
+                Path uploadDir;
+                if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                    uploadDir = Paths.get(System.getProperty("user.home"), "uploads", "profiles");
+                } else {
+                    uploadDir = Paths.get("/uploads/profiles");
+                }
+                Files.deleteIfExists(uploadDir.resolve(filename));
+            } catch (IOException e) {
+                log.warn("[User] 프로필 이미지 파일 삭제 실패 - userId: {}", userId, e);
+            }
+        }
+
+        user.updateProfileImage(null);
+        log.info("[User] 프로필 이미지 삭제 - userId: {}", userId);
     }
 }

@@ -93,6 +93,7 @@ public class Schedule {
         this.updatedAt = LocalDateTime.now();
     }
 
+
     public void updateStatus(ScheduleStatus status) {
         this.status = status;
         this.updatedAt = LocalDateTime.now();

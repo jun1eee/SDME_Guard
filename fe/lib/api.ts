@@ -219,6 +219,10 @@ export async function uploadProfileImage(file: File): Promise<{ status: number; 
   return data
 }
 
+export async function deleteProfileImage() {
+  return fetchApi<void>("/user/me/profile-image", { method: "DELETE" })
+}
+
 // Preference API
 export async function savePreference(data: {
   weddingDate: string

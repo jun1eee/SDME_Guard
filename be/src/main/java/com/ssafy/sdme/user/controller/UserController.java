@@ -89,4 +89,13 @@ public class UserController {
         String imageUrl = userService.updateProfileImage(userId, file);
         return ApiResponse.ok(imageUrl);
     }
+
+    @Operation(summary = "프로필 이미지 삭제", description = "프로필 이미지를 삭제합니다.")
+    @DeleteMapping("/me/profile-image")
+    public ApiResponse<Void> deleteProfileImage(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        log.info("[UserController] 프로필 이미지 삭제 - userId: {}", userId);
+        userService.deleteProfileImage(userId);
+        return ApiResponse.ok(null);
+    }
 }

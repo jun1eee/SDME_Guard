@@ -25,4 +25,6 @@ public interface UserService {
     UserPreferenceResponse updateSharedInfo(Long userId, UserSharedInfoRequest request);
 
     String updateProfileImage(Long userId, org.springframework.web.multipart.MultipartFile file);
+
+    void deleteProfileImage(Long userId);
 }

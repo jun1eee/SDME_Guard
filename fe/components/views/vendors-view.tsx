@@ -525,7 +525,7 @@ function stepBadgeStyle(step: number): string {
 
 export function VendorsView({ onShareVendor, onAddToVote, currentUser, onFavoriteChange, initialVendorId, favoriteVendorIds, aiRecommendations }: {
   onShareVendor?: (vendor: Vendor) => void
-  onAddToVote?: (vendor: Vendor) => void
+  onAddToVote?: (vendor: Vendor) => boolean
   currentUser?: "groom" | "bride"
   onFavoriteChange?: (vendor: Vendor, isFavorite: boolean) => void
   initialVendorId?: string | null
@@ -1004,6 +1004,15 @@ function VendorCard({
 export { INITIAL_VENDORS }
 export type { Vendor }
 
+/** 주소 정제: \u0026 등 유니코드 이스케이프 → 실제 문자 변환 + 괄호(법정동) 이후 업체명 제거 */
+function getMapAddress(address: string): string {
+  const decoded = address.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) =>
+    String.fromCharCode(parseInt(code, 16))
+  )
+  const match = decoded.match(/^(.*?\([^)]+\))/)
+  return match ? match[1].trim() : decoded
+}
+
 export function VendorDetailView({
   vendor,
   onBack,
@@ -1018,7 +1027,7 @@ export function VendorDetailView({
   onBack: () => void
   onToggleFavorite: () => void
   onShareVendor?: (v: Vendor) => void
-  onAddToVote?: (v: Vendor) => void
+  onAddToVote?: (v: Vendor) => boolean
   isLoading?: boolean
   autoOpenPayment?: boolean
   onPaymentComplete?: () => void
@@ -1030,6 +1039,10 @@ export function VendorDetailView({
     if (firstId) setSelectedPkgId(firstId)
   }, [vendor.packages?.[0]?.id])
   const [selectedHallId, setSelectedHallId] = useState(vendor.halls?.[0]?.id ?? 0)
+  useEffect(() => {
+    const firstId = vendor.halls?.[0]?.id
+    if (firstId) setSelectedHallId(firstId)
+  }, [vendor.halls?.[0]?.id])
   const [showReservation, setShowReservation] = useState(autoOpenPayment)
   const [showReview, setShowReview] = useState(false)
   const [fittingImage, setFittingImage] = useState<File | null>(null)
@@ -1568,8 +1581,7 @@ export function VendorDetailView({
               <button
                 onClick={() => {
                   if (!voteAdded) {
-                    onAddToVote(vendor)
-                    setVoteAdded(true)
+                    if (onAddToVote(vendor)) setVoteAdded(true)
                   }
                 }}
                 className={`flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
@@ -1629,7 +1641,7 @@ export function VendorDetailView({
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 size-4 flex-shrink-0 text-muted-foreground" />
                 <div className="flex-1">
-                  <span className="text-sm text-foreground">{vendor.address}</span>
+                  <span className="text-sm text-foreground">{vendor.address.replace(/\\u([0-9a-fA-F]{4})/g, (_, c) => String.fromCharCode(parseInt(c, 16)))}</span>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(vendor.address)
@@ -1678,9 +1690,8 @@ export function VendorDetailView({
 
             <div className="mt-4 flex gap-2">
               {[
-                { label: "네이버 지도", href: `https://map.naver.com/v5/search/${encodeURIComponent(vendor.address)}` },
-                { label: "카카오맵", href: `https://map.kakao.com/?q=${encodeURIComponent(vendor.address)}` },
-                { label: "티맵", href: `tmap://search?name=${encodeURIComponent(vendor.address)}` },
+                { label: "네이버 지도", href: `https://map.naver.com/v5/search/${encodeURIComponent(getMapAddress(vendor.address))}` },
+                { label: "카카오맵", href: `https://map.kakao.com/?q=${encodeURIComponent(getMapAddress(vendor.address))}` },
               ].map(({ label, href }) => (
                 <a
                   key={label}
@@ -2581,16 +2592,20 @@ function ReviewModal({
 // ─── Report Modal ─────────────────────────────────────────────────────────
 
 function ReportModal({ vendorId, vendorName, onClose }: { vendorId: string; vendorName: string; onClose: () => void }) {
-  const [reason, setReason] = useState("")
+  const [reasons, setReasons] = useState<string[]>([])
   const [details, setDetails] = useState("")
   const [submitted, setSubmitted] = useState(false)
-  const reasons = ["허위 정보", "불법 영업", "불쾌한 경험", "가격 사기", "기타"]
+  const REASON_OPTIONS = ["허위 정보", "불법 영업", "불쾌한 경험", "가격 사기", "기타"]
+
+  const toggleReason = (r: string) => {
+    setReasons(prev => prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r])
+  }
 
   const handleSubmit = async () => {
-    if (!reason) return
+    if (reasons.length === 0) return
     try {
       const { reportVendor } = await import("@/lib/api")
-      await reportVendor(Number(vendorId), reason + (details ? `: ${details}` : ""))
+      await reportVendor(Number(vendorId), reasons.join(", ") + (details ? `: ${details}` : ""))
       setSubmitted(true)
       setTimeout(onClose, 1500)
     } catch {
@@ -2614,14 +2629,14 @@ function ReportModal({ vendorId, vendorName, onClose }: { vendorId: string; vend
         <>
           <div className="space-y-4">
             <div>
-              <label className="mb-2 block text-sm font-medium text-foreground">신고 사유</label>
+              <label className="mb-2 block text-sm font-medium text-foreground">신고 사유 (복수 선택 가능)</label>
               <div className="flex flex-wrap gap-2">
-                {reasons.map((r) => (
+                {REASON_OPTIONS.map((r) => (
                   <button
                     key={r}
-                    onClick={() => setReason(r)}
+                    onClick={() => toggleReason(r)}
                     className={`rounded-full border px-3 py-1.5 text-sm ${
-                      reason === r
+                      reasons.includes(r)
                         ? "border-foreground bg-foreground text-background"
                         : "border-border text-foreground hover:bg-muted"
                     }`}
@@ -2646,7 +2661,7 @@ function ReportModal({ vendorId, vendorName, onClose }: { vendorId: string; vend
             <Button
               className="flex-1 bg-red-500 text-white hover:bg-red-600"
               onClick={handleSubmit}
-              disabled={!reason}
+              disabled={reasons.length === 0}
             >
               신고 제출
             </Button>
