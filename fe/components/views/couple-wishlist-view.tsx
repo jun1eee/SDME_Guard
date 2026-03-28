@@ -226,7 +226,6 @@ export function CoupleWishlistView({
                   onShareVendor?.(v)
                   setModalVendor(null)
                 }}
-                onAddReview={() => {}}
               />
             </div>
           </div>
@@ -418,13 +417,22 @@ function CompactVendorCard({
       }}
       onClick={() => onOpenDetail(vendor.vendorId)}
     >
-      {vendor.coverUrl ? (
-        <img src={vendor.coverUrl} alt={vendor.name} className="h-32 w-full object-cover" />
-      ) : (
-        <div className="flex h-32 w-full items-center justify-center bg-muted">
-          <span className="text-4xl">{emoji}</span>
-        </div>
-      )}
+      <div className="relative h-32 w-full overflow-hidden bg-muted">
+        {vendor.coverUrl ? (
+          <img
+            src={vendor.coverUrl}
+            alt={vendor.name}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none"
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <span className="text-4xl">{emoji}</span>
+          </div>
+        )}
+      </div>
 
       <div className="p-3">
         <div className="flex items-center gap-1.5">

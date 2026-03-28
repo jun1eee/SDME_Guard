@@ -88,9 +88,11 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">카카오톡으로 시작하기</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            먼저 로그인한 뒤 프로필을 설정하고 사전질문을 진행해주세요.
+          <h1 className="text-2xl font-bold text-foreground">두 사람의 특별한 날을</h1>
+          <h1 className="text-2xl font-bold text-primary">함께 완성해요</h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            스드메부터 웨딩홀까지, AI가 함께하는<br />
+            스마트한 웨딩 플래닝을 경험해보세요.
           </p>
         </div>
 
@@ -106,12 +108,6 @@ export default function LoginPage() {
           <MessageCircle className="size-5 fill-current" />
           카카오톡 로그인
         </button>
-
-        <div className="rounded-xl border border-border bg-card px-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            로그인 후 이름, 닉네임, 역할과 몇 가지 결혼 준비 질문에 답하게 됩니다.
-          </p>
-        </div>
 
         {/* 테스트 로그인 */}
         <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50 px-4 py-4 dark:border-orange-800 dark:bg-orange-950/30">
@@ -138,7 +134,7 @@ export default function LoginPage() {
       </div>
 
       <p className="mt-10 text-center text-xs text-muted-foreground">
-        AI 기반 일정 관리로 결혼 준비를 더 차분하게 정리해보세요.
+        설레는 웨딩 준비의 모든 순간, SDM Guard가 함께합니다.
       </p>
     </div>
   )

@@ -84,13 +84,9 @@ export default function ChatPage() {
   const [coupleConnected, setCoupleConnected] = useState(false)
   const [myInviteCode, setMyInviteCode] = useState("")
 
-  // 찜 변경 직후 폴링 무시용 타임스탬프
-  const favChangedAt = useRef(0)
-
-  // 찜 데이터 로드 함수 (폴링 + 변경 후 재조회 공용)
-  const reloadFavorites = useCallback((myId?: number, role?: "groom" | "bride", isPolling = false) => {
-    // 폴링인데 최근 5초 내 수동 변경이 있었으면 건너뜀
-    if (isPolling && Date.now() - favChangedAt.current < 5000) return
+  // 찜 데이터 로드 함수 (ref로 항상 최신 버전을 WebSocket 핸들러에 전달)
+  const reloadFavoritesRef = useRef<(myId?: number, role?: "groom" | "bride") => void>(() => {})
+  const reloadFavorites = useCallback((myId?: number, role?: "groom" | "bride") => {
     const id = myId ?? userId
     const r = role ?? userRole
     if (!id) return
@@ -126,6 +122,11 @@ export default function ChatPage() {
       })
       .catch(() => {})
   }, [userId, userRole])
+
+  // ref를 항상 최신 reloadFavorites로 유지
+  useEffect(() => {
+    reloadFavoritesRef.current = reloadFavorites
+  }, [reloadFavorites])
 
   // 뒤로가기 시 URL 기반 뷰 복원
   useEffect(() => {
@@ -301,10 +302,8 @@ export default function ChatPage() {
           }
         }
 
-        // 초기 찜 로드 + 폴링
+        // 초기 찜 로드 (이후 변경은 WebSocket으로 실시간 반영)
         reloadFavorites(res.data.id, r)
-        const favInterval = setInterval(() => reloadFavorites(res.data.id, r, true), 30000)
-        ;(window as any).__favInterval = favInterval
 
         // 초기 공유 업체 로드
         if (res.data.coupleId) {
@@ -378,6 +377,8 @@ export default function ChatPage() {
                   createInviteCode()
                     .then((inviteRes) => setMyInviteCode(inviteRes.data.inviteCode))
                     .catch(() => {})
+                } else if (data.type === "FAVORITE_UPDATED") {
+                  reloadFavoritesRef.current()
                 }
               })
             },
@@ -394,7 +395,6 @@ export default function ChatPage() {
     }
     init()
     return () => {
-      if ((window as any).__favInterval) clearInterval((window as any).__favInterval)
       if ((window as any).__coupleWsClient) (window as any).__coupleWsClient.deactivate()
     }
   }, [router])
@@ -906,7 +906,6 @@ export default function ChatPage() {
   }
 
   const handleFavoriteChange = (vendor: { id: string; name: string; category: "studio" | "dress" | "makeup" | "venue"; price: string; rating: number; address: string; tags: string[]; description: string; coverUrl?: string }, isFavorite: boolean) => {
-    favChangedAt.current = Date.now()
     if (isFavorite) {
       const fav: VendorShare = {
         id: `fav-${Date.now()}-${vendor.id}`,
@@ -944,7 +943,7 @@ export default function ChatPage() {
       (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
     )
     if (!alreadyFav) {
-      favChangedAt.current = Date.now()
+
       const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
       setFavoriteVendors((prev) => [...prev, fav])
       addFavorite(Number(vendor.vendorId))
@@ -1131,7 +1130,7 @@ export default function ChatPage() {
             }}
             onFavoriteVendor={handleFavoriteVendorFromChat}
             onUnfavoriteVendor={(vendorId) => {
-              favChangedAt.current = Date.now()
+        
               setFavoriteVendors((prev) => prev.filter((v) => !(v.vendorId === vendorId && v.sharedBy === userRole)))
               removeFavorite(Number(vendorId))
                 .then(() => reloadFavorites())
@@ -1232,7 +1231,7 @@ export default function ChatPage() {
             onOpenVendor={() => addPanelTab("vendors", "right")}
             onOpenSchedule={() => addPanelTab("schedule", "right")}
             onUnfavorite={(vendorId) => {
-              favChangedAt.current = Date.now()
+        
               setFavoriteVendors((prev) => prev.filter((v) => v.vendorId !== vendorId))
               removeFavorite(Number(vendorId))
                 .then(() => reloadFavorites())
@@ -1258,7 +1257,7 @@ export default function ChatPage() {
                 (v) => v.vendorId === vendor.vendorId && v.sharedBy === userRole
               )
               if (!alreadyFav) {
-                favChangedAt.current = Date.now()
+          
                 const fav: VendorShare = { ...vendor, id: `fav-${Date.now()}-${vendor.vendorId}`, sharedBy: userRole }
                 setFavoriteVendors((prev) => [...prev, fav])
                 addFavorite(Number(vendor.vendorId))
@@ -1377,7 +1376,7 @@ export default function ChatPage() {
           })
           setShareModalComment("")
         }} onFavoriteRemoved={(vendorId) => {
-          favChangedAt.current = Date.now()
+    
           setFavoriteVendors((prev) => prev.filter((v) => v.vendorId !== vendorId))
         }} />
       case "payment":
