@@ -15,7 +15,10 @@ export function registerReservationTools(server: McpServer, api: ApiClient) {
     async ({ reservationId, reservationDate, reservationTime, memo }) => {
       try {
         const body: any = {}
-        if (reservationDate) body.reservationDate = reservationDate
+        if (reservationDate) {
+          body.reservationDate = reservationDate
+          body.serviceDate = reservationDate  // 두 필드 동시 업데이트
+        }
         if (reservationTime) body.reservationTime = reservationTime + ":00"
         if (memo) body.memo = memo
         await api.put(`/reservations/${reservationId}`, body)
