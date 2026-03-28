@@ -2,6 +2,8 @@ package com.ssafy.sdme.favorite.service;
 
 import com.ssafy.sdme._global.exception.BadRequestException;
 import com.ssafy.sdme._global.exception.NotFoundException;
+import com.ssafy.sdme.couple.domain.Couple;
+import com.ssafy.sdme.couple.repository.CoupleRepository;
 import com.ssafy.sdme.favorite.domain.Favorite;
 import com.ssafy.sdme.favorite.dto.FavoriteResponse;
 import com.ssafy.sdme.favorite.repository.FavoriteRepository;
@@ -11,8 +13,11 @@ import com.ssafy.sdme.vendor.domain.Vendor;
 import com.ssafy.sdme.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +31,8 @@ public class FavoriteService {
     private final FavoriteRepository favoriteRepository;
     private final UserRepository userRepository;
     private final VendorRepository vendorRepository;
+    private final CoupleRepository coupleRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional(readOnly = true)
     public List<FavoriteResponse> getMyFavorites(Long userId) {
@@ -63,6 +70,7 @@ public class FavoriteService {
 
         Vendor vendor = vendorRepository.findById(resolvedId).orElse(null);
         log.info("[Favorite] 찜 추가 - userId: {}, vendorId: {} (resolved: {})", userId, vendorId, resolvedId);
+        notifyPartner(user);
         return FavoriteResponse.of(favorite, vendor);
     }
 
@@ -74,6 +82,24 @@ public class FavoriteService {
 
         favoriteRepository.delete(favorite);
         log.info("[Favorite] 찜 해제 - userId: {}, vendorId: {}", userId, resolvedId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+        notifyPartner(user);
+    }
+
+    private void notifyPartner(User user) {
+        if (user.getCoupleId() == null) return;
+        coupleRepository.findById(user.getCoupleId()).ifPresent(couple -> {
+            Long partnerId = user.getId().equals(couple.getGroomId())
+                    ? couple.getBrideId()
+                    : couple.getGroomId();
+            if (partnerId == null) return;
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("type", "FAVORITE_UPDATED");
+            messagingTemplate.convertAndSend("/topic/couple/" + partnerId, (Object) payload);
+            log.info("[Favorite] 파트너 찜 목록 갱신 알림 - partnerId: {}", partnerId);
+        });
     }
 
     private Long resolveVendorId(Long vendorId) {
