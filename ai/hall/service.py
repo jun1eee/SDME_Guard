@@ -40,8 +40,10 @@ class HallChatService:
         self._merge_request_metadata(session, request)
         log_lines = [f"[input] {message}"]
 
+        preferences = (request.context.metadata or {}).get("preferences") if request.context else None
+
         try:
-            messages = self._build_messages(session, message, couple_context=request.couple_context)
+            messages = self._build_messages(session, message, couple_context=request.couple_context, preferences=preferences)
             response = self._run_chat_completion(messages=messages, tools=HALL_TOOLS)
         except Exception as exc:
             fallback = self._fallback_search(message)
@@ -154,7 +156,7 @@ class HallChatService:
         )
 
     def _build_messages(self, session: SessionState, message: str,
-                        couple_context=None) -> list[dict[str, Any]]:
+                        couple_context=None, preferences: dict | None = None) -> list[dict[str, Any]]:
         system_prompt = self._build_system_prompt(session)
         if couple_context:
             from hall.prompts import HALL_COUPLE_CONTEXT_TEMPLATE
@@ -165,6 +167,21 @@ class HallChatService:
                 bride_vendors=couple_context.bride_vendors or "없음",
             )
             system_prompt = couple_block + "\n" + system_prompt
+        if preferences:
+            pref_lines = ["[커플 취향 정보]"]
+            for role_key, label in [("groom", "신랑"), ("bride", "신부")]:
+                prefs = preferences.get(role_key)
+                if not prefs:
+                    continue
+                parts = []
+                if prefs.get("styles"): parts.append(f"선호 스타일: {', '.join(prefs['styles'])}")
+                if prefs.get("colors"): parts.append(f"선호 색상: {', '.join(prefs['colors'])}")
+                if prefs.get("moods"): parts.append(f"선호 분위기: {', '.join(prefs['moods'])}")
+                if prefs.get("foods"): parts.append(f"선호 음식: {', '.join(prefs['foods'])}")
+                if parts:
+                    pref_lines.append(f"[{label}] " + " / ".join(parts))
+            if len(pref_lines) > 1:
+                system_prompt = "\n".join(pref_lines) + "\n\n" + system_prompt
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_prompt}
         ]
