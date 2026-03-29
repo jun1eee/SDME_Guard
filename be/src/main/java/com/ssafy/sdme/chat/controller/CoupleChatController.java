@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,19 @@ public class  CoupleChatController {
         ChatMessageResponse response = chatService.saveAndCreateResponse(request);
         messagingTemplate.convertAndSend("/topic/couple/" + request.getCoupleId(), response);
         log.info("[CoupleChatController] REST 채팅 전송 - userId: {}, type: {}", userId, request.getMessageType());
+        return ApiResponse.ok(response);
+    }
+
+    // REST: 이미지 업로드
+    @Operation(summary = "채팅 이미지 전송", description = "커플 채팅에 이미지를 업로드합니다.")
+    @PostMapping("/couple/images")
+    public ApiResponse<ChatMessageResponse> uploadImage(@RequestParam("file") MultipartFile file,
+                                                         @RequestParam("coupleId") Long coupleId,
+                                                         HttpServletRequest httpRequest) {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        ChatMessageResponse response = chatService.saveImageMessage(userId, coupleId, file);
+        messagingTemplate.convertAndSend("/topic/couple/" + coupleId, response);
+        log.info("[CoupleChatController] 이미지 전송 - userId: {}, coupleId: {}", userId, coupleId);
         return ApiResponse.ok(response);
     }
 

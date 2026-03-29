@@ -461,6 +461,31 @@ export async function unshareVendor(vendorId: number) {
   return fetchApi(`/vendors/${vendorId}/share`, { method: "DELETE" })
 }
 
+export async function uploadChatImage(coupleId: number, file: File) {
+  const token = getAccessToken()
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("coupleId", String(coupleId))
+
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
+  }
+
+  const res = await fetch(`${API_BASE}/chat/couple/images`, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "include",
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.message || `이미지 업로드 실패: ${res.status}`)
+  }
+  return data
+}
+
 export async function saveCoupleChatMessage(data: {
   senderId: number
   coupleId: number

@@ -19,13 +19,26 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CoupleChatService {
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp"
+    );
+    private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
     private final CoupleChatRoomRepository chatRoomRepository;
     private final CoupleChatMessageRepository chatMessageRepository;
@@ -63,6 +76,67 @@ public class CoupleChatService {
         String senderRole = sender != null && sender.getRole() != null ? (sender.getRole() == Role.g ? "groom" : "bride") : "unknown";
 
         log.info("[Chat] 메시지 저장 - coupleId: {}, sender: {}", request.getCoupleId(), senderName);
+        return ChatMessageResponse.of(message, senderName, senderRole);
+    }
+
+    @Transactional
+    public ChatMessageResponse saveImageMessage(Long userId, Long coupleId, MultipartFile file) {
+        // 파일 검증
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException("허용되지 않는 이미지 형식입니다. (jpeg, png, gif, webp)");
+        }
+        if (file.getSize() > MAX_IMAGE_SIZE) {
+            throw new IllegalArgumentException("이미지 크기는 10MB 이하여야 합니다.");
+        }
+
+        // 파일 저장
+        String ext = "";
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && originalFilename.contains(".")) {
+            ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+        } else {
+            ext = "." + contentType.split("/")[1];
+        }
+        String filename = coupleId + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8) + ext;
+
+        Path uploadDir;
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            uploadDir = Paths.get(System.getProperty("user.home"), "uploads", "chat");
+        } else {
+            uploadDir = Paths.get("/uploads/chat");
+        }
+
+        try {
+            Files.createDirectories(uploadDir);
+            Files.copy(file.getInputStream(), uploadDir.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            log.error("[Chat] 이미지 저장 실패 - coupleId: {}, userId: {}", coupleId, userId, e);
+            throw new RuntimeException("이미지 저장에 실패했습니다.", e);
+        }
+
+        String imageUrl = "/uploads/chat/" + filename;
+
+        // 채팅방 조회/생성 + 메시지 저장
+        CoupleChatRoom room = chatRoomRepository.findByCoupleId(coupleId)
+                .orElseGet(() -> chatRoomRepository.save(
+                        CoupleChatRoom.builder().coupleId(coupleId).build()
+                ));
+
+        CoupleChatMessage message = CoupleChatMessage.builder()
+                .coupleChatRoomId(room.getId())
+                .senderUserId(userId)
+                .content(imageUrl)
+                .messageType(MessageType.image)
+                .build();
+        chatMessageRepository.save(message);
+
+        User sender = userRepository.findById(userId).orElse(null);
+        String senderName = sender != null ? sender.getName() : "알 수 없음";
+        String senderRole = sender != null && sender.getRole() != null
+                ? (sender.getRole() == Role.g ? "groom" : "bride") : "unknown";
+
+        log.info("[Chat] 이미지 메시지 저장 - coupleId: {}, sender: {}, url: {}", coupleId, senderName, imageUrl);
         return ChatMessageResponse.of(message, senderName, senderRole);
     }
 
