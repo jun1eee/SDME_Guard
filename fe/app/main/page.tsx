@@ -443,6 +443,24 @@ export default function ChatPage() {
       })
   }, [authChecked]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // aiSessionId가 새로 생기면 My Chats에 즉시 반영
+  useEffect(() => {
+    if (!aiSessionId || messages.length === 0) return
+    setChatHistory((prev) => {
+      if (prev.some((s) => s.id === aiSessionId)) return prev
+      const firstUser = messages.find((m) => m.role === "user")
+      const title = generateChatTitle(firstUser?.content ?? "새 채팅")
+      return [{
+        id: aiSessionId,
+        title,
+        preview: messages[messages.length - 1]?.content?.slice(0, 60) ?? "",
+        createdAt: new Date(),
+        isPinned: false,
+        messages: [],
+      }, ...prev]
+    })
+  }, [aiSessionId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // 인증 완료 후 AI 채팅 세션 목록 불러오기
   useEffect(() => {
     if (!authChecked) return
@@ -725,21 +743,7 @@ export default function ChatPage() {
 
     try {
       const res = await sendAiChat({ message: messageToSend, sessionId: aiSessionId })
-      const newSessionId = res.data.sessionId
-      setAiSessionId(newSessionId)
-      // 새 세션이면 사이드바에 바로 추가
-      if (newSessionId && !chatHistory.some((s) => s.id === newSessionId)) {
-        const firstUserMsg = messages.find((m) => m.role === "user")
-        const title = generateChatTitle(firstUserMsg?.content ?? messageToSend)
-        setChatHistory((prev) => [{
-          id: newSessionId,
-          title,
-          preview: messageToSend.slice(0, 60),
-          createdAt: new Date(),
-          isPinned: false,
-          messages: [],
-        }, ...prev.filter((s) => s.id !== newSessionId)])
-      }
+      setAiSessionId(res.data.sessionId)
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
