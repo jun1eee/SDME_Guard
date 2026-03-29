@@ -596,7 +596,7 @@ export function VoteView({
             <h1 className="text-2xl font-bold text-foreground">비밀 투표</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            각자 비밀리에 투표해요. 둘 다 완료하면 결과를 확인할 수 있어요.
+            각자 비밀리에 투표해요. 투표 결과는 AI 추천에 반영돼요.
           </p>
         </div>
 
@@ -639,7 +639,7 @@ export function VoteView({
         <div className="flex items-start gap-2 rounded-xl bg-muted/60 border border-border px-3 py-2.5">
           <Lock className="size-3.5 text-muted-foreground mt-0.5 shrink-0" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            내 투표는 상대방에게 보이지 않아요. 둘 다 투표를 완료하면 결과를 함께 확인할 수 있어요.
+            내 투표는 상대방에게 보이지 않아요.
           </p>
         </div>
 

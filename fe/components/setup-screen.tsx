@@ -857,6 +857,13 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
               >
                 나중에 연결
               </button>
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+              >
+                시작하기
+              </button>
             </div>
           </div>
         )}
