@@ -54,7 +54,14 @@ public class VoteController {
                                    @RequestBody VoteRequest request,
                                    HttpServletRequest httpRequest) {
         Long userId = (Long) httpRequest.getAttribute("userId");
-        return ApiResponse.ok(voteService.vote(userId, voteItemId, request));
+        Vote result = voteService.vote(userId, voteItemId, request);
+        // WebSocket으로 파트너에게 투표 완료 알림
+        Long coupleId = voteService.getCoupleIdByVoteItem(voteItemId);
+        if (coupleId != null) {
+            String notify = "{\"type\":\"vote_submitted\",\"senderId\":" + userId + ",\"voteItemId\":" + voteItemId + "}";
+            messagingTemplate.convertAndSend("/topic/vote/" + coupleId, notify);
+        }
+        return ApiResponse.ok(result);
     }
 
     @Operation(summary = "투표 삭제", description = "투표를 삭제합니다.")

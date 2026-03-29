@@ -108,6 +108,13 @@ public class VoteService {
         log.info("[Vote] 투표 삭제 - userId: {}, voteItemId: {}", userId, voteItemId);
     }
 
+    @Transactional(readOnly = true)
+    public Long getCoupleIdByVoteItem(Long voteItemId) {
+        return voteItemRepository.findById(voteItemId)
+                .map(VoteItem::getCoupleId)
+                .orElse(null);
+    }
+
     @Transactional
     public void deleteVoteItem(Long userId, Long voteItemId) {
         VoteItem item = voteItemRepository.findById(voteItemId)

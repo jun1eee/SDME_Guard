@@ -87,7 +87,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm space-y-6">
-        <div>
+        <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">두 사람의 특별한 날을</h1>
           <h1 className="text-2xl font-bold text-primary">함께 완성해요</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

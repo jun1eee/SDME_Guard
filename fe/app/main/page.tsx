@@ -509,6 +509,7 @@ export default function ChatPage() {
   }, [])
   const [pendingVoteItems, setPendingVoteItems] = useState<VendorItem[]>([])
   const [voteBadge, setVoteBadge] = useState(0)
+  const [voteRefreshKey, setVoteRefreshKey] = useState(0)
   const [coupleChatBadge, setCoupleChatBadge] = useState(0)
   const [openVendorId, setOpenVendorId] = useState<string | null>(null)
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -617,7 +618,8 @@ export default function ChatPage() {
         client.subscribe(`/topic/vote/${coupleId}`, (message: any) => {
           const data = JSON.parse(message.body)
           if (data.senderId !== userId) {
-            setVoteBadge((prev) => prev + 1)
+            if (data.type === "vote_notify") setVoteBadge((prev) => prev + 1)
+            setVoteRefreshKey((prev) => prev + 1)
           }
         })
       },
@@ -1200,7 +1202,7 @@ export default function ChatPage() {
         return <ScheduleView />
 
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} refreshKey={voteRefreshKey} onVoteSubmitApi={(itemId, score, reason) => {
           const numId = Number(itemId)
           if (numId) submitVote(numId, { score, reason }).catch(() => {})
         }} />
@@ -1390,7 +1392,7 @@ export default function ChatPage() {
           addPanelTab("vendors", "right")
         }} />
       case "vote":
-        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} onVoteSubmitApi={(itemId, score, reason) => {
+        return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} refreshKey={voteRefreshKey} onVoteSubmitApi={(itemId, score, reason) => {
           const numId = Number(itemId)
           if (numId) submitVote(numId, { score, reason }).catch(() => {})
         }} />
