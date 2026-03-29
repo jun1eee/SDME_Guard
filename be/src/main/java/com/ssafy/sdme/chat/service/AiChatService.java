@@ -22,6 +22,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -72,9 +73,12 @@ public class AiChatService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
+            String endpoint = resolveAiEndpoint(request.getMessage());
+            log.info("[AiChat] 라우팅: {} → {}", request.getMessage().substring(0, Math.min(30, request.getMessage().length())), endpoint);
+
             @SuppressWarnings("unchecked")
             ResponseEntity<Map> response = restTemplate.exchange(
-                    aiServerUrl + "/api/chat/sdm",
+                    endpoint,
                     HttpMethod.POST,
                     entity,
                     Map.class
@@ -168,8 +172,11 @@ public class AiChatService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
+            String endpoint = resolveAiEndpoint(request.getMessage());
+            log.info("[AiChat] 커플 라우팅: {} → {}", request.getMessage().substring(0, Math.min(30, request.getMessage().length())), endpoint);
+
             ResponseEntity<Map> response = restTemplate.exchange(
-                    aiServerUrl + "/api/chat/sdm",
+                    endpoint,
                     HttpMethod.POST,
                     entity,
                     Map.class
@@ -321,6 +328,17 @@ public class AiChatService {
             prefs.put("preferred_regions", pref.getPreferredRegions());
         }
         return prefs;
+    }
+
+    private static final Pattern HALL_KEYWORDS = Pattern.compile(
+            "웨딩홀|예식장|하객|식대|뷔페|채플|호텔웨딩|컨벤션|홀\\s*추천|홀\\s*찾|홀\\s*검색|웨딩\\s*홀"
+    );
+
+    private String resolveAiEndpoint(String message) {
+        if (message != null && HALL_KEYWORDS.matcher(message).find()) {
+            return aiServerUrl + "/api/chat/hall";
+        }
+        return aiServerUrl + "/api/chat/sdm";
     }
 
     private Long resolveCoupleId(Long userId) {
