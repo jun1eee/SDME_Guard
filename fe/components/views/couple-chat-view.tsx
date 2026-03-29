@@ -466,16 +466,15 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
   }
 
   const handleImagePaste = async (file: File) => {
-    const myRole = role as "groom" | "bride"
     const tempId = `img-temp-${Date.now()}`
     const blobUrl = URL.createObjectURL(file)
 
     // optimistic: 즉시 화면에 표시
     setMessages((prev) => [...prev, {
       id: tempId,
-      role: myRole,
+      role: currentUser,
       content: "",
-      sender: role === "groom" ? groomName : brideName,
+      sender: currentUser === "groom" ? groomName : brideName,
       imageUrl: blobUrl,
       createdAt: new Date().toISOString(),
     }])
