@@ -725,7 +725,21 @@ export default function ChatPage() {
 
     try {
       const res = await sendAiChat({ message: messageToSend, sessionId: aiSessionId })
-      setAiSessionId(res.data.sessionId)
+      const newSessionId = res.data.sessionId
+      setAiSessionId(newSessionId)
+      // 새 세션이면 사이드바에 바로 추가
+      if (newSessionId && !chatHistory.some((s) => s.id === newSessionId)) {
+        const firstUserMsg = messages.find((m) => m.role === "user")
+        const title = generateChatTitle(firstUserMsg?.content ?? messageToSend)
+        setChatHistory((prev) => [{
+          id: newSessionId,
+          title,
+          preview: messageToSend.slice(0, 60),
+          createdAt: new Date(),
+          isPinned: false,
+          messages: [],
+        }, ...prev.filter((s) => s.id !== newSessionId)])
+      }
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",

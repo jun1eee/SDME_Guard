@@ -98,6 +98,30 @@ public class UserServiceImpl implements UserService {
                                 .build()
                 ));
 
+        // 결혼 예정일 → 일정 캘린더 upsert
+        if (request.getWeddingDate() != null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
+            String WEDDING_TITLE = "결혼식";
+            Schedule existing = user.getCoupleId() != null
+                    ? scheduleRepository.findByCoupleIdAndTitleAndDeletedAtIsNull(user.getCoupleId(), WEDDING_TITLE).orElse(null)
+                    : scheduleRepository.findByUserIdAndTitleAndDeletedAtIsNull(userId, WEDDING_TITLE).orElse(null);
+            if (existing != null) {
+                existing.update(WEDDING_TITLE, request.getWeddingDate(), existing.getTime(),
+                        existing.getLocation(), existing.getMemo(), existing.getCategory());
+            } else {
+                scheduleRepository.save(Schedule.builder()
+                        .userId(userId)
+                        .coupleId(user.getCoupleId())
+                        .title(WEDDING_TITLE)
+                        .date(request.getWeddingDate())
+                        .category(Schedule.ScheduleCategory.HALL)
+                        .source(Schedule.ScheduleSource.USER)
+                        .build());
+            }
+            log.info("[User] 결혼식 일정 upsert - userId: {}, date: {}", userId, request.getWeddingDate());
+        }
+
         log.info("[User] 선호도 저장 - userId: {}", userId);
         return UserPreferenceResponse.from(preference);
     }
