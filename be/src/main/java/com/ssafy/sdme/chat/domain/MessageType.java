@@ -5,5 +5,6 @@ public enum MessageType {
     vendor_share,
     vendor_recommendation,
     system,
-    ai_response
+    ai_response,
+    image
 }

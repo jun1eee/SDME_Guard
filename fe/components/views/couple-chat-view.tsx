@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 import { Client } from "@stomp/stompjs"
 import SockJS from "sockjs-client"
-import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat, saveCoupleChatMessage } from "@/lib/api"
+import { getChatMessages, getAiChatSessions, getCoupleAiSessions, selectCoupleAiSession, clearCoupleAiSession, sendCoupleAiChat, saveCoupleChatMessage, uploadChatImage } from "@/lib/api"
 import { RecommendationCarousel } from "@/components/recommendation-carousel"
 
 export interface VendorShare {
@@ -40,6 +40,7 @@ interface Message {
   suggestions?: string[]
   comment?: string
   createdAt?: string
+  imageUrl?: string
 }
 
 interface CoupleChatViewProps {
@@ -158,6 +159,17 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
               return acc
             } catch { /* fall through */ }
           }
+          if (m.messageType === "image") {
+            acc.push({
+              id: m.id.toString(),
+              role: m.senderRole as "groom" | "bride",
+              content: "",
+              sender: m.senderName,
+              imageUrl: m.content,
+              createdAt: m.createdAt,
+            })
+            return acc
+          }
           if (m.messageType === "system") {
             acc.push({
               id: m.id.toString(),
@@ -203,7 +215,28 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
           }
 
           // 내가 보낸 메시지는 이미 로컬에 추가했으므로 무시 (일반 메시지만)
-          if (data.senderId === userId && data.messageType !== "vendor_share") return
+          if (data.senderId === userId && data.messageType !== "vendor_share" && data.messageType !== "image") return
+
+          if (data.messageType === "image") {
+            if (data.senderId === userId) {
+              // 내가 보낸 이미지: optimistic 메시지를 서버 URL로 교체
+              setMessages((prev) => prev.map((m) =>
+                m.id.startsWith("img-temp-") && m.role === (data.senderRole as "groom" | "bride")
+                  ? { ...m, id: data.id.toString(), imageUrl: data.content }
+                  : m
+              ))
+            } else {
+              setMessages((prev) => [...prev, {
+                id: data.id.toString(),
+                role: data.senderRole as "groom" | "bride",
+                content: "",
+                sender: data.senderName,
+                imageUrl: data.content,
+                createdAt: data.createdAt,
+              }])
+            }
+            return
+          }
 
           if (data.messageType === "ai_response") {
             try {
@@ -429,6 +462,32 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     } else {
       const full = { address: "", tags: [] as string[], description: "", ...vendor }
       onShareVendorFromDrop?.(full)
+    }
+  }
+
+  const handleImagePaste = async (file: File) => {
+    const tempId = `img-temp-${Date.now()}`
+    const blobUrl = URL.createObjectURL(file)
+
+    // optimistic: 즉시 화면에 표시
+    setMessages((prev) => [...prev, {
+      id: tempId,
+      role: currentUser,
+      content: "",
+      sender: currentUser === "groom" ? groomName : brideName,
+      imageUrl: blobUrl,
+      createdAt: new Date().toISOString(),
+    }])
+
+    try {
+      await uploadChatImage(coupleId, file)
+      // WebSocket으로 서버 응답이 오면 optimistic 메시지를 교체함
+    } catch (err) {
+      console.error("[이미지 업로드 실패]", err)
+      // 실패 시 optimistic 메시지 제거
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
+    } finally {
+      URL.revokeObjectURL(blobUrl)
     }
   }
 
@@ -740,6 +799,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
                       vendorShares={message.vendorShares}
                       recommendations={message.recommendations}
                       comment={message.comment}
+                      imageUrl={message.imageUrl}
                       onAddToVote={onAddToVote}
                       onFavoriteVendor={onFavoriteVendor}
                       onUnfavoriteVendor={onUnfavoriteVendor}
@@ -762,6 +822,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
           {/* Input */}
           <ChatInput
         onSend={handleSend}
+        onImagePaste={handleImagePaste}
         disabled={isTyping}
         placeholder={inputPlaceholder}
         attachedVendors={aiMode ? attachedVendors : []}
@@ -1037,6 +1098,7 @@ function CoupleChatMessage({
   vendorShares,
   recommendations,
   comment,
+  imageUrl,
   onAddToVote,
   onFavoriteVendor,
   onUnfavoriteVendor,
@@ -1055,6 +1117,7 @@ function CoupleChatMessage({
   vendorShares?: VendorShare[]
   recommendations?: import("@/lib/api").AiRecommendation[]
   comment?: string
+  imageUrl?: string
   onAddToVote?: (vendor: VendorShare) => void
   onFavoriteVendor?: (vendor: VendorShare) => void
   onUnfavoriteVendor?: (vendorId: string) => void
@@ -1122,6 +1185,15 @@ function CoupleChatMessage({
                 </div>
               )
             )}
+          </div>
+        ) : imageUrl ? (
+          <div className="rounded-2xl overflow-hidden">
+            <img
+              src={imageUrl}
+              alt="공유 이미지"
+              className="max-w-[300px] max-h-[300px] rounded-2xl object-cover cursor-pointer"
+              onClick={() => window.open(imageUrl, "_blank")}
+            />
           </div>
         ) : vendorShare ? (
           <VendorShareCard vendor={vendorShare} comment={comment} onAddToVote={onAddToVote} onFavorite={onFavoriteVendor} onUnfavorite={onUnfavoriteVendor} initialLiked={favoriteVendorIds.includes(vendorShare.vendorId)} onOpenVendor={() => onOpenVendor?.(vendorShare.vendorId)} isMine={isMine} onUnshare={onUnshare} />
