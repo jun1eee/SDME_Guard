@@ -172,7 +172,7 @@ class SdmGraphRagEngine:
         rag, _ = self.create_vector_rag(
             category=category, region=region, max_price=max_price, min_price=min_price,
         )
-        result = rag.search(query_text=query)
+        result = rag.search(query_text=query, retriever_config={"top_k": 30})
         vendors = self.extract_vendors_from_retriever(result)
         answer = result.answer
         if not vendors:
@@ -325,7 +325,6 @@ class SdmGraphRagEngine:
             driver=self.driver, index_name="vendor_embedding_index",
             embedder=self.embedder, retrieval_query=retrieval_query,
             result_formatter=self._vendor_result_formatter,
-            top_k=30,
         )
         rag = self._graph_rag_cls(
             retriever=retriever, llm=self.llm,
