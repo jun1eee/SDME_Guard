@@ -127,7 +127,8 @@ class SdmChatService:
                 messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": tool_result.data})
 
             answer = self._build_answer_from_tools(messages_for_followup, tool_results, log_lines,
-                                                    has_preferences=bool(preferences))
+                                                    has_preferences=bool(preferences),
+                                                    preferences=preferences)
 
             # vendor fallback
             if not all_vendors:
@@ -194,6 +195,61 @@ class SdmChatService:
         return None
 
     # ── 내부 ──
+
+    def _insert_reasons(self, formatted_text: str, vendors: list[str],
+                        preferences: dict, log_lines: list[str]) -> str:
+        """LLM에 추천 이유만 요청하고 코드 포맷에 삽입"""
+        pref_summary = []
+        for role_key, label in [("groom", "신랑"), ("bride", "신부")]:
+            prefs = preferences.get(role_key)
+            if not prefs:
+                continue
+            parts = []
+            if prefs.get("styles"): parts.append(f"스타일: {', '.join(prefs['styles'])}")
+            if prefs.get("colors"): parts.append(f"색상: {', '.join(prefs['colors'])}")
+            if prefs.get("moods"): parts.append(f"분위기: {', '.join(prefs['moods'])}")
+            if parts:
+                pref_summary.append(f"{label} - {' / '.join(parts)}")
+
+        if not pref_summary:
+            return formatted_text
+
+        vendor_list = "\n".join(f"{i+1}. {v}" for i, v in enumerate(vendors[:10]))
+        prompt = (
+            f"커플 취향:\n{chr(10).join(pref_summary)}\n\n"
+            f"추천 업체:\n{vendor_list}\n\n"
+            f"각 업체가 이 커플에게 왜 적합한지 한 줄씩 이유를 작성하세요.\n"
+            f"형식: 업체명: 이유\n"
+            f"업체명만 쓰고 번호는 쓰지 마세요."
+        )
+        try:
+            resp = self.engine.run_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0, max_tokens=500,
+            )
+            reasons_text = resp.choices[0].message.content or ""
+            if resp.usage:
+                log_lines.append(f"[tokens_reason] prompt={resp.usage.prompt_tokens}, completion={resp.usage.completion_tokens}")
+
+            # 이유를 파싱해서 포맷에 삽입
+            reason_map: dict[str, str] = {}
+            for line in reasons_text.strip().splitlines():
+                if ":" in line:
+                    name, reason = line.split(":", 1)
+                    name = name.strip().lstrip("0123456789.) ")
+                    reason_map[name.strip()] = reason.strip()
+
+            for vendor in vendors:
+                reason = reason_map.get(vendor)
+                if reason:
+                    formatted_text = formatted_text.replace(
+                        f"**{vendor}**",
+                        f"**{vendor}**\n  → {reason}",
+                    )
+        except Exception as exc:
+            log_lines.append(f"[reason_error] {exc}")
+
+        return formatted_text
 
     @staticmethod
     def _build_preference_prompt(preferences: dict) -> str:
@@ -264,12 +320,11 @@ class SdmChatService:
         return SYSTEM_PROMPT + "\n\n[현재 대화 상태]\n" + "\n".join(state_lines)
 
     def _build_answer_from_tools(self, messages, tool_results, log_lines,
-                                has_preferences: bool = False) -> str:
-        # 취향 정보가 있으면 direct 결과도 LLM을 거쳐 추천 이유 생성
+                                has_preferences: bool = False,
+                                preferences: dict | None = None) -> str:
         direct_results = [r for _, _, r in tool_results if r.result_type == "direct"]
-        if direct_results and not has_preferences:
+        if direct_results:
             if len(direct_results) > 1:
-                # 복수 결과: vendor 중복 제거 + 등장 빈도순 정렬
                 from collections import Counter
                 vendor_counts: Counter = Counter()
                 for r in direct_results:
@@ -277,18 +332,18 @@ class SdmChatService:
                         vendor_counts[v] += 1
                 merged_vendors = [v for v, _ in vendor_counts.most_common()]
                 if merged_vendors:
-                    # 첫 번째 결과의 tool_args에서 category 추출
                     first_args = next((args for _, args, r in tool_results if r.result_type == "direct"), {})
                     category = first_args.get("related_category", "")
-                    return self.tools._build_vendor_list(
-                        merged_vendors[:10], category,
-                    ).data
-            # 단일 결과 또는 vendor 합산 불가 시
-            seen = []
-            for r in direct_results:
-                if r.data not in seen:
-                    seen.append(r.data)
-            return "\n\n".join(seen)
+                    formatted = self.tools._build_vendor_list(merged_vendors[:10], category).data
+                else:
+                    formatted = direct_results[0].data
+            else:
+                formatted = direct_results[0].data
+
+            # 취향이 있으면 LLM에 추천 이유만 요청 → 코드 포맷에 삽입
+            if has_preferences and preferences:
+                formatted = self._insert_reasons(formatted, direct_results[0].vendors, preferences, log_lines)
+            return formatted
 
         # graphrag 결과 (Text2Cypher/VectorCypher 답변) — 단일이든 복수든 첫 번째 사용
         graphrag_results = [r.data for _, _, r in tool_results if r.result_type == "graphrag"]

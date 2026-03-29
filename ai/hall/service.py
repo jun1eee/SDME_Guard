@@ -115,8 +115,11 @@ class HallChatService:
                 halls = tool_payload.get("hall_records", [])
                 tool_halls.extend(halls)
                 self._remember_halls(session, halls)
-                # 홀 목록이 있으면 코드에서 포맷팅한 텍스트를 LLM에 전달
+                # 코드에서 포맷팅 + 취향 있으면 LLM 추천 이유 삽입
                 tool_content = self._format_tool_content(tool_payload["public_result"])
+                hall_names = [h.get("name", "") for h in (tool_payload["public_result"].get("halls") or [])]
+                if preferences and hall_names:
+                    tool_content = self._insert_hall_reasons(tool_content, hall_names, preferences, log_lines)
                 messages_for_followup.append(
                     {
                         "role": "tool",
@@ -460,6 +463,60 @@ class HallChatService:
     def _append_turns(self, session: SessionState, user_message: str, answer: str) -> None:
         self.session_store.append_history(session.session_id, "user", user_message)
         self.session_store.append_history(session.session_id, "assistant", answer)
+
+    def _insert_hall_reasons(self, formatted_text: str, hall_names: list[str],
+                            preferences: dict, log_lines: list[str]) -> str:
+        """LLM에 추천 이유만 요청하고 코드 포맷에 삽입"""
+        pref_summary = []
+        for role_key, label in [("groom", "신랑"), ("bride", "신부")]:
+            prefs = preferences.get(role_key)
+            if not prefs:
+                continue
+            parts = []
+            if prefs.get("styles"): parts.append(f"스타일: {', '.join(prefs['styles'])}")
+            if prefs.get("colors"): parts.append(f"색상: {', '.join(prefs['colors'])}")
+            if prefs.get("moods"): parts.append(f"분위기: {', '.join(prefs['moods'])}")
+            if prefs.get("foods"): parts.append(f"음식: {', '.join(prefs['foods'])}")
+            if parts:
+                pref_summary.append(f"{label} - {' / '.join(parts)}")
+
+        if not pref_summary:
+            return formatted_text
+
+        hall_list = "\n".join(f"{i+1}. {n}" for i, n in enumerate(hall_names))
+        prompt = (
+            f"커플 취향:\n{chr(10).join(pref_summary)}\n\n"
+            f"추천 웨딩홀:\n{hall_list}\n\n"
+            f"각 웨딩홀이 이 커플에게 왜 적합한지 한 줄씩 이유를 작성하세요.\n"
+            f"형식: 홀이름: 이유\n"
+            f"홀이름만 쓰고 번호는 쓰지 마세요."
+        )
+        try:
+            resp = self._run_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+            )
+            reasons_text = resp.choices[0].message.content or ""
+            if resp.usage:
+                log_lines.append(f"[tokens_reason] prompt={resp.usage.prompt_tokens}, completion={resp.usage.completion_tokens}")
+
+            reason_map: dict[str, str] = {}
+            for line in reasons_text.strip().splitlines():
+                if ":" in line:
+                    name, reason = line.split(":", 1)
+                    name = name.strip().lstrip("0123456789.) ")
+                    reason_map[name.strip()] = reason.strip()
+
+            for hall_name in hall_names:
+                reason = reason_map.get(hall_name)
+                if reason:
+                    formatted_text = formatted_text.replace(
+                        f"**{hall_name}**",
+                        f"**{hall_name}**\n  → {reason}",
+                    )
+        except Exception as exc:
+            log_lines.append(f"[reason_error] {exc}")
+
+        return formatted_text
 
     def _format_tool_content(self, public_result: dict[str, Any]) -> str:
         """tool 결과를 LLM에 전달할 포맷팅된 텍스트로 변환"""
