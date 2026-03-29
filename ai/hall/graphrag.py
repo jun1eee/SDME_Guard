@@ -209,6 +209,13 @@ class HallGraphRagEngine:
         stations = self._extract_stations(normalized)
         if stations:
             criteria.stations = stations
+            # 역 이름에서 지역도 추출 (e.g., "강남역" → "강남구")
+            for station in stations:
+                station_base = station.replace("역", "")
+                for canonical, aliases in REGION_ALIASES.items():
+                    if any(alias in station_base for alias in aliases):
+                        if canonical not in criteria.regions:
+                            criteria.regions.append(canonical)
 
         styles = self._extract_keywords(normalized, STYLE_KEYWORDS)
         if styles:
@@ -580,15 +587,18 @@ class HallGraphRagEngine:
     def _fetch_candidates(self, query: str, criteria: HallCriteria, limit: int) -> list[HallRecord]:
         self._ensure_driver()
         tokens = self._tokenize_query(query)
+        # 역/호선은 그래프 필터 대신 텍스트 토큰으로 처리 (Station/SubwayLine 노드 미존재)
+        station_tokens = [s.replace("역", "") for s in criteria.stations]
+        merged_tokens = list(dict.fromkeys(tokens + station_tokens))
         params = {
             "regions": criteria.regions,
-            "subwayLines": criteria.subway_lines,
-            "stations": criteria.stations,
+            "subwayLines": [],
+            "stations": [],
             "styles": criteria.styles,
             "features": criteria.features,
             "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
             "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
-            "tokens": tokens,
+            "tokens": merged_tokens,
             "limit": limit,
         }
         rows = self._run_query(self._search_query(), **params)
