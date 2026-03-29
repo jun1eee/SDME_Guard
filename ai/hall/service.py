@@ -115,15 +115,13 @@ class HallChatService:
                 halls = tool_payload.get("hall_records", [])
                 tool_halls.extend(halls)
                 self._remember_halls(session, halls)
+                # 홀 목록이 있으면 코드에서 포맷팅한 텍스트를 LLM에 전달
+                tool_content = self._format_tool_content(tool_payload["public_result"])
                 messages_for_followup.append(
                     {
                         "role": "tool",
                         "tool_call_id": tool_call.id,
-                        "content": json.dumps(
-                            tool_payload["public_result"],
-                            ensure_ascii=False,
-                            default=str,
-                        ),
+                        "content": tool_content,
                     }
                 )
 
@@ -462,6 +460,59 @@ class HallChatService:
     def _append_turns(self, session: SessionState, user_message: str, answer: str) -> None:
         self.session_store.append_history(session.session_id, "user", user_message)
         self.session_store.append_history(session.session_id, "assistant", answer)
+
+    def _format_tool_content(self, public_result: dict[str, Any]) -> str:
+        """tool 결과를 LLM에 전달할 포맷팅된 텍스트로 변환"""
+        halls = public_result.get("halls") or []
+        if not halls:
+            return json.dumps(public_result, ensure_ascii=False, default=str)
+
+        lines = []
+        for i, hall in enumerate(halls, 1):
+            name = hall.get("name", "")
+            region = hall.get("region", "")
+            sub_region = hall.get("subRegion", "")
+            address = hall.get("address", "")
+            meal_min = hall.get("minMealPrice")
+            hall_min = hall.get("minHallPrice")
+            hall_max = hall.get("maxHallPrice")
+            rating = hall.get("rating", 0)
+            tags = hall.get("tags") or []
+            styles = hall.get("styleFilters") or []
+            memo = (hall.get("memo") or "")[:200]
+
+            line = f"**{i}. {name}**"
+            details = []
+            if address:
+                details.append(f"위치: {address}")
+            elif region or sub_region:
+                details.append(f"위치: {region} {sub_region}".strip())
+            if meal_min:
+                details.append(f"식대: {meal_min:,}원")
+            if hall_min:
+                price_str = f"홀 대관료: {hall_min // 10000}만원"
+                if hall_max and hall_max != hall_min:
+                    price_str += f"~{hall_max // 10000}만원"
+                details.append(price_str)
+            if rating:
+                details.append(f"평점: {rating}")
+            if tags:
+                details.append(f"태그: {', '.join(tags[:5])}")
+            if styles:
+                details.append(f"스타일: {', '.join(styles[:3])}")
+            if memo:
+                details.append(f"특징: {memo}")
+
+            for d in details:
+                line += f"\n  • {d}"
+            lines.append(line)
+
+        result = "\n\n".join(lines)
+        # 기타 메타 정보도 포함
+        extra_keys = {k: v for k, v in public_result.items() if k != "halls"}
+        if extra_keys:
+            result += f"\n\n[메타] {json.dumps(extra_keys, ensure_ascii=False, default=str)}"
+        return result
 
     def _build_answer_from_tool_payload(self, payload: dict[str, Any] | None) -> str:
         if not payload:
