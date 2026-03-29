@@ -32,8 +32,11 @@ class SdmChatService:
         user_id = request.context.user_id if request.context else None
         log_lines = [f"[input] {message}"]
 
+        # 취향 데이터 추출 (BE에서 context.preferences로 전달)
+        preferences = (request.context.metadata or {}).get("preferences") if request.context else None
+
         try:
-            messages = self._build_messages(session, message, couple_context=request.couple_context)
+            messages = self._build_messages(session, message, couple_context=request.couple_context, preferences=preferences)
             response = self.engine.run_chat_completion(
                 messages=messages, tools=TOOLS_SCHEMA, tool_choice="auto", temperature=0,
             )
@@ -123,7 +126,8 @@ class SdmChatService:
                 all_vendors.extend(tool_result.vendors)
                 messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": tool_result.data})
 
-            answer = self._build_answer_from_tools(messages_for_followup, tool_results, log_lines)
+            answer = self._build_answer_from_tools(messages_for_followup, tool_results, log_lines,
+                                                    has_preferences=bool(preferences))
 
             # vendor fallback
             if not all_vendors:
@@ -192,6 +196,32 @@ class SdmChatService:
     # ── 내부 ──
 
     @staticmethod
+    def _build_preference_prompt(preferences: dict) -> str:
+        lines = ["[커플 취향 정보]"]
+        for role_key, label in [("groom", "신랑"), ("bride", "신부")]:
+            prefs = preferences.get(role_key)
+            if not prefs:
+                continue
+            parts = []
+            if prefs.get("styles"):
+                parts.append(f"선호 스타일: {', '.join(prefs['styles'])}")
+            if prefs.get("colors"):
+                parts.append(f"선호 색상: {', '.join(prefs['colors'])}")
+            if prefs.get("moods"):
+                parts.append(f"선호 분위기: {', '.join(prefs['moods'])}")
+            if prefs.get("foods"):
+                parts.append(f"선호 음식: {', '.join(prefs['foods'])}")
+            if prefs.get("hall_style"):
+                parts.append(f"웨딩홀 스타일: {prefs['hall_style']}")
+            if parts:
+                lines.append(f"[{label}] " + " / ".join(parts))
+        if len(lines) == 1:
+            return ""
+        lines.append("")
+        lines.append("업체를 추천할 때 위 취향 정보를 참고하여 각 업체가 왜 이 커플에게 적합한지 한 줄 이유를 추가하세요.")
+        return "\n".join(lines)
+
+    @staticmethod
     def _build_couple_system_prompt(couple_context: CoupleContext) -> str:
         return COUPLE_CONTEXT_TEMPLATE.format(
             groom_summary=couple_context.groom_summary or "",
@@ -201,10 +231,14 @@ class SdmChatService:
         )
 
     def _build_messages(self, session: SessionState, message: str,
-                        couple_context: CoupleContext | None = None) -> list[dict[str, Any]]:
+                        couple_context: CoupleContext | None = None,
+                        preferences: dict | None = None) -> list[dict[str, Any]]:
         system_prompt = self._build_dynamic_system_prompt(session)
         if couple_context:
             system_prompt = self._build_couple_system_prompt(couple_context) + "\n" + system_prompt
+        if preferences:
+            pref_block = self._build_preference_prompt(preferences)
+            system_prompt = pref_block + "\n" + system_prompt
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(session.history[-self.settings.session_history_limit:])
         messages.append({"role": "user", "content": message})
@@ -229,10 +263,11 @@ class SdmChatService:
             return SYSTEM_PROMPT
         return SYSTEM_PROMPT + "\n\n[현재 대화 상태]\n" + "\n".join(state_lines)
 
-    def _build_answer_from_tools(self, messages, tool_results, log_lines) -> str:
-        # direct 타입이 있으면 LLM 안 거치고 바로 반환 (룰베이스 결과)
+    def _build_answer_from_tools(self, messages, tool_results, log_lines,
+                                has_preferences: bool = False) -> str:
+        # 취향 정보가 있으면 direct 결과도 LLM을 거쳐 추천 이유 생성
         direct_results = [r for _, _, r in tool_results if r.result_type == "direct"]
-        if direct_results:
+        if direct_results and not has_preferences:
             if len(direct_results) > 1:
                 # 복수 결과: vendor 중복 제거 + 등장 빈도순 정렬
                 from collections import Counter

@@ -9,6 +9,8 @@ import com.ssafy.sdme.chat.repository.AiChatMessageRepository;
 import com.ssafy.sdme.chat.repository.CoupleChatRoomRepository;
 import com.ssafy.sdme.couple.domain.Couple;
 import com.ssafy.sdme.couple.repository.CoupleRepository;
+import com.ssafy.sdme.user.domain.UserPreference;
+import com.ssafy.sdme.user.repository.UserPreferenceRepository;
 import com.ssafy.sdme.vendor.application.VendorIdConverter;
 import com.ssafy.sdme.vendor.domain.Vendor;
 import com.ssafy.sdme.vendor.repository.VendorRepository;
@@ -33,6 +35,7 @@ public class AiChatService {
     private final AiChatMessageRepository aiChatMessageRepository;
     private final CoupleRepository coupleRepository;
     private final CoupleChatRoomRepository coupleChatRoomRepository;
+    private final UserPreferenceRepository userPreferenceRepository;
     private final ObjectMapper objectMapper;
 
     public AiChatService(
@@ -43,6 +46,7 @@ public class AiChatService {
             AiChatMessageRepository aiChatMessageRepository,
             CoupleRepository coupleRepository,
             CoupleChatRoomRepository coupleChatRoomRepository,
+            UserPreferenceRepository userPreferenceRepository,
             ObjectMapper objectMapper
     ) {
         this.restTemplate = restTemplate;
@@ -52,6 +56,7 @@ public class AiChatService {
         this.aiChatMessageRepository = aiChatMessageRepository;
         this.coupleRepository = coupleRepository;
         this.coupleChatRoomRepository = coupleChatRoomRepository;
+        this.userPreferenceRepository = userPreferenceRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -149,6 +154,12 @@ public class AiChatService {
                             coupleContext.put("bride_summary", buildSessionSummary(brideSessionId));
                         }
                         body.put("couple_context", coupleContext);
+                    }
+
+                    // 양쪽 취향 데이터 포함
+                    Map<String, Object> prefs = buildCouplePreferences(coupleId, userId);
+                    if (!prefs.isEmpty()) {
+                        context.put("preferences", prefs);
                     }
                 }
             }
@@ -267,6 +278,51 @@ public class AiChatService {
         }
     }
 
+    private Map<String, Object> buildCouplePreferences(Long coupleId, Long currentUserId) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            Couple couple = coupleRepository.findById(coupleId).orElse(null);
+            if (couple == null) return result;
+
+            boolean isGroom = currentUserId.equals(couple.getGroomId());
+            Long myId = isGroom ? couple.getGroomId() : couple.getBrideId();
+            Long partnerId = isGroom ? couple.getBrideId() : couple.getGroomId();
+
+            if (myId != null) {
+                Map<String, Object> myPrefs = buildPreferenceMap(myId);
+                if (!myPrefs.isEmpty()) {
+                    result.put(isGroom ? "groom" : "bride", myPrefs);
+                }
+            }
+            if (partnerId != null) {
+                Map<String, Object> partnerPrefs = buildPreferenceMap(partnerId);
+                if (!partnerPrefs.isEmpty()) {
+                    result.put(isGroom ? "bride" : "groom", partnerPrefs);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[AiChat] 커플 취향 조회 실패: coupleId={}", coupleId);
+        }
+        return result;
+    }
+
+    private Map<String, Object> buildPreferenceMap(Long userId) {
+        Map<String, Object> prefs = new HashMap<>();
+        UserPreference pref = userPreferenceRepository.findByUserId(userId).orElse(null);
+        if (pref == null) return prefs;
+
+        if (pref.getStyles() != null && !pref.getStyles().isEmpty()) prefs.put("styles", pref.getStyles());
+        if (pref.getColors() != null && !pref.getColors().isEmpty()) prefs.put("colors", pref.getColors());
+        if (pref.getMoods() != null && !pref.getMoods().isEmpty()) prefs.put("moods", pref.getMoods());
+        if (pref.getFoods() != null && !pref.getFoods().isEmpty()) prefs.put("foods", pref.getFoods());
+        if (pref.getHallStyle() != null) prefs.put("hall_style", pref.getHallStyle());
+        if (pref.getGuestCount() != null) prefs.put("guest_count", pref.getGuestCount());
+        if (pref.getPreferredRegions() != null && !pref.getPreferredRegions().isEmpty()) {
+            prefs.put("preferred_regions", pref.getPreferredRegions());
+        }
+        return prefs;
+    }
+
     private Long resolveCoupleId(Long userId) {
         if (userId == null) return null;
         try {
@@ -291,6 +347,11 @@ public class AiChatService {
             Long coupleId = resolveCoupleId(userId);
             if (coupleId != null) {
                 context.put("couple_id", coupleId);
+                // 본인 + 파트너 취향 데이터 포함
+                Map<String, Object> prefs = buildCouplePreferences(coupleId, userId);
+                if (!prefs.isEmpty()) {
+                    context.put("preferences", prefs);
+                }
             }
         } else if (request.getUserId() != null) {
             context.put("user_id", request.getUserId());
