@@ -1,6 +1,18 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
+import { exec } from "child_process"
 import { ApiClient } from "../api-client.js"
+
+const SITE_URL = process.env.SITE_URL ?? "https://j14a105.p.ssafy.io"
+
+function openBrowser(url: string) {
+  const cmd = process.platform === "win32"
+    ? `start "" "${url}"`
+    : process.platform === "darwin"
+      ? `open "${url}"`
+      : `xdg-open "${url}"`
+  exec(cmd)
+}
 
 export function registerPaymentTools(server: McpServer, api: ApiClient) {
   server.tool(
@@ -19,10 +31,12 @@ export function registerPaymentTools(server: McpServer, api: ApiClient) {
 
         const depositAmount = vendorPrice ? Math.round(vendorPrice * 0.1) : null
 
+        openBrowser(SITE_URL)
+
         return {
           content: [{
             type: "text",
-            text: `💳 결제 안내\n- 예약 ID: ${reservationId}${depositAmount ? `\n- 계약금 (10%): ${depositAmount.toLocaleString()}원` : ""}\n- 등록된 카드:\n${cardList}\n\n⚠️ 결제는 앱에서 직접 진행해주세요!\n👉 앱 > 예약 내역 > 해당 예약 > 결제하기`,
+            text: `💳 결제 안내\n- 예약 ID: ${reservationId}${depositAmount ? `\n- 계약금 (10%): ${depositAmount.toLocaleString()}원` : ""}\n- 등록된 카드:\n${cardList}\n\n🌐 브라우저에서 사이트를 열었습니다!\n👉 앱 > 예약 내역 > 해당 예약 > 결제하기`,
           }],
         }
       } catch (e: any) {
