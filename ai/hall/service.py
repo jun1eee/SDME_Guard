@@ -564,19 +564,12 @@ class HallChatService:
                 details.append(f"태그: {', '.join(tags[:5])}")
             if styles:
                 details.append(f"스타일: {', '.join(styles[:3])}")
-            if memo:
-                details.append(f"특징: {memo}")
 
             for d in details:
                 line += f"\n  • {d}"
             lines.append(line)
 
-        result = "\n\n".join(lines)
-        # 기타 메타 정보도 포함
-        extra_keys = {k: v for k, v in public_result.items() if k != "halls"}
-        if extra_keys:
-            result += f"\n\n[메타] {json.dumps(extra_keys, ensure_ascii=False, default=str)}"
-        return result
+        return "\n\n".join(lines)
 
     def _build_answer_from_tool_payload(self, payload: dict[str, Any] | None) -> str:
         if not payload:
