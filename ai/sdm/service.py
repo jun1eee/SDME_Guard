@@ -1,7 +1,11 @@
 """통합 웨딩 챗봇 서비스"""
 import json
+import logging
 import re
+import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from config import Settings
 from schemas.chat import ChatPayload, ChatRequest, CoupleContext, RecommendationCard
@@ -102,12 +106,17 @@ class SdmChatService:
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
+                logger.info(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
 
                 try:
                     tool_result = self.tools.execute(tool_name=tool_name, couple_id=couple_id, user_id=user_id, **tool_args)
                 except Exception as exc:
                     log_lines.append(f"[tool_error] {tool_name}: {exc}")
-                    messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": f"오류: {exc}"})
+                    logger.warning(f"[tool_error] {tool_name}: {exc}")
+                    if "429" in str(exc) or "rate_limit" in str(exc):
+                        messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": "일시적으로 요청이 많아 처리할 수 없습니다. 잠시 후 다시 시도해주세요."})
+                    else:
+                        messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": f"오류: {exc}"})
                     continue
 
                 tool_results.append((tool_call, tool_args, tool_result))
@@ -244,7 +253,16 @@ class SdmChatService:
             return final.choices[0].message.content or "답변을 생성하지 못했습니다."
         except Exception as exc:
             log_lines.append(f"[followup_error] {exc}")
-            return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
+            logger.warning(f"[followup_error] {exc}")
+            # 429 rate limit 시 1회 재시도
+            if "429" in str(exc) or "rate_limit" in str(exc):
+                time.sleep(2)
+                try:
+                    final = self.engine.run_chat_completion(messages=messages, temperature=0)
+                    return final.choices[0].message.content or "답변을 생성하지 못했습니다."
+                except Exception:
+                    pass
+            return "죄송합니다. 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
 
     def _update_session_from_tools(self, session, tool_results, all_vendors, is_new_search) -> None:
         unique = list(dict.fromkeys(all_vendors))

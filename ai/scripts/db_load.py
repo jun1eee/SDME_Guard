@@ -589,6 +589,71 @@ def _build_embedding_text(item, category):
     return " | ".join(p for p in parts if p)
 
 
+def _build_hall_embedding_text(list_item, detail_item):
+    """Hall 1개의 임베딩용 텍스트 조합"""
+    name = (detail_item or {}).get("name") or list_item.get("partnerProfileName", "")
+    region = list_item.get("region", "")
+    sub_region = list_item.get("subRegion", "")
+
+    parts = [name, "웨딩홀"]
+    if region or sub_region:
+        parts.append(f"{region} {sub_region}".strip())
+
+    tags = [t["name"] for t in (detail_item or {}).get("tags", []) if t.get("name")]
+    if tags:
+        parts.append(" ".join(tags))
+
+    styles = [s["name"] for s in (detail_item or {}).get("styleFilter", []) if s.get("name")]
+    if styles:
+        parts.append(" ".join(styles))
+
+    memo = _clean_html((detail_item or {}).get("memoContent", ""))
+    if memo:
+        parts.append(memo[:500])
+
+    benefits = []
+    for b in list_item.get("benefits", []):
+        if b.get("title"):
+            benefits.append(b["title"])
+    for b in (detail_item or {}).get("benefits", []):
+        if b.get("title") and b["title"] not in benefits:
+            benefits.append(b["title"])
+    if benefits:
+        parts.append(" ".join(benefits))
+
+    return " | ".join(p for p in parts if p)
+
+
+def create_hall_embeddings(session, list_items, detail_items):
+    """Hall 노드에 embedding 속성 추가"""
+    detail_map = {int(x["partnerId"]): x for x in detail_items if "partnerId" in x}
+
+    texts, partner_ids = [], []
+    for li in list_items:
+        pid = int(li.get("partnerId")) if li.get("partnerId") is not None else None
+        if pid is None:
+            continue
+        di = detail_map.get(pid)
+        texts.append(_build_hall_embedding_text(li, di))
+        partner_ids.append(pid)
+
+    print(f"  [hall] 임베딩 생성 중... ({len(texts)}개)")
+    embeddings = _batch_embed(texts)
+
+    for i in range(0, len(embeddings), 100):
+        batch = [
+            {"partnerId": partner_ids[j], "embedding": embeddings[j]}
+            for j in range(i, min(i + 100, len(embeddings)))
+        ]
+        session.run("""
+            UNWIND $batch AS row
+            MATCH (h:Hall {partnerId: row.partnerId})
+            SET h.embedding = row.embedding
+        """, batch=batch)
+
+    print(f"  -> [hall] 임베딩 {len(embeddings)}개 저장 완료")
+
+
 def _batch_embed(texts, batch_size=100):
     """OpenAI 임베딩 API 배치 호출"""
     embeddings = []
@@ -638,6 +703,16 @@ def create_vector_index(session):
         }}
     """, dim=EMBEDDING_DIM)
     print(f"  -> vendor_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
+
+    session.run("""
+        CREATE VECTOR INDEX hall_embedding_index IF NOT EXISTS
+        FOR (h:Hall) ON (h.embedding)
+        OPTIONS {indexConfig: {
+            `vector.dimensions`: $dim,
+            `vector.similarity_function`: 'COSINE'
+        }}
+    """, dim=EMBEDDING_DIM)
+    print(f"  -> hall_embedding_index 생성 완료 (dim={EMBEDDING_DIM}, cosine)")
 
 
 # --────────────────────────────────────────
@@ -854,6 +929,10 @@ def main():
             items = load_json(path)
             create_vendor_embeddings(session, items, category)
         create_vector_index(session)
+
+        # 웨딩홀 임베딩 생성
+        print("\n[hall embedding] 임베딩 생성 시작...")
+        create_hall_embeddings(session, list_items, detail_items)
 
         # 최종 통계
         total_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
