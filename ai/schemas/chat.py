@@ -10,6 +10,7 @@ class ChatContext(BaseModel):
     user_id: int | None = None
     couple_id: int | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    preferences: dict[str, Any] | None = None
 
 
 class CoupleContext(BaseModel):

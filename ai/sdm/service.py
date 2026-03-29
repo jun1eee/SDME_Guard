@@ -33,7 +33,7 @@ class SdmChatService:
         log_lines = [f"[input] {message}"]
 
         # 취향 데이터 추출 (BE에서 context.preferences로 전달)
-        preferences = (request.context.metadata or {}).get("preferences") if request.context else None
+        preferences = request.context.preferences if request.context else None
 
         try:
             messages = self._build_messages(session, message, couple_context=request.couple_context, preferences=preferences)
