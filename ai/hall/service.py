@@ -120,15 +120,22 @@ class HallChatService:
                 hall_names = [h.get("name", "") for h in (tool_payload["public_result"].get("halls") or [])]
                 if preferences and hall_names:
                     tool_content = self._insert_hall_reasons(tool_content, hall_names, preferences, log_lines)
-                messages_for_followup.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": tool_content,
-                    }
-                )
 
-            response = self._run_chat_completion(messages=messages_for_followup, tools=HALL_TOOLS)
+                # 홀 목록이 있으면 코드 포맷을 그대로 사용 (LLM 재작성 안 함)
+                if tool_payload["public_result"].get("halls"):
+                    answer = tool_content
+                else:
+                    messages_for_followup.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": tool_content,
+                        }
+                    )
+
+            # 홀 목록 결과가 아닌 경우만 LLM 호출 (비교, 투어 등)
+            if not answer:
+                response = self._run_chat_completion(messages=messages_for_followup, tools=HALL_TOOLS)
 
         if not answer:
             answer = self._build_answer_from_tool_payload(latest_tool_payload)
