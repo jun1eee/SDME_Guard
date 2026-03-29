@@ -1,7 +1,11 @@
 """통합 웨딩 챗봇 서비스"""
 import json
+import logging
 import re
+import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from config import Settings
 from schemas.chat import ChatPayload, ChatRequest, CoupleContext, RecommendationCard
@@ -102,12 +106,17 @@ class SdmChatService:
                     is_new_search = True
 
                 log_lines.append(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
+                logger.info(f"[tool] {tool_name} {json.dumps(tool_args, ensure_ascii=False)[:160]}")
 
                 try:
                     tool_result = self.tools.execute(tool_name=tool_name, couple_id=couple_id, user_id=user_id, **tool_args)
                 except Exception as exc:
                     log_lines.append(f"[tool_error] {tool_name}: {exc}")
-                    messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": f"오류: {exc}"})
+                    logger.warning(f"[tool_error] {tool_name}: {exc}")
+                    if "429" in str(exc) or "rate_limit" in str(exc):
+                        messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": "일시적으로 요청이 많아 처리할 수 없습니다. 잠시 후 다시 시도해주세요."})
+                    else:
+                        messages_for_followup.append({"role": "tool", "tool_call_id": tool_call.id, "content": f"오류: {exc}"})
                     continue
 
                 tool_results.append((tool_call, tool_args, tool_result))
@@ -222,13 +231,28 @@ class SdmChatService:
 
     def _build_answer_from_tools(self, messages, tool_results, log_lines) -> str:
         # direct 타입이 있으면 LLM 안 거치고 바로 반환 (룰베이스 결과)
-        direct_results = [r.data for _, _, r in tool_results if r.result_type == "direct"]
+        direct_results = [r for _, _, r in tool_results if r.result_type == "direct"]
         if direct_results:
-            # 중복 제거 (같은 tool 여러 번 호출 시)
+            if len(direct_results) > 1:
+                # 복수 결과: vendor 중복 제거 + 등장 빈도순 정렬
+                from collections import Counter
+                vendor_counts: Counter = Counter()
+                for r in direct_results:
+                    for v in r.vendors:
+                        vendor_counts[v] += 1
+                merged_vendors = [v for v, _ in vendor_counts.most_common()]
+                if merged_vendors:
+                    # 첫 번째 결과의 tool_args에서 category 추출
+                    first_args = next((args for _, args, r in tool_results if r.result_type == "direct"), {})
+                    category = first_args.get("related_category", "")
+                    return self.tools._build_vendor_list(
+                        merged_vendors[:10], category,
+                    ).data
+            # 단일 결과 또는 vendor 합산 불가 시
             seen = []
-            for d in direct_results:
-                if d not in seen:
-                    seen.append(d)
+            for r in direct_results:
+                if r.data not in seen:
+                    seen.append(r.data)
             return "\n\n".join(seen)
 
         # graphrag 결과 (Text2Cypher/VectorCypher 답변) — 단일이든 복수든 첫 번째 사용
@@ -244,7 +268,16 @@ class SdmChatService:
             return final.choices[0].message.content or "답변을 생성하지 못했습니다."
         except Exception as exc:
             log_lines.append(f"[followup_error] {exc}")
-            return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
+            logger.warning(f"[followup_error] {exc}")
+            # 429 rate limit 시 1회 재시도
+            if "429" in str(exc) or "rate_limit" in str(exc):
+                time.sleep(2)
+                try:
+                    final = self.engine.run_chat_completion(messages=messages, temperature=0)
+                    return final.choices[0].message.content or "답변을 생성하지 못했습니다."
+                except Exception:
+                    pass
+            return "죄송합니다. 답변 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
 
     def _update_session_from_tools(self, session, tool_results, all_vendors, is_new_search) -> None:
         unique = list(dict.fromkeys(all_vendors))
