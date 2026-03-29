@@ -231,13 +231,28 @@ class SdmChatService:
 
     def _build_answer_from_tools(self, messages, tool_results, log_lines) -> str:
         # direct 타입이 있으면 LLM 안 거치고 바로 반환 (룰베이스 결과)
-        direct_results = [r.data for _, _, r in tool_results if r.result_type == "direct"]
+        direct_results = [r for _, _, r in tool_results if r.result_type == "direct"]
         if direct_results:
-            # 중복 제거 (같은 tool 여러 번 호출 시)
+            if len(direct_results) > 1:
+                # 복수 결과: vendor 중복 제거 + 등장 빈도순 정렬
+                from collections import Counter
+                vendor_counts: Counter = Counter()
+                for r in direct_results:
+                    for v in r.vendors:
+                        vendor_counts[v] += 1
+                merged_vendors = [v for v, _ in vendor_counts.most_common()]
+                if merged_vendors:
+                    # 첫 번째 결과의 tool_args에서 category 추출
+                    first_args = next((args for _, args, r in tool_results if r.result_type == "direct"), {})
+                    category = first_args.get("related_category", "")
+                    return self.tools._build_vendor_list(
+                        merged_vendors[:10], category,
+                    ).data
+            # 단일 결과 또는 vendor 합산 불가 시
             seen = []
-            for d in direct_results:
-                if d not in seen:
-                    seen.append(d)
+            for r in direct_results:
+                if r.data not in seen:
+                    seen.append(r.data)
             return "\n\n".join(seen)
 
         # graphrag 결과 (Text2Cypher/VectorCypher 답변) — 단일이든 복수든 첫 번째 사용
