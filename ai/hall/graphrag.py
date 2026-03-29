@@ -1,5 +1,7 @@
 import json
+import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from math import asin, cos, radians, sin, sqrt
 from urllib.error import HTTPError, URLError
@@ -8,8 +10,11 @@ from urllib.request import Request, urlopen
 from typing import Any
 
 from neo4j import GraphDatabase, basic_auth
+from openai import OpenAI
 
 from config import Settings
+
+logger = logging.getLogger(__name__)
 
 STYLE_KEYWORDS = {
     "호텔": ["호텔", "hotel"],
@@ -144,11 +149,16 @@ class HallRecord:
         return asdict(self)
 
 
+
 class HallGraphRagEngine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.driver = None
         self.startup_error: str | None = None
+        self.openai_client = (
+            OpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key else None
+        )
         self._geo_cache: dict[str, tuple[float, float] | None] = {}
         self._route_cache: dict[tuple[str, str, str], tuple[float, float] | None] = {}
 
@@ -240,11 +250,20 @@ class HallGraphRagEngine:
         limit: int = 10,
         strict_region: bool = False,
     ) -> list[tuple[float, HallRecord]]:
-        halls = self._fetch_candidates(query=query, criteria=criteria, limit=max(limit * 6, 30))
+        # 키워드 검색 + 벡터 검색 병렬 실행
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            kw_future = pool.submit(
+                self._fetch_candidates, query, criteria, max(limit * 6, 30),
+            )
+            vec_future = pool.submit(self._vector_search, query, 30)
+            halls = kw_future.result()
+            vector_results = vec_future.result()
+
         normalized = query.lower()
         anchor_coord = self._resolve_search_anchor(criteria, query)
-        matches: list[tuple[float, HallRecord]] = []
 
+        # 키워드 결과 점수 계산
+        scored_map: dict[int, tuple[float, HallRecord]] = {}
         for hall in halls:
             score = self._score_hall(hall, normalized, criteria, strict_region=strict_region)
             if score is None:
@@ -253,16 +272,113 @@ class HallGraphRagEngine:
                 hall_coord = self._resolve_hall_coordinate(hall)
                 if hall_coord:
                     distance_km = self._haversine_distance(
-                        anchor_coord[0],
-                        anchor_coord[1],
-                        hall_coord[0],
-                        hall_coord[1],
+                        anchor_coord[0], anchor_coord[1],
+                        hall_coord[0], hall_coord[1],
                     )
                     score += max(0.0, 3.5 - (distance_km / 1.8))
-            matches.append((score, hall))
+            scored_map[hall.partner_id] = (score, hall)
 
+        # 벡터 결과 병합
+        VECTOR_WEIGHT = 3.0
+        for v_score, v_hall in vector_results:
+            pid = v_hall.partner_id
+            if pid in scored_map:
+                old_score, old_hall = scored_map[pid]
+                scored_map[pid] = (old_score + v_score * VECTOR_WEIGHT, old_hall)
+            else:
+                kw_score = self._score_hall(v_hall, normalized, criteria, strict_region=strict_region)
+                if kw_score is None:
+                    kw_score = 0.0
+                scored_map[pid] = (kw_score + v_score * VECTOR_WEIGHT, v_hall)
+
+        matches = list(scored_map.values())
         matches.sort(key=lambda item: item[0], reverse=True)
         return matches[:limit]
+
+    # ── 벡터 검색 ──
+
+    def _embed_query(self, text: str) -> list[float] | None:
+        if not self.openai_client:
+            return None
+        try:
+            resp = self.openai_client.embeddings.create(
+                input=[text], model=self.settings.openai_embedding_model,
+            )
+            return resp.data[0].embedding
+        except Exception as exc:
+            logger.warning(f"[hall] 임베딩 생성 실패: {exc}")
+            return None
+
+    def _vector_search(self, query: str, limit: int = 30) -> list[tuple[float, HallRecord]]:
+        embedding = self._embed_query(query)
+        if not embedding:
+            return []
+        try:
+            cypher = self._vector_search_query()
+            rows = self._run_query(cypher, query_embedding=embedding, top_k=limit)
+            results = []
+            for row in rows:
+                v_score = row.pop("vectorScore", 0.0)
+                hall = self._row_to_hall(row)
+                results.append((v_score, hall))
+            return results
+        except Exception as exc:
+            logger.warning(f"[hall] 벡터 검색 실패 (fallback to keyword): {exc}")
+            return []
+
+    @staticmethod
+    def _vector_search_query() -> str:
+        return (
+            "CALL db.index.vector.queryNodes('hall_embedding_index', $top_k, $query_embedding)\n"
+            "YIELD node AS h, score AS vectorScore\n"
+            "OPTIONAL MATCH (h)-[:HAS_TAG]->(t:Tag)\n"
+            "OPTIONAL MATCH (h)-[:HAS_STYLE_FILTER]->(sf:StyleFilter)\n"
+            "OPTIONAL MATCH (h)-[:HAS_BENEFIT]->(bn:Benefit)\n"
+            "OPTIONAL MATCH (h)-[:HAS_IMAGE]->(img:Image)\n"
+            "OPTIONAL MATCH (h)-[ns:NEAR_STATION]->(st:Station)\n"
+            "OPTIONAL MATCH (h)-[:ON_SUBWAY_LINE]->(sl:SubwayLine)\n"
+            "OPTIONAL MATCH (h)-[:IN_REGION]->(r:Region)\n"
+            "OPTIONAL MATCH (h)-[:IN_DISTRICT]->(d:District)\n"
+            "WITH h, vectorScore,\n"
+            "     collect(DISTINCT t.name) AS tags,\n"
+            "     collect(DISTINCT sf.name) AS styleFilters,\n"
+            "     collect(DISTINCT bn.title) AS benefits,\n"
+            "     collect(DISTINCT img.url) AS images,\n"
+            "     collect(DISTINCT st.name) AS stations,\n"
+            "     collect(DISTINCT sl.name) AS subwayLines,\n"
+            "     min(ns.walkMinutes) AS walkMinutes,\n"
+            "     head(collect(DISTINCT r.name)) AS regionName,\n"
+            "     head(collect(DISTINCT d.name)) AS districtName\n"
+            "RETURN\n"
+            "  h.partnerId AS partnerId,\n"
+            "  h.name AS name,\n"
+            "  coalesce(regionName, h.region, '') AS region,\n"
+            "  coalesce(districtName, h.subRegion, '') AS subRegion,\n"
+            "  coalesce(h.address, '') AS address,\n"
+            "  coalesce(h.address2, '') AS addressHint,\n"
+            "  coalesce(h.tel, '') AS tel,\n"
+            "  coalesce(h.rating, 0.0) AS rating,\n"
+            "  coalesce(h.reviewCnt, 0) AS reviewCnt,\n"
+            "  coalesce(h.coverUrl, '') AS coverUrl,\n"
+            "  coalesce(h.profileUrl, '') AS profileUrl,\n"
+            "  coalesce(h.profile, '') AS profileText,\n"
+            "  h.minMealPrice AS minMealPrice,\n"
+            "  h.maxMealPrice AS maxMealPrice,\n"
+            "  h.minRentalPrice AS minRentalPrice,\n"
+            "  h.maxRentalPrice AS maxRentalPrice,\n"
+            "  h.minIndividualHallPrice AS minHallPrice,\n"
+            "  h.maxIndividualHallPrice AS maxHallPrice,\n"
+            "  tags,\n"
+            "  styleFilters,\n"
+            "  benefits,\n"
+            "  subwayLines,\n"
+            "  stations,\n"
+            "  walkMinutes,\n"
+            "  coalesce(h.memoContent, '') AS memo,\n"
+            "  images,\n"
+            "  vectorScore\n"
+            "ORDER BY vectorScore DESC"
+        )
 
     def resolve_hall_names(self, keywords: list[str], limit_per_keyword: int = 1) -> list[HallRecord]:
         self._ensure_driver()

@@ -41,7 +41,7 @@ class HallChatService:
         log_lines = [f"[input] {message}"]
 
         try:
-            messages = self._build_messages(session, message)
+            messages = self._build_messages(session, message, couple_context=request.couple_context)
             response = self._run_chat_completion(messages=messages, tools=HALL_TOOLS)
         except Exception as exc:
             fallback = self._fallback_search(message)
@@ -153,12 +153,20 @@ class HallChatService:
             temperature=0,
         )
 
-    def _build_messages(self, session: SessionState, message: str) -> list[dict[str, Any]]:
+    def _build_messages(self, session: SessionState, message: str,
+                        couple_context=None) -> list[dict[str, Any]]:
+        system_prompt = self._build_system_prompt(session)
+        if couple_context:
+            from hall.prompts import HALL_COUPLE_CONTEXT_TEMPLATE
+            couple_block = HALL_COUPLE_CONTEXT_TEMPLATE.format(
+                groom_summary=couple_context.groom_summary or "없음",
+                groom_vendors=couple_context.groom_vendors or "없음",
+                bride_summary=couple_context.bride_summary or "없음",
+                bride_vendors=couple_context.bride_vendors or "없음",
+            )
+            system_prompt = couple_block + "\n" + system_prompt
         messages: list[dict[str, Any]] = [
-            {
-                "role": "system",
-                "content": self._build_system_prompt(session),
-            }
+            {"role": "system", "content": system_prompt}
         ]
         history_limit = self.settings.session_history_limit
         messages.extend(session.history[-history_limit:])
