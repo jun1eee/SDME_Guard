@@ -457,10 +457,12 @@ function VoteProgressBar({
 export function VoteView({
   currentUser,
   pendingItems = [],
+  refreshKey = 0,
   onVoteSubmitApi,
 }: {
   currentUser: "groom" | "bride"
   pendingItems?: VendorItem[]
+  refreshKey?: number
   onVoteSubmitApi?: (vendorId: string, score: string, reason: string) => void
 }) {
   const [items, setItems] = useState<VendorItem[]>([])
@@ -508,7 +510,7 @@ export function VoteView({
         setMyVotes(votes)
       })
       .catch(() => {})
-  }, [])
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 로컬에서 추가된 항목 반영
   useEffect(() => {

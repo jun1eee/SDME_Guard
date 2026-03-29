@@ -1,13 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { format } from "date-fns"
 import { ArrowRight, CalendarIcon, Check, Copy, Heart } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { signup, savePreference, createInviteCode, connectCouple, updateTastes } from "@/lib/api"
+import { signup, savePreference, createInviteCode, connectCouple, updateTastes, getMyInfo } from "@/lib/api"
 import { Sparkles, Palette, Heart as HeartIcon, Utensils } from "lucide-react"
 
 interface SetupScreenProps {
@@ -60,6 +60,30 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
         : [...prev[categoryId], option],
     }))
   }
+
+  useEffect(() => {
+    if (step !== 10) return
+    let client: any = null
+    getMyInfo().then((res) => {
+      const userId = res.data.id
+      const SockJS = require("sockjs-client")
+      const { Client } = require("@stomp/stompjs")
+      client = new Client({
+        webSocketFactory: () => new SockJS(window.location.hostname !== "localhost" ? `${window.location.origin}/ws` : "http://localhost:8080/ws"),
+        reconnectDelay: 5000,
+        onConnect: () => {
+          client.subscribe(`/topic/couple/${userId}`, (message: any) => {
+            const data = JSON.parse(message.body)
+            if (data.type === "MATCHED") {
+              onComplete()
+            }
+          })
+        },
+      })
+      client.activate()
+    }).catch(() => {})
+    return () => { client?.deactivate() }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const shouldSkipPreferenceStep = useMemo(() => hallReserved === true, [hallReserved])
   const showProgress = step >= 1
@@ -856,13 +880,6 @@ export function SetupScreen({ onComplete }: SetupScreenProps) {
                 className="flex-1 rounded-xl border border-border py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
               >
                 나중에 연결
-              </button>
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="flex-1 rounded-xl bg-primary py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
-              >
-                시작하기
               </button>
             </div>
           </div>
