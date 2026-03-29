@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Send, Store, X } from "lucide-react"
+import { useState, useRef } from "react"
+import { Send, Store, X, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +25,8 @@ interface ChatInputProps {
   onVendorDrop?: (vendor: DroppedVendor) => void
   /** 전송 버튼 왼쪽에 추가 버튼 (AI 토글 등) */
   extraButton?: React.ReactNode
+  /** 이미지 붙여넣기 콜백 */
+  onImagePaste?: (file: File) => void
 }
 
 export function ChatInput({
@@ -35,20 +37,53 @@ export function ChatInput({
   onRemoveVendor,
   onVendorDrop,
   extraButton,
+  onImagePaste,
 }: ChatInputProps) {
   const [value, setValue] = useState("")
   const [dragOver, setDragOver] = useState(false)
+  const [pastedImage, setPastedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (disabled) return
+
+    // 이미지가 붙여넣어져 있으면 이미지 전송
+    if (pastedImage) {
+      onImagePaste?.(pastedImage)
+      setPastedImage(null)
+      setImagePreview(null)
+      setValue("")
+      return
+    }
+
     const hasText = value.trim().length > 0
     const hasVendorsAttached = attachedVendors.length > 0
-
     if (!hasText && !hasVendorsAttached) return
-    if (disabled) return
 
     onSend(value.trim())
     setValue("")
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          setPastedImage(file)
+          setImagePreview(URL.createObjectURL(file))
+        }
+        return
+      }
+    }
+  }
+
+  const clearImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setPastedImage(null)
+    setImagePreview(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -97,6 +132,26 @@ export function ChatInput({
         </div>
       )}
 
+      {/* 붙여넣은 이미지 미리보기 */}
+      {imagePreview && (
+        <div className="mx-auto flex max-w-3xl px-4 pt-3">
+          <div className="relative inline-block">
+            <img
+              src={imagePreview}
+              alt="미리보기"
+              className="max-h-[200px] max-w-[300px] rounded-lg border border-border object-cover"
+            />
+            <button
+              type="button"
+              onClick={clearImage}
+              className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground shadow-sm hover:bg-destructive/90"
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 첨부된 업체 칩 */}
       {hasVendors && (
         <div className="mx-auto flex max-w-3xl flex-wrap gap-1.5 px-4 pt-3">
@@ -127,6 +182,7 @@ export function ChatInput({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             rows={1}
             placeholder={placeholder}
             disabled={disabled}
@@ -139,7 +195,7 @@ export function ChatInput({
             <Button
               type="submit"
               size="icon"
-              disabled={(!value.trim() && !hasVendors) || disabled}
+              disabled={(!value.trim() && !hasVendors && !pastedImage) || disabled}
               className="size-10 shrink-0 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
             >
               <Send className="size-4" />
