@@ -271,7 +271,11 @@ class HallGraphRagEngine:
         normalized = query.lower()
         anchor_coord = self._resolve_search_anchor(criteria, query)
 
-        # 키워드 결과 점수 계산
+        # 벡터 점수 맵 생성 (키워드 결과에도 벡터 유사도를 반영하기 위함)
+        VECTOR_WEIGHT = 3.0
+        vector_score_map = {v_hall.partner_id: v_score for v_score, v_hall in vector_results}
+
+        # 키워드 결과 점수 계산 + 벡터 유사도 가산
         scored_map: dict[int, tuple[float, HallRecord]] = {}
         for hall in halls:
             score = self._score_hall(hall, normalized, criteria, strict_region=strict_region)
@@ -285,19 +289,26 @@ class HallGraphRagEngine:
                         hall_coord[0], hall_coord[1],
                     )
                     score += max(0.0, 3.5 - (distance_km / 1.8))
+            # 벡터 점수 가산 (비정형 표현 보완: "분위기 좋은", "아늑한" 등)
+            v_score = vector_score_map.get(hall.partner_id, 0.0)
+            score += v_score * VECTOR_WEIGHT
             scored_map[hall.partner_id] = (score, hall)
 
-        # 벡터 결과 병합
-        VECTOR_WEIGHT = 3.0
+        # 벡터에만 있는 결과 추가 (키워드 검색에 없던 업체)
         for v_score, v_hall in vector_results:
             pid = v_hall.partner_id
-            if pid in scored_map:
-                old_score, old_hall = scored_map[pid]
-                scored_map[pid] = (old_score + v_score * VECTOR_WEIGHT, old_hall)
-            else:
+            if pid not in scored_map:
                 kw_score = self._score_hall(v_hall, normalized, criteria, strict_region=strict_region)
                 if kw_score is None:
                     kw_score = 0.0
+                if anchor_coord:
+                    hall_coord = self._resolve_hall_coordinate(v_hall)
+                    if hall_coord:
+                        distance_km = self._haversine_distance(
+                            anchor_coord[0], anchor_coord[1],
+                            hall_coord[0], hall_coord[1],
+                        )
+                        kw_score += max(0.0, 3.5 - (distance_km / 1.8))
                 scored_map[pid] = (kw_score + v_score * VECTOR_WEIGHT, v_hall)
 
         matches = list(scored_map.values())
