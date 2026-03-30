@@ -549,6 +549,24 @@ def create_tag_co_occurs(session, category):
     print(f"  -> [{category}] CO_OCCURS 관계 {co_cnt}개 생성\n")
 
 
+def create_cross_category_co_occurs(session):
+    """다른 카테고리 간 의미적으로 연관된 Tag 쌍 생성 (CO_OCCURS_CROSS)"""
+    session.run("""
+        MATCH (v:Vendor)-[:HAS_TAG]->(t1:Tag),
+              (v)-[:HAS_TAG]->(t2:Tag)
+        WHERE t1.category <> t2.category AND id(t1) < id(t2)
+        WITH t1, t2, count(v) AS cnt
+        WHERE cnt >= 2
+        MERGE (t1)-[r:CO_OCCURS_CROSS]->(t2)
+        SET r.count = cnt
+    """)
+    cross_cnt = session.run("""
+        MATCH ()-[r:CO_OCCURS_CROSS]->()
+        RETURN count(r) AS cnt
+    """).single()["cnt"]
+    print(f"  -> CO_OCCURS_CROSS 관계 {cross_cnt}개 생성\n")
+
+
 # --────────────────────────────────────────
 # 스드메 임베딩 생성
 # --────────────────────────────────────────
@@ -886,6 +904,9 @@ def main():
         # Tag 동시출현 관계
         for category in VENDOR_FILES:
             create_tag_co_occurs(session, category)
+
+        # Cross-category Tag 동시출현 관계
+        create_cross_category_co_occurs(session)
 
         # 지오코딩 (캐시 활용)
         print("\n[geocoding] 지오코딩 시작...")

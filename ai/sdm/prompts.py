@@ -166,4 +166,12 @@ FEWSHOT_EXAMPLES = [
     # District 검색
     "USER INPUT: '청담 드레스샵 추천해줘'\nQUERY:\nMATCH (v:Vendor {category:'dress'})-[:IN_DISTRICT]->(d:District)\nWHERE d.name CONTAINS '청담'\nRETURN v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.reviewCnt AS reviewCnt, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC LIMIT 10",
     "USER INPUT: '논현동 메이크업샵'\nQUERY:\nMATCH (v:Vendor {category:'makeup'})-[:IN_DISTRICT]->(d:District)\nWHERE d.name CONTAINS '논현'\nRETURN v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC LIMIT 10",
+    # CO_OCCURS 활용 (태그 동시출현)
+    "USER INPUT: '야외촬영 잘하는 스튜디오'\nQUERY:\nMATCH (t1:Tag {category:'studio'}) WHERE t1.name CONTAINS '야외'\nOPTIONAL MATCH (t1)-[co:CO_OCCURS]->(t2:Tag {category:'studio'}) WHERE co.count >= 3\nWITH collect(DISTINCT t1.name) + collect(DISTINCT t2.name) AS expandedTags\nMATCH (v:Vendor {category:'studio'})-[:HAS_TAG]->(t:Tag) WHERE t.name IN expandedTags\nRETURN DISTINCT v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC LIMIT 10",
+    # Cross-category 연관 추천
+    "USER INPUT: '줄리의정원과 어울리는 드레스'\nQUERY:\nMATCH (v1:Vendor)-[:HAS_TAG]->(t:Tag)\nWHERE v1.name CONTAINS '줄리의정원'\nWITH collect(DISTINCT t.name) AS sourceTags\nMATCH (v2:Vendor {category:'dress'})-[:HAS_TAG]->(t2:Tag)\nWHERE any(st IN sourceTags WHERE t2.name CONTAINS st OR st CONTAINS t2.name)\nRETURN DISTINCT v2.partnerId AS id, v2.name AS name, v2.salePrice AS price, v2.rating AS rating, v2.address AS address, v2.profileUrl AS url\nORDER BY v2.rating DESC LIMIT 5",
+    # Multi-hop 관계 탐색 (지역+태그 복합)
+    "USER INPUT: '강남 야외촬영 가능한 스튜디오'\nQUERY:\nMATCH (v:Vendor {category:'studio'})-[:IN_REGION]->(r:Region)\nWHERE r.name CONTAINS '강남'\nMATCH (v)-[:HAS_TAG]->(t:Tag)\nWHERE t.name CONTAINS '야외' OR t.name CONTAINS '로드' OR t.name CONTAINS '가든'\nRETURN DISTINCT v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC LIMIT 10",
+    # District -> Region 계층 활용
+    "USER INPUT: '서초구 드레스샵'\nQUERY:\nMATCH (v:Vendor {category:'dress'})-[:IN_DISTRICT]->(d:District)-[:PART_OF]->(r:Region)\nWHERE d.name CONTAINS '서초' OR r.name CONTAINS '서초'\nRETURN v.partnerId AS id, v.name AS name, v.salePrice AS price, v.rating AS rating, v.address AS address, v.profileUrl AS url\nORDER BY v.rating DESC LIMIT 10",
 ]
