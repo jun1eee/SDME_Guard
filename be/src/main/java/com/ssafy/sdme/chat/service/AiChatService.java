@@ -338,16 +338,8 @@ public class AiChatService {
     );
 
     private String resolveAiEndpoint(String message) {
-        if (message == null) return aiServerUrl + "/api/chat/sdm";
-        boolean hasHall = HALL_KEYWORDS.matcher(message).find();
-        boolean hasSdm = SDM_KEYWORDS.matcher(message).find();
-        // 스드메 키워드가 있으면 SDM 우선 (홀 이름이 포함돼도)
-        if (hasSdm) {
-            return aiServerUrl + "/api/chat/sdm";
-        }
-        if (hasHall) {
-            return aiServerUrl + "/api/chat/hall";
-        }
+        // SDM이 홀+스드메 모두 처리 (hall_engine 참조로 홀 검색도 가능)
+        // Hall 엔드포인트는 홀 전용 검색이지만 연관 스드메 검색이 없어 대화가 단절됨
         return aiServerUrl + "/api/chat/sdm";
     }
 
