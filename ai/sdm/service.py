@@ -437,6 +437,9 @@ class SdmChatService:
             else:
                 seen[name] = r
                 deduped.append(r)
+        # vendor_names 순서로 정렬 (텍스트 답변 순서와 일치)
+        name_order = {name: i for i, name in enumerate(unique)}
+        deduped.sort(key=lambda r: name_order.get(r.get("name", ""), 9999))
         records = deduped
         if limit:
             records = records[:limit]

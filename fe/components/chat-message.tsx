@@ -57,6 +57,14 @@ export function ChatMessage({ role, content, isTyping, recommendations, suggesti
             </div>
           ) : (
             <>
+              {/* 추천 카드 캐러셀 (텍스트보다 먼저 표시) */}
+              {hasRecs && (
+                <RecommendationCarousel
+                  recommendations={recommendations}
+                  onCardClick={onCardClick}
+                />
+              )}
+
               {/* 텍스트 답변 */}
               <div className="px-1 text-sm leading-relaxed text-foreground prose-chat">
                 <ReactMarkdown
@@ -95,14 +103,6 @@ export function ChatMessage({ role, content, isTyping, recommendations, suggesti
                   {displayContent}
                 </ReactMarkdown>
               </div>
-
-              {/* 추천 카드 캐러셀 */}
-              {hasRecs && (
-                <RecommendationCarousel
-                  recommendations={recommendations}
-                  onCardClick={onCardClick}
-                />
-              )}
 
               {/* 후속 질문 버튼 */}
               {hasSuggestions && (
