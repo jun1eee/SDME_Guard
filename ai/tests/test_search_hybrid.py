@@ -8,6 +8,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sdm.graphrag import SdmGraphRagEngine
+from common.search_utils import cosine_similarity, expand_tags
 
 
 # ============================================================
@@ -65,27 +66,27 @@ def _mock_session(records):
 class TestCosineSimilarity:
     def test_identical_vectors_return_1(self):
         v = [1.0, 2.0, 3.0]
-        assert abs(SdmGraphRagEngine._cosine_similarity(v, v) - 1.0) < 1e-9
+        assert abs(cosine_similarity(v, v) - 1.0) < 1e-9
 
     def test_orthogonal_vectors_return_0(self):
         a = [1.0, 0.0]
         b = [0.0, 1.0]
-        assert abs(SdmGraphRagEngine._cosine_similarity(a, b)) < 1e-9
+        assert abs(cosine_similarity(a, b)) < 1e-9
 
     def test_opposite_vectors_return_neg1(self):
         a = [1.0, 0.0]
         b = [-1.0, 0.0]
-        assert abs(SdmGraphRagEngine._cosine_similarity(a, b) - (-1.0)) < 1e-9
+        assert abs(cosine_similarity(a, b) - (-1.0)) < 1e-9
 
     def test_zero_vector_returns_0(self):
         a = [0.0, 0.0]
         b = [1.0, 2.0]
-        assert SdmGraphRagEngine._cosine_similarity(a, b) == 0.0
+        assert cosine_similarity(a, b) == 0.0
 
     def test_different_magnitude_same_direction(self):
         a = [1.0, 0.0]
         b = [100.0, 0.0]
-        assert abs(SdmGraphRagEngine._cosine_similarity(a, b) - 1.0) < 1e-9
+        assert abs(cosine_similarity(a, b) - 1.0) < 1e-9
 
 
 # ============================================================
@@ -95,44 +96,43 @@ class TestCosineSimilarity:
 class TestExpandTags:
     def test_returns_original_plus_related(self, engine):
         session = MagicMock()
-        # Forward direction: t1->t2
-        forward_result = MagicMock()
-        forward_result.__iter__ = lambda self: iter([{"related_tag": "romantic"}])
-        # Backward direction: t1<-t2
-        backward_result = MagicMock()
-        backward_result.__iter__ = lambda self: iter([{"related_tag": "luxury"}])
-
-        session.run.side_effect = [forward_result, backward_result]
+        # expand_tags uses a single bidirectional query now
+        result_mock = MagicMock()
+        result_mock.__iter__ = lambda self: iter([
+            {"related_tag": "romantic"},
+            {"related_tag": "luxury"},
+        ])
+        session.run.return_value = result_mock
         session.__enter__ = lambda self: self
         session.__exit__ = MagicMock(return_value=False)
         engine.driver.session.return_value = session
 
-        result = engine._expand_tags(["natural"], "studio")
+        result = expand_tags(engine.driver, ["natural"], "studio")
         assert result[0] == "natural"  # original first
         assert "romantic" in result
         assert "luxury" in result
 
     def test_empty_tags_returns_empty(self, engine):
-        result = engine._expand_tags([], "studio")
+        result = expand_tags(engine.driver, [], "studio")
         assert result == []
 
     def test_none_tags_returns_empty(self, engine):
-        result = engine._expand_tags(None, "studio")
+        result = expand_tags(engine.driver, None, "studio")
         assert result == []
 
     def test_deduplication(self, engine):
         session = MagicMock()
-        forward_result = MagicMock()
-        forward_result.__iter__ = lambda self: iter([{"related_tag": "warm"}])
-        backward_result = MagicMock()
-        backward_result.__iter__ = lambda self: iter([{"related_tag": "warm"}])  # duplicate
-
-        session.run.side_effect = [forward_result, backward_result]
+        result_mock = MagicMock()
+        result_mock.__iter__ = lambda self: iter([
+            {"related_tag": "warm"},
+            {"related_tag": "warm"},  # duplicate
+        ])
+        session.run.return_value = result_mock
         session.__enter__ = lambda self: self
         session.__exit__ = MagicMock(return_value=False)
         engine.driver.session.return_value = session
 
-        result = engine._expand_tags(["natural"], "studio")
+        result = expand_tags(engine.driver, ["natural"], "studio")
         assert result.count("warm") == 1
 
 

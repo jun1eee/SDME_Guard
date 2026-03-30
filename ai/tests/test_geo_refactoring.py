@@ -15,31 +15,31 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # 1. _haversine 단위 테스트
 # ============================================================
 
-from sdm.tools import _haversine
+from common.search_utils import haversine
 
 
 class TestHaversine:
     def test_same_point_returns_zero(self):
-        assert _haversine(37.5665, 126.9780, 37.5665, 126.9780) == 0.0
+        assert haversine(37.5665, 126.9780, 37.5665, 126.9780) == 0.0
 
     def test_seoul_to_busan(self):
         """서울(37.5665, 126.9780) <-> 부산(35.1796, 129.0756) ~ 325km"""
-        dist = _haversine(37.5665, 126.9780, 35.1796, 129.0756)
+        dist = haversine(37.5665, 126.9780, 35.1796, 129.0756)
         assert 320 < dist < 330, f"Expected ~325km, got {dist:.1f}km"
 
     def test_symmetry(self):
         """A->B == B->A"""
-        d1 = _haversine(37.5665, 126.9780, 35.1796, 129.0756)
-        d2 = _haversine(35.1796, 129.0756, 37.5665, 126.9780)
+        d1 = haversine(37.5665, 126.9780, 35.1796, 129.0756)
+        d2 = haversine(35.1796, 129.0756, 37.5665, 126.9780)
         assert abs(d1 - d2) < 0.001
 
     def test_short_distance(self):
         """강남역(37.4979, 127.0276) <-> 선릉역(37.5046, 127.0486) ~ 1.9km"""
-        dist = _haversine(37.4979, 127.0276, 37.5046, 127.0486)
+        dist = haversine(37.4979, 127.0276, 37.5046, 127.0486)
         assert 1.5 < dist < 2.5, f"Expected ~1.9km, got {dist:.1f}km"
 
     def test_returns_float(self):
-        result = _haversine(37.0, 127.0, 38.0, 128.0)
+        result = haversine(37.0, 127.0, 38.0, 128.0)
         assert isinstance(result, float)
 
 
