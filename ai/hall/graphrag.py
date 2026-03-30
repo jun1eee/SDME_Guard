@@ -611,8 +611,8 @@ class HallGraphRagEngine:
             "stations": [],
             "styles": criteria.styles,
             "features": criteria.features,
-            "budgetLimit": int(criteria.budget * 1.25) if criteria.budget else None,
-            "mealBudgetLimit": int(criteria.meal_budget * 1.25) if criteria.meal_budget else None,
+            "budgetLimit": criteria.budget if criteria.budget else None,
+            "mealBudgetLimit": criteria.meal_budget if criteria.meal_budget else None,
             "tokens": merged_tokens,
             "limit": limit,
         }
@@ -954,12 +954,12 @@ class HallGraphRagEngine:
                 score += max(0.0, 1.4 - (hall.walk_minutes / 8))
 
         if criteria.meal_budget and hall.min_meal_price:
-            if hall.min_meal_price > int(criteria.meal_budget * 1.35):
+            if hall.min_meal_price > criteria.meal_budget:
                 return None
             score += max(0.0, 2 - (hall.min_meal_price / max(criteria.meal_budget, 1)))
 
         if criteria.budget and hall.min_total_price:
-            if hall.min_total_price > int(criteria.budget * 1.35):
+            if hall.min_total_price > criteria.budget:
                 return None
             score += max(0.0, 2 - (hall.min_total_price / max(criteria.budget, 1)))
 
