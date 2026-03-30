@@ -333,9 +333,19 @@ public class AiChatService {
     private static final Pattern HALL_KEYWORDS = Pattern.compile(
             "웨딩홀|예식장|하객|식대|뷔페|채플|호텔웨딩|컨벤션|홀\\s*추천|홀\\s*찾|홀\\s*검색|웨딩\\s*홀"
     );
+    private static final Pattern SDM_KEYWORDS = Pattern.compile(
+            "드레스|스튜디오|메이크업|헤어|촬영|어울리는\\s*(드레스|스튜디오|메이크업)|드레스업체|드레스샵"
+    );
 
     private String resolveAiEndpoint(String message) {
-        if (message != null && HALL_KEYWORDS.matcher(message).find()) {
+        if (message == null) return aiServerUrl + "/api/chat/sdm";
+        boolean hasHall = HALL_KEYWORDS.matcher(message).find();
+        boolean hasSdm = SDM_KEYWORDS.matcher(message).find();
+        // 스드메 키워드가 있으면 SDM 우선 (홀 이름이 포함돼도)
+        if (hasSdm) {
+            return aiServerUrl + "/api/chat/sdm";
+        }
+        if (hasHall) {
             return aiServerUrl + "/api/chat/hall";
         }
         return aiServerUrl + "/api/chat/sdm";
