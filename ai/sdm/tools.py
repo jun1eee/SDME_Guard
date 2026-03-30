@@ -660,10 +660,13 @@ class ToolRegistry:
             vendors = self.engine._extract_vendors_from_bold(answer)
         if not vendors:
             vendors = self.engine._extract_vendors_from_list(answer)
+        # 추출된 vendor 카테고리 검증 (LLM 답변에서 다른 카테고리가 섞일 수 있음)
+        if vendors:
+            verified = self.engine.query_vendors_by_names(vendors)
+            vendors = [v["name"] for v in verified if v.get("category") == target_category]
         if not vendors:
             # 2순위: Text2Cypher fallback
             answer, vendors = self.engine.search_structured(query=query_text, category=target_category)
-            # Text2Cypher는 카테고리 필터가 없으므로 결과 검증
             if vendors:
                 verified = self.engine.query_vendors_by_names(vendors)
                 vendors = [v["name"] for v in verified if v.get("category") == target_category]
