@@ -196,6 +196,12 @@ TOOLS_SCHEMA = [
             "query": {"type": "string", "description": "사용자 원문 그대로"},
             "category": {"type": "string", "enum": ["studio", "dress", "makeup", "hall"],
                          "description": "studio=스튜디오, dress=드레스, makeup=메이크업, hall=웨딩홀/예식장"},
+            "region": {"type": "string", "description": "지역명 (강남, 서초, 홍대 등). 선택"},
+            "max_price": {"type": "integer", "description": "최대 가격 (원). 선택"},
+            "min_price": {"type": "integer", "description": "최소 가격 (원). 선택"},
+            "style_query": {"type": "string", "description": "스타일/분위기 표현 (자연스러운, 모던한, 화려한 등). 선택"},
+            "tags": {"type": "array", "items": {"type": "string"}, "description": "태그 키워드 (야외, 자연광 등). 선택"},
+            "count": {"type": "integer", "description": "결과 수. 선택"},
         }, "required": ["query", "category"]},
     }},
     # 2. 스타일/분위기 검색
@@ -416,12 +422,23 @@ class ToolRegistry:
 
     # ── 1. search: 통합 검색 ──
 
-    def search(self, query: str, category: str, couple_id: int, **_) -> ToolResult:
+    def search(self, query: str, category: str, couple_id: int,
+               region: str = None, max_price: int = None, min_price: int = None,
+               style_query: str = None, tags: list[str] = None, count: int = None, **_) -> ToolResult:
         if category == "hall":
             return self._search_hall(query)
-        count = _extract_count(query)
-        # 스드메: Text2Cypher 검색 (정형)
-        answer, vendors = self.engine.search_structured(query=query, category=category)
+        # count: 명시 파라미터 우선, 없으면 쿼리에서 추출
+        if count is None:
+            count = _extract_count(query)
+        # style_query가 있으면 VectorCypher (의미 검색)
+        if style_query:
+            answer, vendors = self.engine.search_semantic(
+                query=style_query, category=category,
+                region=region, max_price=max_price, min_price=min_price,
+            )
+        else:
+            # 스드메: Text2Cypher 검색 (정형)
+            answer, vendors = self.engine.search_structured(query=query, category=category)
         # 결과 없으면 거리 기반 fallback
         if answer and any(p in answer for p in NO_RESULT_PHRASES):
             lat, lng, _ = geocode_query(query)
@@ -431,10 +448,11 @@ class ToolRegistry:
                     self._add_distance_text(records)
                     records = _dedup_vendors(records)[:count]
                     vendors = [r["name"] for r in records]
-        # 지역 키워드가 있으면 거리순 재정렬
+        # 지역 키워드가 있으면 거리순 재정렬 (region 파라미터 또는 쿼리에서 추출)
+        rerank_query = region or query
         user_coord = None
-        if vendors and _extract_location(query):
-            vendors, user_coord = self._rerank_by_distance(query, vendors)
+        if vendors and _extract_location(rerank_query):
+            vendors, user_coord = self._rerank_by_distance(rerank_query, vendors)
         # 요청 개수에 맞게 제한
         if vendors:
             vendors = vendors[:count]
@@ -529,20 +547,9 @@ class ToolRegistry:
 
     def search_style(self, query: str, category: str, couple_id: int,
                      region: str = None, max_price: int = None, **_) -> ToolResult:
-        count = _extract_count(query)
-        # 비정형 검색 (VectorCypher)
-        answer, vendors = self.engine.search_semantic(
-            query=query, category=category, region=region, max_price=max_price,
-        )
-        # region이 있으면 거리순 재정렬
-        user_coord = None
-        if vendors and region:
-            vendors, user_coord = self._rerank_by_distance(region, vendors)
-        # 요청 개수에 맞게 제한
-        if vendors:
-            vendors = vendors[:count]
-            return self._build_vendor_list(vendors, category, user_coord=user_coord)
-        return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
+        """search_style은 search로 리다이렉트 (style_query=query)"""
+        return self.search(query=query, category=category, couple_id=couple_id,
+                           region=region, max_price=max_price, style_query=query)
 
     # ── 3. search_nearby: 위치 기반 검색 ──
 
