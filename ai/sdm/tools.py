@@ -670,8 +670,9 @@ class ToolRegistry:
             if vendors:
                 verified = self.engine.query_vendors_by_names(vendors)
                 vendors = [v["name"] for v in verified if v.get("category") == target_category]
-        # vendor 있으면 통일된 번호목록 + 추천 이유 (direct)
+        # vendor 있으면 통일된 번호목록 + 추천 이유 (direct, 기본 5개)
         if vendors:
+            vendors = vendors[:5]
             return self._build_vendor_list(vendors, target_category,
                                            source_name=source_name, source_tags=source_tags)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
@@ -1335,6 +1336,14 @@ class ToolRegistry:
                     line += f"- 가격: {price_str}\n"
                 if tags:
                     line += f"- 태그: {', '.join(tags[:4])}\n"
+
+                # 연관 추천 이유 (source_name이 있으면 공유 태그 기반)
+                if source_name and source_tag_set:
+                    shared = [t for t in tags if t in source_tag_set][:3]
+                    if shared:
+                        line += f"- 추천 이유: {', '.join(shared)} 스타일 매칭\n"
+                    elif tags:
+                        line += f"- 추천 이유: {', '.join(tags[:2])} 특징\n"
 
                 # 거리 계산
                 if user_coord and rec.get("lat") and rec.get("lng"):
