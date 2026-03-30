@@ -1,12 +1,12 @@
 """통합 웨딩 챗봇 Tool — 16개 tool, 명확한 역할 분리"""
 import json
-import math
 import re
 import requests as http_requests
 from dataclasses import dataclass
 from typing import Any
 
 from config import settings
+from common.search_utils import haversine
 from sdm.graphrag import SdmGraphRagEngine, NO_RESULT_PHRASES
 from sdm.knowledge import (
     WEDDING_KB, _get_venue_size_guide, _get_meal_cost_guide, _get_guest_estimate_guide,
@@ -90,17 +90,6 @@ def geocode_query(query: str) -> tuple:
         except Exception:
             continue
     return None, None, None
-
-
-def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """두 좌표 간 거리(km)를 Haversine 공식으로 계산"""
-    R = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlng = math.radians(lng2 - lng1)
-    a = (math.sin(dlat / 2) ** 2
-         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
-         * math.sin(dlng / 2) ** 2)
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def _dedup_vendors(records: list[dict]) -> list[dict]:
@@ -406,7 +395,7 @@ class ToolRegistry:
         for name in vendor_names:
             rec = next((r for r in records if r.get("name") == name), None)
             if rec and rec.get("lat") and rec.get("lng"):
-                dist = _haversine(lat, lng, rec["lat"], rec["lng"])
+                dist = haversine(lat, lng, rec["lat"], rec["lng"])
                 with_dist.append((name, dist))
             else:
                 without_dist.append(name)
@@ -759,7 +748,7 @@ class ToolRegistry:
                 for j in range(i + 1, len(coords)):
                     n1, lat1, lng1 = coords[i]
                     n2, lat2, lng2 = coords[j]
-                    dist = _haversine(lat1, lng1, lat2, lng2)
+                    dist = haversine(lat1, lng1, lat2, lng2)
                     dist_lines.append(f"- {n1} <-> {n2}: {dist:.1f}km")
             if dist_lines:
                 lines.append("")
@@ -932,7 +921,7 @@ class ToolRegistry:
             ordered.append(first)
             current_coord = first["coord"]
         while remaining:
-            nearest = min(remaining, key=lambda p: self.hall_engine._haversine_distance(
+            nearest = min(remaining, key=lambda p: haversine(
                 current_coord[0], current_coord[1], p["coord"][0], p["coord"][1]))
             ordered.append(nearest)
             remaining.remove(nearest)
@@ -1338,7 +1327,7 @@ class ToolRegistry:
                 # 거리 계산
                 dist_str = ""
                 if user_coord and rec.get("lat") and rec.get("lng"):
-                    dist = _haversine(user_coord[0], user_coord[1], rec["lat"], rec["lng"])
+                    dist = haversine(user_coord[0], user_coord[1], rec["lat"], rec["lng"])
                     dist_str = f"{dist:.1f}km"
 
                 if source_name and source_tag_set:

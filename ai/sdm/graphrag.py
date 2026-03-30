@@ -7,6 +7,7 @@ from neo4j import GraphDatabase, basic_auth
 from openai import OpenAI
 
 from config import Settings
+from common.search_utils import cosine_similarity, expand_tags
 from sdm.prompts import FEWSHOT_EXAMPLES, RAG_TEMPLATE
 
 NO_RESULT_PHRASES = [
@@ -377,7 +378,7 @@ class SdmGraphRagEngine:
             for rec in records:
                 emb = rec.pop("embedding", None)
                 if emb and isinstance(emb, list) and len(emb) > 0:
-                    rec["_similarity"] = self._cosine_similarity(query_embedding, emb)
+                    rec["_similarity"] = cosine_similarity(query_embedding, emb)
                 else:
                     rec["_similarity"] = 0.0
             records.sort(key=lambda r: r["_similarity"], reverse=True)
@@ -401,7 +402,7 @@ class SdmGraphRagEngine:
         self._ensure_driver()
 
         # 태그 확장
-        expanded_tags = self._expand_tags(tags, category) if tags else []
+        expanded_tags = expand_tags(self.driver, tags, category) if tags else []
 
         # Cypher 조립 (파라미터 바인딩)
         match_clauses = ["MATCH (v:Vendor {category: $category})"]
@@ -471,36 +472,6 @@ class SdmGraphRagEngine:
             result = session.run(cypher, **params)
             records = [dict(r) for r in result]
         return records
-
-    def _expand_tags(self, tags: list[str], category: str, min_count: int = 3) -> list[str]:
-        """CO_OCCURS 관계로 태그 확장. 원본 태그 + 연관 태그 반환."""
-        if not tags:
-            return []
-        self._ensure_driver()
-        with self.driver.session() as session:
-            result = session.run("""
-                MATCH (t1:Tag {category: $category})-[co:CO_OCCURS]->(t2:Tag {category: $category})
-                WHERE t1.name IN $tags AND co.count >= $min_count
-                RETURN DISTINCT t2.name AS related_tag
-            """, category=category, tags=tags, min_count=min_count)
-            related = [r["related_tag"] for r in result]
-        # 양방향 CO_OCCURS 확인 (t2->t1도 체크)
-        with self.driver.session() as session:
-            result2 = session.run("""
-                MATCH (t1:Tag {category: $category})<-[co:CO_OCCURS]-(t2:Tag {category: $category})
-                WHERE t1.name IN $tags AND co.count >= $min_count
-                RETURN DISTINCT t2.name AS related_tag
-            """, category=category, tags=tags, min_count=min_count)
-            related.extend(r["related_tag"] for r in result2)
-        return list(dict.fromkeys(tags + related))  # 원본 우선, 중복 제거
-
-    @staticmethod
-    def _cosine_similarity(a: list[float], b: list[float]) -> float:
-        """순수 Python cosine similarity 계산"""
-        dot = sum(x * y for x, y in zip(a, b))
-        norm_a = sum(x * x for x in a) ** 0.5
-        norm_b = sum(x * x for x in b) ** 0.5
-        return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
 
     # ── 벡터 검색 ──
 
