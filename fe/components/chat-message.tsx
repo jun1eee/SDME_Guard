@@ -21,8 +21,9 @@ export function ChatMessage({ role, content, isTyping, recommendations, suggesti
   const isUser = role === "user"
   const hasRecs = recommendations && recommendations.length > 0
 
-  // 추천 카드가 있으면 텍스트에서 업체 이름 번호 리스트 제거
-  const displayContent = hasRecs
+  // 추천 카드가 있고, 코드 포맷(**N. 이름**)이 아닌 경우만 번호 리스트 제거
+  const isCodeFormatted = content.includes("**1.")
+  const displayContent = hasRecs && !isCodeFormatted
     ? content.replace(/\n*(\d+\.\s*.+\n?){2,}/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
     : content
   const hasSuggestions = suggestions && suggestions.length > 0 && !isUser
