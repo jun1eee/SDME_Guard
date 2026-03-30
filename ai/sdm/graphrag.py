@@ -231,6 +231,7 @@ class SdmGraphRagEngine:
                v.address AS address, v.region AS region,
                v.profileUrl AS url, v.coverUrl AS imageUrl,
                v.holiday AS holiday, v.reviewCnt AS reviewCnt,
+               v.lat AS lat, v.lng AS lng,
                tags, packages, avgReviewScore,
                reviewCount, recentReviews
         ORDER BY v.rating DESC
@@ -361,6 +362,7 @@ class SdmGraphRagEngine:
             parts.append(f"""RETURN v.name AS name, v.category AS category,
     v.salePrice AS price, v.rating AS rating,
     v.address AS address, v.profileUrl AS url,
+    v.lat AS lat, v.lng AS lng,
     tags, round(avgReviewScore, 1) AS avgReviewScore,
     reviewCount, round(score, 4) AS vectorScore,
     {', '.join(score_names)},
@@ -370,6 +372,7 @@ ORDER BY conditionScore DESC, score DESC LIMIT 10""")
             parts.append("""RETURN v.name AS name, v.category AS category,
     v.salePrice AS price, v.rating AS rating,
     v.address AS address, v.profileUrl AS url,
+    v.lat AS lat, v.lng AS lng,
     tags, round(avgReviewScore, 1) AS avgReviewScore,
     reviewCount, round(score, 4) AS vectorScore
 ORDER BY score DESC LIMIT 10""")

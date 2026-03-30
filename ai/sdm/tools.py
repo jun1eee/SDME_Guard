@@ -1,5 +1,6 @@
 """통합 웨딩 챗봇 Tool — 16개 tool, 명확한 역할 분리"""
 import json
+import math
 import re
 import requests as http_requests
 from dataclasses import dataclass
@@ -89,6 +90,17 @@ def geocode_query(query: str) -> tuple:
         except Exception:
             continue
     return None, None, None
+
+
+def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """두 좌표 간 거리(km)를 Haversine 공식으로 계산"""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(dlng / 2) ** 2)
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 def _dedup_vendors(records: list[dict]) -> list[dict]:
@@ -377,6 +389,25 @@ class ToolRegistry:
         self._checklist_completed: dict[int, list[str]] = {}  # couple_id → 완료 항목
         self._last_tour: dict | None = None  # 마지막 투어 정보 (modify_tour용)
 
+    def _rerank_by_distance(self, query: str, vendor_names: list[str]) -> tuple[list[str], tuple[float, float] | None]:
+        """지역 키워드 기반으로 vendor를 거리순 재정렬. (정렬된 이름 리스트, user_coord) 반환."""
+        lat, lng, _ = geocode_query(query)
+        if not lat or not lng:
+            return vendor_names, None
+        records = self.engine.query_vendors_by_names(vendor_names)
+        with_dist = []
+        without_dist = []
+        for name in vendor_names:
+            rec = next((r for r in records if r.get("name") == name), None)
+            if rec and rec.get("lat") and rec.get("lng"):
+                dist = _haversine(lat, lng, rec["lat"], rec["lng"])
+                with_dist.append((name, dist))
+            else:
+                without_dist.append(name)
+        with_dist.sort(key=lambda x: x[1])
+        reranked = [name for name, _ in with_dist] + without_dist
+        return reranked, (lat, lng)
+
     def execute(self, tool_name: str, couple_id: int, user_id: int | None = None, **kwargs: Any) -> ToolResult:
         fn = self.tool_map.get(tool_name)
         if not fn:
@@ -400,10 +431,14 @@ class ToolRegistry:
                     self._add_distance_text(records)
                     records = _dedup_vendors(records)[:count]
                     vendors = [r["name"] for r in records]
+        # 지역 키워드가 있으면 거리순 재정렬
+        user_coord = None
+        if vendors and _extract_location(query):
+            vendors, user_coord = self._rerank_by_distance(query, vendors)
         # 요청 개수에 맞게 제한
         if vendors:
             vendors = vendors[:count]
-            return self._build_vendor_list(vendors, category)
+            return self._build_vendor_list(vendors, category, user_coord=user_coord)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     def _search_hall(self, query: str) -> ToolResult:
@@ -499,10 +534,14 @@ class ToolRegistry:
         answer, vendors = self.engine.search_semantic(
             query=query, category=category, region=region, max_price=max_price,
         )
+        # region이 있으면 거리순 재정렬
+        user_coord = None
+        if vendors and region:
+            vendors, user_coord = self._rerank_by_distance(region, vendors)
         # 요청 개수에 맞게 제한
         if vendors:
             vendors = vendors[:count]
-            return self._build_vendor_list(vendors, category)
+            return self._build_vendor_list(vendors, category, user_coord=user_coord)
         return ToolResult(result_type="graphrag", data=answer, vendors=vendors)
 
     # ── 3. search_nearby: 위치 기반 검색 ──
@@ -696,6 +735,21 @@ class ToolRegistry:
                 parts.append(f"특징: {', '.join(tags)}")
             detail = " / ".join(parts) if parts else ""
             lines.append(f"{i+1}) **{name}** — {detail}" if detail else f"{i+1}) **{name}**")
+        # 비교 대상이 2개 이상이고 둘 다 좌표가 있으면 업체 간 거리 표시
+        coords = [(r.get("name", ""), r.get("lat"), r.get("lng")) for r in records
+                  if r.get("lat") and r.get("lng")]
+        if len(coords) >= 2:
+            dist_lines = []
+            for i in range(len(coords)):
+                for j in range(i + 1, len(coords)):
+                    n1, lat1, lng1 = coords[i]
+                    n2, lat2, lng2 = coords[j]
+                    dist = _haversine(lat1, lng1, lat2, lng2)
+                    dist_lines.append(f"- {n1} <-> {n2}: {dist:.1f}km")
+            if dist_lines:
+                lines.append("")
+                lines.append("**업체 간 거리**")
+                lines.extend(dist_lines)
         text = "\n".join(lines) + "\n\n궁금한 점이 있으면 말씀해주세요!"
         return ToolResult(result_type="direct", data=text,
                           vendors=list(dict.fromkeys(r.get("name", "") for r in records)))
@@ -1234,9 +1288,11 @@ class ToolRegistry:
     # ── 유틸 ──
 
     def _build_vendor_list(self, vendor_names: list[str], category: str,
-                           source_name: str = None, source_tags: list[str] = None) -> ToolResult:
+                           source_name: str = None, source_tags: list[str] = None,
+                           user_coord: tuple[float, float] | None = None) -> ToolResult:
         """vendor 이름 목록 → 번호목록 텍스트 생성 (direct)
-        source_name/source_tags 있으면: 공유 태그 기반 추천 이유 생성"""
+        source_name/source_tags 있으면: 공유 태그 기반 추천 이유 생성
+        user_coord 있으면: 각 업체까지 거리 표시"""
         records = self.engine.query_vendors_by_names(vendor_names)
         # 같은 이름 업체 중복 제거 (패키지별 레코드 합침)
         seen: dict[str, dict] = {}
@@ -1264,6 +1320,12 @@ class ToolRegistry:
                 price_str = f"{price // 10000}만원" if price and price > 0 else ""
                 region = rec.get("region") or ""
 
+                # 거리 계산
+                dist_str = ""
+                if user_coord and rec.get("lat") and rec.get("lng"):
+                    dist = _haversine(user_coord[0], user_coord[1], rec["lat"], rec["lng"])
+                    dist_str = f"{dist:.1f}km"
+
                 if source_name and source_tag_set:
                     # 연관 추천: 공유 태그로 이유 생성
                     vendor_tags = _filter_tags(rec.get("tags") or [])
@@ -1274,12 +1336,12 @@ class ToolRegistry:
                         reason = ", ".join(vendor_tags[:2])
                     else:
                         reason = region
-                    extras = [p for p in [price_str] if p]
+                    extras = [p for p in [dist_str, price_str] if p]
                     if extras:
                         reason += f" ({', '.join(extras)})"
                 else:
-                    # 일반 추천: 지역 + 가격
-                    parts = [p for p in [region, price_str] if p]
+                    # 일반 추천: 거리 + 지역 + 가격
+                    parts = [p for p in [dist_str, region, price_str] if p]
                     reason = ", ".join(parts)
 
                 lines.append(f"{i+1}) **{name}** — {reason}" if reason else f"{i+1}) **{name}**")

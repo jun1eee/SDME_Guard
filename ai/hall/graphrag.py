@@ -125,6 +125,8 @@ class HallRecord:
     walk_minutes: int | None
     memo: str
     images: list[str]
+    lat: float | None = None
+    lng: float | None = None
 
     @property
     def searchable_text(self) -> str:
@@ -383,6 +385,8 @@ class HallGraphRagEngine:
             "  walkMinutes,\n"
             "  coalesce(h.memoContent, '') AS memo,\n"
             "  images,\n"
+            "  h.lat AS lat,\n"
+            "  h.lng AS lng,\n"
             "  vectorScore\n"
             "ORDER BY vectorScore DESC"
         )
@@ -801,7 +805,9 @@ class HallGraphRagEngine:
             "  stations,\n"
             "  walkMinutes,\n"
             "  coalesce(h.memoContent, '') AS memo,\n"
-            "  images\n"
+            "  images,\n"
+            "  h.lat AS lat,\n"
+            "  h.lng AS lng\n"
             "ORDER BY coalesce(h.rating, 0) DESC, coalesce(h.reviewCnt, 0) DESC\n"
             "LIMIT $limit"
         )
@@ -859,6 +865,8 @@ class HallGraphRagEngine:
             walk_minutes=HallGraphRagEngine._safe_int(row.get("walkMinutes")),
             memo=str(row.get("memo") or "").strip(),
             images=HallGraphRagEngine._clean_list(row.get("images")),
+            lat=HallGraphRagEngine._safe_float(row.get("lat")),
+            lng=HallGraphRagEngine._safe_float(row.get("lng")),
         )
 
     @staticmethod
@@ -881,6 +889,15 @@ class HallGraphRagEngine:
             return None
         try:
             return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _safe_float(value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
         except (TypeError, ValueError):
             return None
 
@@ -1049,6 +1066,8 @@ class HallGraphRagEngine:
         return score
 
     def _resolve_hall_coordinate(self, hall: HallRecord) -> tuple[float, float] | None:
+        if hall.lat is not None and hall.lng is not None:
+            return (hall.lat, hall.lng)
         candidates = [
             f"{hall.name} 웨딩홀",
             hall.name,
