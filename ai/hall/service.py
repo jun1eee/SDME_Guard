@@ -515,10 +515,15 @@ class HallChatService:
 
             for hall_name in hall_names:
                 reason = reason_map.get(hall_name)
+                if not reason:
+                    for k, v in reason_map.items():
+                        if k in hall_name or hall_name in k:
+                            reason = v
+                            break
                 if reason:
                     formatted_text = formatted_text.replace(
-                        f"**{hall_name}**",
-                        f"**{hall_name}**\n  → {reason}",
+                        f"**{hall_name}**\n",
+                        f"**{hall_name}**\n- 추천 이유: {reason}\n",
                     )
         except Exception as exc:
             log_lines.append(f"[reason_error] {exc}")

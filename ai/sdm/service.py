@@ -241,10 +241,16 @@ class SdmChatService:
 
             for vendor in vendors:
                 reason = reason_map.get(vendor)
+                if not reason:
+                    # 부분 매칭 시도 (LLM이 이름을 약간 다르게 쓸 수 있음)
+                    for k, v in reason_map.items():
+                        if k in vendor or vendor in k:
+                            reason = v
+                            break
                 if reason:
                     formatted_text = formatted_text.replace(
-                        f"**{vendor}**",
-                        f"**{vendor}**\n  → {reason}",
+                        f"**{vendor}**\n",
+                        f"**{vendor}**\n- 추천 이유: {reason}\n",
                     )
         except Exception as exc:
             log_lines.append(f"[reason_error] {exc}")

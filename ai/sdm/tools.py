@@ -1316,42 +1316,32 @@ class ToolRegistry:
         lines = []
         cat_label = {"studio": "스튜디오", "dress": "드레스", "makeup": "메이크업"}.get(category, "")
         if cat_label:
-            lines.append(f"**[{cat_label}]**")
+            lines.append(f"**[{cat_label}]**\n")
         for i, name in enumerate(vendor_names):
             rec = next((r for r in records if r.get("name") == name), None)
             if rec:
                 price = rec.get("price")
                 price_str = f"{price // 10000}만원" if price and price > 0 else ""
                 region = rec.get("region") or ""
+                tags = _filter_tags(rec.get("tags") or [])
+
+                line = f"**{i+1}. {name}**\n"
+                if region:
+                    line += f"- 지역: {region}\n"
+                if price_str:
+                    line += f"- 가격: {price_str}\n"
+                if tags:
+                    line += f"- 태그: {', '.join(tags[:4])}\n"
 
                 # 거리 계산
-                dist_str = ""
                 if user_coord and rec.get("lat") and rec.get("lng"):
                     dist = haversine(user_coord[0], user_coord[1], rec["lat"], rec["lng"])
-                    dist_str = f"{dist:.1f}km"
+                    line += f"- 거리: {dist:.1f}km\n"
 
-                if source_name and source_tag_set:
-                    # 연관 추천: 공유 태그로 이유 생성
-                    vendor_tags = _filter_tags(rec.get("tags") or [])
-                    shared = [t for t in vendor_tags if t in source_tag_set][:3]
-                    if shared:
-                        reason = f"{', '.join(shared)} 스타일 매칭"
-                    elif vendor_tags:
-                        reason = ", ".join(vendor_tags[:2])
-                    else:
-                        reason = region
-                    extras = [p for p in [dist_str, price_str] if p]
-                    if extras:
-                        reason += f" ({', '.join(extras)})"
-                else:
-                    # 일반 추천: 거리 + 지역 + 가격
-                    parts = [p for p in [dist_str, region, price_str] if p]
-                    reason = ", ".join(parts)
-
-                lines.append(f"{i+1}) **{name}** — {reason}" if reason else f"{i+1}) **{name}**")
+                lines.append(line.rstrip())
             else:
-                lines.append(f"{i+1}) **{name}**")
-        text = "\n".join(lines)
+                lines.append(f"**{i+1}. {name}**")
+        text = "\n\n".join(lines)
         if source_name and cat_label:
             text += f"\n\n{source_name}과(와) 어울리는 {cat_label} 추천입니다!"
         elif cat_label:
