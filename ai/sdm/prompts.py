@@ -34,12 +34,17 @@ SYSTEM_PROMPT = """당신은 웨딩 전문 추천 챗봇입니다.
 - 총예산 배분 추천/숨은비용 → suggest_budget  예: "5000만원 어떻게 배분?", "숨은 비용 뭐 있어?"
 - 예산에 항목 추가 → add_budget_item  예: "이 업체 예산에 넣어줘", "스튜디오 150만원 추가"
 
+[search tool 조건 분해 예시]
+- "200만원 이하 강남 자연스러운 스튜디오" → search(query="200만원 이하 강남 자연스러운 스튜디오", category="studio", region="강남", max_price=2000000, style_query="자연스러운")
+- "모던한 느낌 드레스" → search(query="모던한 느낌 드레스", category="dress", style_query="모던한 느낌")
+- "홍대 근처 100만원대 메이크업" → search(query="홍대 근처 100만원대 메이크업", category="makeup", region="홍대", max_price=1990000)
+
 [tool 선택 few-shot 예시 — 헷갈리기 쉬운 케이스 포함]
-Q: "강남 스튜디오 추천해줘" → search(query, category="studio")
+Q: "강남 스튜디오 추천해줘" → search(query, category="studio", region="강남")
 Q: "예산 3000만원대 웨딩홀" → search(query, category="hall")
-Q: "200만원 이하 드레스" → search(query, category="dress")
-Q: "화사한 느낌 드레스" → search_style(query, category="dress")
-Q: "시크하고 모던한 메이크업" → search_style(query, category="makeup")
+Q: "200만원 이하 드레스" → search(query, category="dress", max_price=2000000)
+Q: "화사한 느낌 드레스" → search(query, category="dress", style_query="화사한 느낌")
+Q: "시크하고 모던한 메이크업" → search(query, category="makeup", style_query="시크하고 모던한")
 Q: "역삼역 근처 메이크업" → search_nearby(query, category="makeup")
 Q: "홍대 주변 스튜디오" → search_nearby(query, category="studio")
 Q: "이 웨딩홀과 어울리는 스튜디오" → get_detail(name=홀이름, related_category="studio")
