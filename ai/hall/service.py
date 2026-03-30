@@ -545,29 +545,23 @@ class HallChatService:
             styles = hall.get("styleFilters") or []
             memo = (hall.get("memo") or "")[:200]
 
-            line = f"**{i}. {name}**"
-            details = []
+            line = f"**{i}. {name}**\n"
             if address:
-                details.append(f"위치: {address}")
+                line += f"- 위치: {address}\n"
             elif region or sub_region:
-                details.append(f"위치: {region} {sub_region}".strip())
+                line += f"- 위치: {region} {sub_region}\n".strip() + "\n"
             if meal_min:
-                details.append(f"식대: {meal_min:,}원")
+                line += f"- 식대: {meal_min:,}원\n"
             if hall_min:
-                price_str = f"홀 대관료: {hall_min // 10000}만원"
+                price_str = f"- 홀 대관료: {hall_min // 10000}만원"
                 if hall_max and hall_max != hall_min:
                     price_str += f"~{hall_max // 10000}만원"
-                details.append(price_str)
+                line += price_str + "\n"
             if rating:
-                details.append(f"평점: {rating}")
+                line += f"- 평점: {rating}\n"
             if tags:
-                details.append(f"태그: {', '.join(tags[:5])}")
-            if styles:
-                details.append(f"스타일: {', '.join(styles[:3])}")
-
-            for d in details:
-                line += f"\n  • {d}"
-            lines.append(line)
+                line += f"- 태그: {', '.join(tags[:5])}\n"
+            lines.append(line.rstrip())
 
         return "\n\n".join(lines)
 
