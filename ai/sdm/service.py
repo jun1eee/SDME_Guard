@@ -130,16 +130,20 @@ class SdmChatService:
                                                     has_preferences=bool(preferences),
                                                     preferences=preferences)
 
-            # vendor fallback
+            # vendor fallback (카테고리 검증 포함)
             if not all_vendors:
                 for _, tool_args, _ in tool_results:
                     if "names" in tool_args:
                         all_vendors = tool_args["names"]
                         break
             if not all_vendors and answer:
-                all_vendors = self.engine._extract_vendors_from_bold(answer)
-            if not all_vendors and answer:
-                all_vendors = self.engine._extract_vendors_from_list(answer)
+                extracted = self.engine._extract_vendors_from_bold(answer)
+                if not extracted:
+                    extracted = self.engine._extract_vendors_from_list(answer)
+                if extracted:
+                    # 실제 Vendor DB에 있는 것만 (Hall이 섞이지 않도록)
+                    verified = self.engine.query_vendors_by_names(extracted)
+                    all_vendors = [v["name"] for v in verified]
 
             self._update_session_from_tools(
                 session=session, tool_results=tool_results,
