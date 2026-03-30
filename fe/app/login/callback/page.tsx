@@ -27,18 +27,8 @@ function CallbackHandler() {
           sessionStorage.setItem("kakaoProfileImage", res.data.kakaoProfileImage || "")
         }
 
-        // historyLengthBeforeKakao 는 카카오 이동 전 history.length
-        // window.location.href 로 이동했으므로 /login 엔트리가 살아있음
-        // history.go(-stepsBack) → /login 으로 돌아가면 /login 이 로그인 감지 후 /main 으로 리다이렉트
-        const lengthBefore = parseInt(sessionStorage.getItem("historyLengthBeforeKakao") || "0")
-        const stepsBack = lengthBefore > 0 ? window.history.length - lengthBefore : 0
         sessionStorage.removeItem("historyLengthBeforeKakao")
-
-        if (stepsBack > 0) {
-          window.history.go(-stepsBack)
-        } else {
-          window.location.replace(destination)
-        }
+        window.location.replace(destination)
       })
       .catch(() => {
         router.replace('/login')
