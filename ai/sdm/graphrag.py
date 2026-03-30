@@ -315,6 +315,193 @@ class SdmGraphRagEngine:
                     vendors.append(name)
         return vendors
 
+    # ── 하이브리드 검색 ──
+
+    def search_hybrid(self, category: str, query: str,
+                      region: str = None, max_price: int = None, min_price: int = None,
+                      style_query: str = None, tags: list[str] = None,
+                      limit: int = 10) -> tuple[list[dict], str]:
+        """
+        2단계 하이브리드 검색:
+        Step 1: 정형 조건(category, region, price, tags)으로 Cypher 필터 -> 후보 추출
+        Step 2: style_query가 있으면 벡터 유사도로 후보 재정렬
+
+        Returns: (records list, answer text)
+        """
+        self._ensure_ready()
+
+        # Step 1: Cypher 필터로 후보 추출
+        records = self._hybrid_step1_filter(
+            category=category, region=region,
+            max_price=max_price, min_price=min_price,
+            tags=tags,
+        )
+
+        # 결과 0건이면 단계적 완화
+        if not records and tags:
+            # 완화 1: tags 제거
+            records = self._hybrid_step1_filter(
+                category=category, region=region,
+                max_price=max_price, min_price=min_price,
+                tags=None,
+            )
+        if not records and (max_price or min_price):
+            # 완화 2: price 범위 1.5배
+            relaxed_max = int(max_price * 1.5) if max_price else None
+            relaxed_min = int(min_price / 1.5) if min_price else None
+            records = self._hybrid_step1_filter(
+                category=category, region=region,
+                max_price=relaxed_max, min_price=relaxed_min,
+                tags=None,
+            )
+        if not records and region:
+            # 완화 3: region 제거
+            records = self._hybrid_step1_filter(
+                category=category, region=None,
+                max_price=max_price, min_price=min_price,
+                tags=None,
+            )
+
+        if not records:
+            return [], "해당 조건의 업체를 찾지 못했습니다."
+
+        # Step 2: 벡터 재정렬
+        if style_query:
+            query_embedding = self.embedder.embed_query(style_query)
+        elif query:
+            query_embedding = self.embedder.embed_query(query)
+        else:
+            query_embedding = None
+
+        if query_embedding:
+            for rec in records:
+                emb = rec.pop("embedding", None)
+                if emb and isinstance(emb, list) and len(emb) > 0:
+                    rec["_similarity"] = self._cosine_similarity(query_embedding, emb)
+                else:
+                    rec["_similarity"] = 0.0
+            records.sort(key=lambda r: r["_similarity"], reverse=True)
+            # 유사도 점수 정리
+            for rec in records:
+                rec.pop("_similarity", None)
+        else:
+            # 재정렬 없이 rating 내림차순 (Step 1 결과 그대로)
+            for rec in records:
+                rec.pop("embedding", None)
+
+        records = records[:limit]
+        names = [r.get("name", "") for r in records]
+        answer = f"{len(records)}개 업체를 찾았습니다."
+        return records, answer
+
+    def _hybrid_step1_filter(self, category: str, region: str = None,
+                             max_price: int = None, min_price: int = None,
+                             tags: list[str] = None) -> list[dict]:
+        """Step 1: 파라미터 바인딩 Cypher로 후보 필터링"""
+        self._ensure_driver()
+
+        # 태그 확장
+        expanded_tags = self._expand_tags(tags, category) if tags else []
+
+        # Cypher 조립 (파라미터 바인딩)
+        match_clauses = ["MATCH (v:Vendor {category: $category})"]
+        where_clauses = []
+        params: dict = {"category": category}
+
+        # price 필터
+        if max_price is not None:
+            where_clauses.append("v.salePrice <= $max_price AND v.salePrice > 0")
+            params["max_price"] = max_price
+        if min_price is not None:
+            where_clauses.append("v.salePrice >= $min_price")
+            params["min_price"] = min_price
+
+        # WHERE 절 결합
+        where_str = ""
+        if where_clauses:
+            where_str = "WHERE " + " AND ".join(where_clauses)
+
+        # region 필터 (OPTIONAL MATCH)
+        region_filter = ""
+        if region:
+            region_filter = (
+                "OPTIONAL MATCH (v)-[:IN_REGION]->(r:Region)\n"
+                "WITH v WHERE r.name CONTAINS $region"
+            )
+            params["region"] = region
+
+        # tags 필터
+        tag_filter = ""
+        if expanded_tags:
+            tag_filter = (
+                "MATCH (v)-[:HAS_TAG]->(t:Tag)\n"
+                "WHERE t.name IN $expanded_tags\n"
+                "WITH v, count(DISTINCT t) AS tagMatchCount"
+            )
+            params["expanded_tags"] = expanded_tags
+
+        # Cypher 조합
+        cypher_parts = [match_clauses[0]]
+        if where_str:
+            cypher_parts.append(where_str)
+        if region_filter:
+            cypher_parts.append(region_filter)
+        if tag_filter:
+            cypher_parts.append(tag_filter)
+
+        # 태그, 리뷰 수집
+        cypher_parts.append("OPTIONAL MATCH (v)-[:HAS_TAG]->(tag:Tag)")
+        cypher_parts.append("WITH v, collect(DISTINCT tag.name) AS tags")
+        cypher_parts.append(
+            "RETURN v.name AS name, v.partnerId AS partnerId,\n"
+            "       v.category AS category, v.salePrice AS salePrice,\n"
+            "       v.rating AS rating, v.reviewCnt AS reviewCnt,\n"
+            "       v.address AS address, v.region AS region,\n"
+            "       v.profileUrl AS profileUrl, v.coverUrl AS coverUrl,\n"
+            "       v.lat AS lat, v.lng AS lng,\n"
+            "       v.embedding AS embedding,\n"
+            "       tags\n"
+            "ORDER BY v.rating DESC\n"
+            "LIMIT 50"
+        )
+
+        cypher = "\n".join(cypher_parts)
+
+        with self.driver.session() as session:
+            result = session.run(cypher, **params)
+            records = [dict(r) for r in result]
+        return records
+
+    def _expand_tags(self, tags: list[str], category: str, min_count: int = 3) -> list[str]:
+        """CO_OCCURS 관계로 태그 확장. 원본 태그 + 연관 태그 반환."""
+        if not tags:
+            return []
+        self._ensure_driver()
+        with self.driver.session() as session:
+            result = session.run("""
+                MATCH (t1:Tag {category: $category})-[co:CO_OCCURS]->(t2:Tag {category: $category})
+                WHERE t1.name IN $tags AND co.count >= $min_count
+                RETURN DISTINCT t2.name AS related_tag
+            """, category=category, tags=tags, min_count=min_count)
+            related = [r["related_tag"] for r in result]
+        # 양방향 CO_OCCURS 확인 (t2->t1도 체크)
+        with self.driver.session() as session:
+            result2 = session.run("""
+                MATCH (t1:Tag {category: $category})<-[co:CO_OCCURS]-(t2:Tag {category: $category})
+                WHERE t1.name IN $tags AND co.count >= $min_count
+                RETURN DISTINCT t2.name AS related_tag
+            """, category=category, tags=tags, min_count=min_count)
+            related.extend(r["related_tag"] for r in result2)
+        return list(dict.fromkeys(tags + related))  # 원본 우선, 중복 제거
+
+    @staticmethod
+    def _cosine_similarity(a: list[float], b: list[float]) -> float:
+        """순수 Python cosine similarity 계산"""
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = sum(x * x for x in a) ** 0.5
+        norm_b = sum(x * x for x in b) ** 0.5
+        return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+
     # ── 벡터 검색 ──
 
     def create_vector_rag(self, category=None, region=None, max_price=None, min_price=None):

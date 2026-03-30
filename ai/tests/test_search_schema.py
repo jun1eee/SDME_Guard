@@ -144,17 +144,20 @@ class TestSearchRouting:
         )
         return registry, engine
 
-    def test_style_query_routes_to_semantic(self):
+    def test_style_query_routes_to_hybrid(self):
         registry, engine = self._make_registry()
+        engine.search_hybrid = MagicMock(return_value=(
+            [{"name": "V1", "category": "studio"}], "1개 업체를 찾았습니다."
+        ))
         result = registry.search(
             query="자연스러운 스튜디오", category="studio", couple_id=1,
             style_query="자연스러운"
         )
-        engine.search_semantic.assert_called_once()
+        engine.search_hybrid.assert_called_once()
         engine.search_structured.assert_not_called()
         # style_query 값 확인
-        call_kwargs = engine.search_semantic.call_args
-        assert call_kwargs.kwargs.get("query") == "자연스러운" or call_kwargs[1].get("query") == "자연스러운"
+        call_kwargs = engine.search_hybrid.call_args
+        assert call_kwargs.kwargs.get("style_query") == "자연스러운"
 
     def test_no_style_query_routes_to_structured(self):
         registry, engine = self._make_registry()
