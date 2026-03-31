@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # 카카오맵 API (지오코딩)
     kakao_api_key: str = ""
+    kakao_rest_api_key: str = ""  # reads KAKAO_REST_API_KEY
 
     # MySQL (사용자 데이터)
     mysql_host: str = ""
@@ -45,8 +46,8 @@ class Settings(BaseSettings):
         return self.neo4j_pw
 
     @property
-    def kakao_rest_api_key(self) -> str:
-        return self.kakao_api_key
+    def kakao_rest_api_key_resolved(self) -> str:
+        return self.kakao_rest_api_key or self.kakao_api_key
 
     @property
     def cors_origin_list(self) -> list[str]:

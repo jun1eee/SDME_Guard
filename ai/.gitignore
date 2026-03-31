@@ -1,6 +1,9 @@
 # AI 작업 문서 (로컬 전용)
 mydocs/
 
+# AWS PEM 키
+*.pem
+
 # Python
 __pycache__/
 *.pyc
