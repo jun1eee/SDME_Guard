@@ -1508,7 +1508,11 @@ export function VendorDetailView({
                           }}
                         />
                         {fittingImage ? (
-                          <span className="text-sm text-foreground">{fittingImage.name}</span>
+                          <img
+                            src={URL.createObjectURL(fittingImage)}
+                            alt="선택된 사진"
+                            className="max-h-96 w-full rounded-lg object-contain"
+                          />
                         ) : (
                           <>
                             <span className="text-2xl">📷</span>
