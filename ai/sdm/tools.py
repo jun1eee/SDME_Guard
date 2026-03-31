@@ -2,6 +2,7 @@
 import json
 import re
 import requests as http_requests
+from urllib.parse import quote
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,15 +24,27 @@ class ToolResult:
 
 # ── 지오코딩 유틸 ──
 
+_LOCATION_STOPWORDS = {
+    "웨딩홀", "웨딩", "스튜디오", "드레스", "메이크업", "업체", "찾아줘", "추천해줘",
+    "알려줘", "보여줘", "검색", "가까운", "근처", "주변", "쪽", "부근", "인근",
+    "있어", "있나", "있나요", "해줘", "주세요",
+}
+
 def _extract_location(query: str) -> str | None:
-    # 1순위: 역/동/구 등 접미사
-    m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|호텔|건물|집|정류장|빌딩|아파트))", query)
+    # 1순위: 역/동/구 등 접미사 (쪽 포함)
+    m = re.search(r"(\S+(?:역|동|구|시|읍|면|리|타워|호텔|건물|집|정류장|빌딩|아파트|쪽))", query)
     if m:
-        return m.group(1)
+        loc = m.group(1).rstrip("쪽")  # "역삼쪽" → "역삼"
+        return loc
     # 2순위: "~와/과/이랑/에서 가까운/근처" 패턴 (조사 제거)
     m = re.search(r"(\S+?)(?:와|과|이랑|에서|의|은|는|을|를)?\s*(?:근처|가까운|주변|쪽|부근|인근)", query)
     if m:
         return m.group(1)
+    # 3순위: 쿼리에서 스톱워드 제외 후 첫 번째 한글 단어
+    words = re.findall(r"[가-힣]{2,}", query)
+    for w in words:
+        if w not in _LOCATION_STOPWORDS:
+            return w
     return None
 
 
@@ -43,8 +56,8 @@ def _get_kakao_keys() -> list[str]:
     """사용 가능한 카카오 API 키 목록"""
     import os
     keys = []
-    for name in ["KAKAO_API_KEY", "KAKAO_REST_API_KEY2", "KAKAO_REST_API_KEY3",
-                  "KAKAO_REST_API_KEY4", "KAKAO_REST_API_KEY5",
+    for name in ["KAKAO_REST_API_KEY", "KAKAO_API_KEY", "KAKAO_REST_API_KEY2",
+                  "KAKAO_REST_API_KEY3", "KAKAO_REST_API_KEY4", "KAKAO_REST_API_KEY5",
                   "KAKAO_REST_API_KEY6", "KAKAO_REST_API_KEY7"]:
         k = os.environ.get(name, "").strip()
         if k:
@@ -461,6 +474,13 @@ class ToolRegistry:
             return ToolResult(result_type="direct", data="웨딩홀 서비스가 준비되지 않았습니다.", vendors=[])
         criteria = self.hall_engine.extract_criteria(query)
         count = _extract_count(query)
+
+        # 위치 키워드 감지 → Kakao 지오코딩 후 거리순 정렬
+        location_detected = _extract_location(query)
+        user_lat, user_lng = None, None
+        if location_detected:
+            user_lat, user_lng, _ = geocode_query(query)
+
         # 쿼리에서 예산/개수 등 숫자 조건 제거 → tokenizer가 의미없는 토큰 생성 방지
         clean_query = self._clean_hall_query(query)
         halls = self.hall_engine.search(query=clean_query, criteria=criteria, limit=count * 2)
@@ -469,24 +489,46 @@ class ToolRegistry:
             halls = [h for h in halls if not h.min_total_price or h.min_total_price <= criteria.budget]
         elif criteria.budget and any(w in query for w in ("이상", "넘는", "넘어", "초과", "부터", "위")):
             halls = [h for h in halls if h.min_total_price and h.min_total_price >= criteria.budget]
+
+        # 위치 geocoding 성공 시 거리 계산 후 거리순 정렬
+        if user_lat and user_lng:
+            import math
+            def _dist(h):
+                if h.lat and h.lng:
+                    dlat = math.radians(h.lat - user_lat)
+                    dlng = math.radians(h.lng - user_lng)
+                    a = math.sin(dlat/2)**2 + math.cos(math.radians(user_lat)) * math.cos(math.radians(h.lat)) * math.sin(dlng/2)**2
+                    return 6371000 * 2 * math.asin(math.sqrt(a))
+                return float("inf")
+            halls = sorted(halls, key=_dist)
+
         halls = halls[:count]
         if not halls:
             return ToolResult(result_type="direct", data="해당 조건의 웨딩홀을 찾지 못했습니다.", vendors=[])
-        records = [self._hall_to_dict(h) for h in halls]
-        # 코드에서 직접 번호 목록 생성: 업체명, 지역, 가격 (룰베이스)
-        promo_words = {"할인", "특가", "인기", "인★", "최대", "선점"}
+
+        # 코드에서 직접 번호 목록 생성: 업체명, 거리(있으면)/지역, 가격 (룰베이스)
+        import math as _math
         lines = []
         for i, h in enumerate(halls):
             features = []
-            if h.sub_region:
+            if user_lat and user_lng and h.lat and h.lng:
+                dlat = _math.radians(h.lat - user_lat)
+                dlng = _math.radians(h.lng - user_lng)
+                a = _math.sin(dlat/2)**2 + _math.cos(_math.radians(user_lat)) * _math.cos(_math.radians(h.lat)) * _math.sin(dlng/2)**2
+                dist_m = 6371000 * 2 * _math.asin(_math.sqrt(a))
+                features.append(f"{int(dist_m)}m" if dist_m < 1000 else f"{dist_m/1000:.1f}km")
+            if h.address:
+                features.append(h.address)
+            elif h.sub_region:
                 features.append(h.sub_region)
             elif h.region:
                 features.append(h.region)
             if h.min_total_price:
                 features.append(f"{h.min_total_price // 10000}만원")
-            reason = ", ".join(features) if features else ""
+            reason = ", ".join(f for f in features if f) if features else ""
             lines.append(f"{i+1}) **{h.name}** — {reason}" if reason else f"{i+1}) **{h.name}**")
-        text = "\n".join(lines) + "\n\n궁금한 곳이 있으면 말씀해주세요!"
+        suffix = "\n가까운 순서로 추천드립니다!" if (user_lat and user_lng) else "\n궁금한 곳이 있으면 말씀해주세요!"
+        text = "\n".join(lines) + suffix
         # 미인식 키워드 안내
         unmatched = self._detect_unmatched_conditions(query, criteria)
         if unmatched:
@@ -968,17 +1010,139 @@ class ToolRegistry:
 
         # 상세 타임라인 텍스트 생성
         transport_label = {"car": "자동차", "transit": "지하철/대중교통", "walk": "도보"}.get(transport, transport)
-        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
-        timeline_lines = []
-        step = 1
+
+        # 전체 투어 소요시간: 스케줄 첫~마지막 시간 기준
+        def _parse_end(t: str) -> int | None:
+            try:
+                h, m = map(int, t.split("~")[-1].split(":"))
+                return h * 60 + m
+            except Exception:
+                return None
+
+        def _parse_start(t: str) -> int | None:
+            try:
+                h, m = map(int, t.split("~")[0].split(":"))
+                return h * 60 + m
+            except Exception:
+                return None
+
+        def _fmt_dur(mins: float) -> str:
+            h, m = divmod(int(mins), 60)
+            return f"{h}시간 {m}분" if h else f"{m}분"
+
+        total_tour_min: int | None = None
+        if schedule:
+            s0 = _parse_start(schedule[0]["time"])
+            se = _parse_end(schedule[-1]["time"])
+            if s0 is not None and se is not None and se > s0:
+                total_tour_min = se - s0
+
+        # 좌표 맵 구성 (카카오맵 좌표 기반 URL에 사용)
+        coord_map: dict[str, tuple[float, float]] = {}
+        if start_coord:
+            coord_map[start_location or "출발지"] = start_coord
+        for p in ordered:
+            if p.get("coord"):
+                coord_map[p["name"]] = p["coord"]
+        if end_location or start_location:
+            end_loc_name = end_location or start_location
+            if start_coord:
+                coord_map[end_loc_name] = start_coord
+
+        def _kakao_link(fr: str, to: str) -> str:
+            # 좌표가 있으면 link/from/to 형식 (웹에서 실제로 작동), 없으면 검색 fallback
+            fr_coord = coord_map.get(fr)
+            to_coord = coord_map.get(to)
+            if fr_coord and to_coord:
+                fr_lat, fr_lng = fr_coord
+                to_lat, to_lng = to_coord
+                return (
+                    f"https://map.kakao.com/link/from/{quote(fr)},{fr_lat},{fr_lng}"
+                    f"/to/{quote(to)},{to_lat},{to_lng}"
+                )
+            # fallback: 검색 URL (필드 자동완성 안 되지만 지도는 열림)
+            return f"https://map.kakao.com/?q={quote(to)}"
+
+        # 헤더
+        route_arrow = " → ".join(p["name"] for p in ordered)
+        header_lines = [
+            f"**출발지:** {start_location or '출발지'}  |  **이동 수단:** {transport_label}",
+            f"최단 이동거리 기준으로 카카오 API를 통해 동선을 최적화했습니다.",
+            "",
+            f"**추천 동선:** {route_arrow}",
+        ]
+        summary_parts = []
+        if total_dist > 0:
+            summary_parts.append(f"총 이동거리 약 {total_dist:.1f}km")
+        if total_tour_min:
+            summary_parts.append(f"총 소요시간 약 {_fmt_dur(total_tour_min)} (이동+방문 포함)")
+        if summary_parts:
+            header_lines.append("  |  ".join(summary_parts))
+
+        # 출발지 지오코딩 실패 시 안내
+        if start_location and start_coord is None and ordered:
+            link = _kakao_link(start_location, ordered[0]["name"])
+            header_lines.append(
+                f"※ {start_location} 위치를 자동으로 찾지 못해 업체 간 이동거리만 계산됐습니다. "
+                f"출발지 구간은 [{start_location} → {ordered[0]['name']} 길찾기]({link}) 로 직접 확인해주세요."
+            )
+
+        header_lines += ["", "---", ""]
+
+        # 타임라인 블록
+        timeline_lines = list(header_lines)
+        hall_idx_map = {p["name"]: i + 1 for i, p in enumerate(ordered)}
+        hall_shown: set[str] = set()
+
         for item in schedule:
-            timeline_lines.append(f"{step}) **{item['time']}** {item['activity']}")
-            step += 1
-        timeline_text = (
-            f"**{start_location or '출발지'}**에서 {transport_label}로 {visit_label} 투어:\n\n"
-            + "\n\n".join(timeline_lines)
-            + f"\n\n---\n**총 이동거리:** {total_dist:.1f}km | **총 이동시간:** {total_time:.0f}분"
-        )
+            time_str = item["time"]
+            activity = item["activity"]
+
+            # 점심 먼저 체크 (activity에 "이동"이 포함돼 있어 순서 중요)
+            if "점심" in activity:
+                timeline_lines.append(f"점심 식사  {time_str}  (약 1시간 20분)")
+                timeline_lines.append("")
+
+            elif "귀가" in activity:
+                meta = activity.replace("귀가 이동", "").strip(" ()")
+                fr = ordered[-1]["name"] if ordered else (start_location or "출발지")
+                to = start_location or "출발지"
+                link = _kakao_link(fr, to)
+                timeline_lines.append(f"이동  {time_str}  {fr} → {to}  ({meta})  [길찾기]({link})")
+                timeline_lines.append("")
+
+            elif "이동" in activity:
+                # 이동 구간: "{from} → {to} 이동 ({min}분, {km}km)"
+                parts = activity.split(" 이동 ")
+                route_part = parts[0] if parts else activity
+                meta_raw = parts[1].strip("()") if len(parts) > 1 else ""
+                try:
+                    dur_min = int(meta_raw.split("분")[0].strip())
+                except (ValueError, IndexError):
+                    dur_min = -1
+                meta_str = "도보 이동 가능" if dur_min == 0 else meta_raw
+                arrow_parts = route_part.split(" → ")
+                link_str = ""
+                if len(arrow_parts) == 2:
+                    fr_label = start_location if arrow_parts[0] == "출발지" else arrow_parts[0]
+                    link = _kakao_link(fr_label, arrow_parts[1])
+                    link_str = f"  [길찾기]({link})"
+                timeline_lines.append(f"이동  {time_str}  {route_part}  ({meta_str}){link_str}")
+                timeline_lines.append("")
+
+            else:
+                # 방문 블록 — 번호는 ** ** bold로 (마크다운 list 문법 피해 숫자 리셋 방지)
+                matched = next((p["name"] for p in ordered if p["name"] in activity), None)
+                if matched and matched not in hall_shown:
+                    hall_shown.add(matched)
+                    idx = hall_idx_map.get(matched, "")
+                    timeline_lines.append(f"**{idx}. {matched}**")
+                visit_desc = activity.replace(matched + " ", "", 1) if matched else activity
+                timeline_lines.append(f"   {time_str}  {visit_desc}")
+                timeline_lines.append("")
+
+        timeline_lines.append("동선 수정이 필요하시면 말씀해주세요. (추가/제거/순서 변경 가능)")
+        timeline_text = "\n".join(timeline_lines)
 
         summary = f"추천 동선: {' -> '.join(p['name'] for p in ordered)}. 총 이동 약 {total_dist:.1f}km, {total_time:.0f}분."
         result = {
@@ -1004,7 +1168,7 @@ class ToolRegistry:
         fmt = lambda m: f"{m // 60:02d}:{m % 60:02d}"
 
         lunch_inserted = False
-        visit_label = "견학" if visit_type == "tour" else "피팅/체험"
+        visit_label = "투어" if visit_type == "tour" else "피팅/체험"
 
         for i, p in enumerate(ordered):
             leg = leg_map.get(p["name"])

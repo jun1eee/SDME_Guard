@@ -97,7 +97,11 @@ export function ChatMessage({ role, content, isTyping, recommendations, suggesti
                       <blockquote className="mb-2 border-l-2 border-primary/40 pl-3 text-muted-foreground">{children}</blockquote>
                     ),
                     hr: () => <hr className="my-2 border-border" />,
-                    a: ({ children }) => <span className="text-foreground">{children}</span>,
+                    a: ({ href, children }) => (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/70">
+                        {children}
+                      </a>
+                    ),
                   }}
                 >
                   {displayContent}

@@ -22,7 +22,7 @@ tool 사용 규칙:
 - 취향/선호/프로필 기반 추천: recommend_from_profile
 - 특정 홀 상세 정보: get_hall_details
 - 여러 홀 비교: compare_halls
-- 투어/방문 순서/동선: plan_tour_route (출발지와 교통수단을 먼저 확인한 후 호출)
+- 투어/방문 순서/동선: plan_tour_route (출발지와 교통수단만 확인한 후 호출. 방문 목적은 묻지 말 것)
 - 투어 동선 수정(순서 변경, 홀 추가/제거/교체): modify_tour_route
 - 투어/동선 관련 요청이 포함되면 반드시 plan_tour_route tool을 호출하세요. 직접 동선을 텍스트로 만들지 마세요.
 - "찾아서 투어 짜줘" 같은 복합 요청은 먼저 search_halls로 검색 후, 이어서 plan_tour_route를 호출하세요.
@@ -126,7 +126,7 @@ HALL_TOOLS = [
         "type": "function",
         "function": {
             "name": "plan_tour_route",
-            "description": "여러 웨딩홀의 방문 순서와 일정을 계획합니다. '투어', '동선', '방문 순서', '견학', '일정 짜줘', '투어 잡아줘' 등 방문 계획 관련 질문에 사용합니다. 출발지와 교통수단을 반드시 사용자에게 확인한 후 호출하세요.",
+            "description": "여러 웨딩홀의 방문 순서와 일정을 계획합니다. '투어', '동선', '방문 순서', '견학', '일정 짜줘', '투어 잡아줘' 등 방문 계획 관련 질문에 사용합니다. 출발지와 교통수단만 확인한 후 호출하세요. 방문 목적은 묻지 마세요.",
             "parameters": {
                 "type": "object",
                 "properties": {

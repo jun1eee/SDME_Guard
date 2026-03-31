@@ -121,9 +121,12 @@ class HallChatService:
                 if preferences and hall_names:
                     tool_content = self._insert_hall_reasons(tool_content, hall_names, preferences, log_lines)
 
-                # 홀 목록이 있으면 코드 포맷을 그대로 사용 (LLM 재작성 안 함)
+                # 홀 목록 또는 투어 결과는 코드 포맷을 그대로 사용 (LLM 재작성 안 함)
                 if tool_payload["public_result"].get("halls"):
                     answer = tool_content
+                elif tool_payload["public_result"].get("ordered_halls") is not None:
+                    answer = tool_content
+                    break
                 else:
                     messages_for_followup.append(
                         {
@@ -530,8 +533,144 @@ class HallChatService:
 
         return formatted_text
 
+    @staticmethod
+    def _format_tour_result(result: dict[str, Any]) -> str:
+        """투어 동선 결과를 시각적으로 명확한 마크다운으로 포맷팅"""
+        ordered_halls = result.get("ordered_halls") or []
+        legs = result.get("legs") or []
+        schedule = result.get("schedule") or []
+        map_links = result.get("map_links") or []
+        warnings = result.get("warnings") or []
+        start_location = result.get("start_location") or "출발지"
+        transport = result.get("transport") or "car"
+        total_km = result.get("total_distance_km", 0)
+        total_min = result.get("total_travel_min", 0)
+        route_source = result.get("route_source", "")
+
+        transport_emoji = {"car": "🚗", "transit": "🚇", "walk": "🚶"}.get(transport, "🚗")
+        transport_label = {"car": "자동차", "transit": "대중교통", "walk": "도보"}.get(transport, transport)
+        hall_names = [h.get("name", "") for h in ordered_halls]
+        hall_dict = {h.get("name", ""): h for h in ordered_halls}
+
+        leg_map = {str(leg.get("to", "")): leg for leg in legs}
+        map_link_map = {str(link.get("to", "")): link.get("url", "") for link in map_links}
+        has_start_leg = any(leg.get("from") == "출발지" for leg in legs)
+
+        # 전체 투어 소요시간: schedule 첫 항목 시작 ~ 마지막 항목 종료
+        def _parse_end_min(time_str: str) -> int | None:
+            try:
+                end_part = time_str.split("~")[-1].strip()
+                h, m = map(int, end_part.split(":"))
+                return h * 60 + m
+            except Exception:
+                return None
+
+        def _parse_start_min(time_str: str) -> int | None:
+            try:
+                start_part = time_str.split("~")[0].strip()
+                h, m = map(int, start_part.split(":"))
+                return h * 60 + m
+            except Exception:
+                return None
+
+        total_tour_min: int | None = None
+        if schedule:
+            s_start = _parse_start_min(schedule[0].get("time", ""))
+            s_end = _parse_end_min(schedule[-1].get("time", ""))
+            if s_start is not None and s_end is not None and s_end > s_start:
+                total_tour_min = s_end - s_start
+
+        lines: list[str] = []
+
+        # ── 헤더 ──────────────────────────────────
+        lines.append(f"**출발지:** {start_location}  |  **이동 수단:** {transport_label}")
+        lines.append("")
+        route_arrow = " → ".join(hall_names)
+        lines.append(f"**추천 동선:** {route_arrow}")
+        summary_parts = []
+        if total_km > 0:
+            summary_parts.append(f"이동거리 약 {total_km:.1f}km")
+        if total_tour_min is not None:
+            h, m = divmod(total_tour_min, 60)
+            dur_str = f"{h}시간 {m}분" if h else f"{m}분"
+            summary_parts.append(f"총 소요시간 약 {dur_str} (이동+방문+점심 포함)")
+        if summary_parts:
+            lines.append("  |  ".join(summary_parts))
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+        # ── 출발지 표시 ───────────────────────────
+        lines.append(f"📍 **{start_location}** 출발")
+        if not has_start_leg and start_location and start_location not in ("출발지",) and hall_names:
+            lines.append(f"   ※ {start_location} → {hall_names[0]} 구간은 카카오맵에서 직접 검색해보세요.")
+        lines.append("")
+
+        # ── 일정 블록 ─────────────────────────────
+        hall_shown: set[str] = set()
+
+        for entry in schedule:
+            time_str = entry.get("time", "")
+            activity = entry.get("activity", "")
+
+            if "이동" in activity:
+                # 이동 구간
+                hall_name = activity.split("(으)로 이동")[0].strip()
+                leg = leg_map.get(hall_name)
+                url = map_link_map.get(hall_name, "")
+                if leg:
+                    dist = leg.get("distance_km", 0) or 0.0
+                    dur = leg.get("duration_min", 0) or 0.0
+                    dist_str = f"{dist:.1f}km" if dist >= 0.1 else f"{int(dist * 1000)}m"
+                    dur_str = f"{max(1, int(dur))}분" if dur > 0 else "1분 미만"
+                    link_part = f"  →  [길찾기]({url})" if url else ""
+                    lines.append(f"  {transport_emoji}  {time_str}  {dist_str} / {dur_str}{link_part}")
+                else:
+                    lines.append(f"  {transport_emoji}  {time_str}  {activity}")
+                lines.append("")
+
+            elif "점심" in activity:
+                lines.append(f"🍽️  **{time_str}  점심 식사**")
+                lines.append("")
+
+            else:
+                # 홀 방문 블록
+                matched = next((n for n in hall_names if n in activity), None)
+                if matched and matched not in hall_shown:
+                    hall_shown.add(matched)
+                    hall = hall_dict.get(matched, {})
+                    address = hall.get("address", "")
+                    idx = hall_names.index(matched) + 1
+                    lines.append(f"**{idx}. {matched}**")
+                    if address:
+                        lines.append(f"   📌 {address}")
+
+                time_label = f"🕐  {time_str}  {activity}" if matched else f"🕐  {time_str}  {activity}"
+                lines.append(f"   {time_label}")
+                lines.append("")
+
+        # ── 경고 ──────────────────────────────────
+        if warnings:
+            lines.append("---")
+            lines.append("⚠️ **주의사항**")
+            for w in warnings:
+                lines.append(f"- {w}")
+            lines.append("")
+
+        if route_source == "heuristic":
+            lines.append("_※ 카카오 경로 정보를 불러오지 못해 위치 기반으로 정렬했습니다._")
+            lines.append("")
+
+        lines.append("동선 수정이 필요하시면 말씀해주세요. (홀 추가/제거/순서 변경 가능)")
+
+        return "\n".join(lines)
+
     def _format_tool_content(self, public_result: dict[str, Any]) -> str:
         """tool 결과를 LLM에 전달할 포맷팅된 텍스트로 변환"""
+        # 투어 결과는 전용 포매터 사용
+        if public_result.get("ordered_halls") is not None:
+            return self._format_tour_result(public_result)
+
         halls = public_result.get("halls") or []
         if not halls:
             return json.dumps(public_result, ensure_ascii=False, default=str)
