@@ -1,7 +1,7 @@
 package com.ssafy.sdme._global.common.constant;
 
 public class ExpiredTime {
-    public static final Long ACCESS_TOKEN_EXPIRED_TIME = 30 * 60 * 1000L;          // 30분
+    public static final Long ACCESS_TOKEN_EXPIRED_TIME = 2 * 60 * 60 * 1000L;      // 2시간
     public static final Long REFRESH_TOKEN_EXPIRED_TIME = 14 * 24 * 60 * 60 * 1000L; // 14일
 
     public static final int COOKIE_DELETE_AGE = 0;
