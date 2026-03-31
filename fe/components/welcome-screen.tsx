@@ -6,6 +6,84 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { DroppedVendor } from "@/components/chat-input"
 
+const PETALS = [
+  { id:0,  left:5,  duration:5.5, delay:0,   size:16, rotate:0   },
+  { id:1,  left:14, duration:6.5, delay:0.8, size:14, rotate:45  },
+  { id:2,  left:23, duration:5,   delay:1.6, size:17, rotate:90  },
+  { id:3,  left:34, duration:7,   delay:0.3, size:15, rotate:135 },
+  { id:4,  left:43, duration:6,   delay:1.2, size:18, rotate:180 },
+  { id:5,  left:52, duration:5.5, delay:2,   size:14, rotate:225 },
+  { id:6,  left:61, duration:7.5, delay:0.6, size:16, rotate:270 },
+  { id:7,  left:70, duration:5,   delay:1.8, size:15, rotate:30  },
+  { id:8,  left:79, duration:6.5, delay:0.4, size:17, rotate:315 },
+  { id:9,  left:88, duration:6,   delay:1.4, size:14, rotate:60  },
+  { id:10, left:8,  duration:7,   delay:2.4, size:15, rotate:150 },
+  { id:11, left:29, duration:5.5, delay:3,   size:18, rotate:200 },
+  { id:12, left:57, duration:6,   delay:3.5, size:16, rotate:250 },
+  { id:13, left:93, duration:5,   delay:2.8, size:15, rotate:320 },
+]
+
+function CherryBlossoms({ show }: { show: boolean }) {
+  return (
+    <>
+      <style>{`
+        @keyframes petalFall {
+          0%   { transform: translateY(-20px) rotate(0deg) translateX(0px); opacity: 0; }
+          8%   { opacity: 0.7; }
+          50%  { opacity: 0.5; }
+          80%  { opacity: 0.15; }
+          100% { transform: translateY(55vh) rotate(540deg) translateX(30px); opacity: 0; }
+        }
+        @keyframes petalSway {
+          0%, 100% { margin-left: 0px; }
+          30%  { margin-left: 25px; }
+          70%  { margin-left: -18px; }
+        }
+        .petal-wrap {
+          position: absolute;
+          top: -20px;
+          animation: petalFall linear infinite, petalSway ease-in-out infinite;
+          pointer-events: none;
+        }
+        .petal {
+          border-radius: 50% 0 50% 0;
+          background: linear-gradient(135deg, #fde8ef 0%, #f9c6d5 100%);
+          box-shadow: 0 1px 2px rgba(240,150,170,0.2);
+        }
+        .petals-container {
+          transition: opacity 0.8s ease-out;
+        }
+        .petals-container.hidden-petals {
+          opacity: 0;
+          pointer-events: none;
+        }
+      `}</style>
+      <div className={`petals-container absolute inset-0 overflow-hidden${show ? "" : " hidden-petals"}`} style={{ zIndex: 0 }}>
+        {PETALS.map((p) => (
+          <div
+            key={p.id}
+            className="petal-wrap"
+            style={{
+              left: `${p.left}%`,
+              animationDuration: `${p.duration}s, ${p.duration * 0.9}s`,
+              animationDelay: `${p.delay}s, ${p.delay}s`,
+            }}
+          >
+            <div
+              className="petal"
+              style={{
+                width: p.size,
+                height: p.size,
+                transform: `rotate(${p.rotate}deg)`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
 interface WelcomeScreenProps {
   onStartChat: (message: string) => void
   groomName: string
@@ -24,6 +102,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
   const [value, setValue] = useState("")
   const [dragOver, setDragOver] = useState(false)
   const [vendors, setVendors] = useState<DroppedVendor[]>([])
+  const [showPetals, setShowPetals] = useState(true)
 
   const hasVendors = vendors.length > 0
 
@@ -39,6 +118,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
     e.preventDefault()
     const msg = buildMessage(value.trim() || undefined)
     if (msg) {
+      setShowPetals(false)
       onStartChat(msg)
       setValue("")
       setVendors([])
@@ -53,6 +133,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
   }
 
   const handleSuggestionClick = (suggestion: string) => {
+    setShowPetals(false)
     onStartChat(buildMessage(suggestion) || suggestion)
     setVendors([])
   }
@@ -64,7 +145,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col items-center justify-center bg-background px-4 transition-colors",
+        "relative flex h-full min-h-0 flex-col items-center justify-center bg-background px-4 transition-colors",
         dragOver && "bg-primary/5"
       )}
       onDragOver={(e) => {
@@ -86,6 +167,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
         handleVendorDrop(JSON.parse(data) as DroppedVendor)
       }}
     >
+      <CherryBlossoms show={showPetals} />
       {/* 드래그 오버 인디케이터 */}
       {dragOver && (
         <div className="mb-4 flex items-center justify-center gap-2 text-sm font-medium text-primary">
@@ -94,7 +176,7 @@ export function WelcomeScreen({ onStartChat, groomName, brideName, dDay }: Welco
         </div>
       )}
 
-      <div className="w-full max-w-2xl">
+      <div className="relative z-10 w-full max-w-2xl">
         {/* Couple Display */}
         <div className="mb-8 text-center">
           <div className="mb-4 flex items-center justify-center gap-3">
