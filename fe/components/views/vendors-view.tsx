@@ -1490,10 +1490,19 @@ export function VendorDetailView({
               {!fittingResult ? (
                 <div className="space-y-3">
                   {fittingLoading ? (
-                    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-muted py-12">
-                      <Loader2 className="size-8 animate-spin text-primary" />
-                      <p className="text-sm font-medium text-foreground">AI가 드레스를 입혀드리는 중...</p>
-                      <p className="text-xs text-muted-foreground">30~60초 정도 소요됩니다</p>
+                    <div className="relative rounded-xl overflow-hidden">
+                      {fittingImage && (
+                        <img
+                          src={URL.createObjectURL(fittingImage)}
+                          alt="선택된 사진"
+                          className="max-h-96 w-full rounded-xl object-contain"
+                        />
+                      )}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-black/40">
+                        <Loader2 className="size-10 animate-spin text-white" />
+                        <p className="text-sm font-medium text-white">AI가 드레스를 입혀드리는 중...</p>
+                        <p className="text-xs text-white/70">30~60초 정도 소요됩니다</p>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1551,6 +1560,11 @@ export function VendorDetailView({
                         const b64 = json.data?.resultImageBase64
                         if (!b64) throw new Error("결과 이미지가 없습니다.")
                         setFittingResult(b64)
+                        fetch("/api/save-fitting", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ base64: b64 }),
+                        }).catch(() => {})
                       } catch {
                         setFittingError("피팅 처리에 실패했습니다. 다시 시도해주세요.")
                       } finally {
@@ -1564,7 +1578,7 @@ export function VendorDetailView({
               ) : (
                 <div className="space-y-3">
                   <img
-                    src={`data:image/png;base64,${fittingResult}`}
+                    src={`/res.png?t=${Date.now()}`}
                     alt="AI 드레스 피팅 결과"
                     className="w-full rounded-xl object-cover"
                   />
