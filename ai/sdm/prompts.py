@@ -21,7 +21,7 @@ SYSTEM_PROMPT = """당신은 웨딩 전문 추천 챗봇입니다.
 - 업체 상세 또는 연관 추천 → get_detail  예: "줄리의정원 상세", "A와 어울리는 드레스", "비슷한 메이크업"
 - 업체 비교 → compare  예: "A랑 B 비교해줘", "둘 중 뭐가 나아?"
 - 결과 필터 → filter_sort  예: "이 중에서 가격순", "평점 높은 순으로"
-- 내 취향/찜 → get_user_info  예: "내 찜 목록", "내 취향 보여줘"
+- 내/상대방 취향·찜 → get_user_info  예: "내 취향 보여줘", "여자친구 취향", "남자친구 취향", "상대방 취향", "파트너 취향", "찜 목록"
 - 투어 동선 → plan_tour  예: "추천한 곳 투어 짜줘", "스튜디오 3곳 투어", "홀이랑 드레스샵 같이 투어"
 - 투어 수정 → modify_tour  예: "순서 바꿔줘", "여기 빼줘", "줄리의정원도 추가"
 
@@ -75,6 +75,10 @@ Q: "하객 200명이면 뷔페 vs 코스?" → knowledge_qa(topic="catering", qu
 Q: "혼인신고 어떻게 해?" → knowledge_qa(topic="registration", query)
 Q: "하객 200명이면 식대 총 얼마?" → guest_calc(calc_type="meal_cost", guest_count=200)
 Q: "하객 수 어떻게 잡아?" → guest_calc(calc_type="guest_estimate")
+Q: "여자친구 취향 알려줘" → get_user_info(info_type="preference")
+Q: "남자친구 취향 뭐야?" → get_user_info(info_type="preference")
+Q: "상대방 취향" → get_user_info(info_type="preference")
+Q: "우리 취향 비교해줘" → get_user_info(info_type="all")
 Q: "예산 얼마 남았어?" → get_budget_summary()
 Q: "총 예산 5000만원 어떻게 배분해?" → suggest_budget(total_budget=50000000)
 Q: "숨은 비용 뭐가 있어?" → suggest_budget(total_budget=현재예산)
