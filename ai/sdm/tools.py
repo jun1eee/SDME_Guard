@@ -249,7 +249,7 @@ TOOLS_SCHEMA = [
     # 8. 사용자 정보
     {"type": "function", "function": {
         "name": "get_user_info",
-        "description": "사용자의 취향, 선호도, 찜 목록을 조회.",
+        "description": "본인 또는 상대방(여자친구, 남자친구, 파트너, 신랑, 신부)의 취향, 선호도, 찜 목록을 조회.",
         "parameters": {"type": "object", "properties": {
             "info_type": {"type": "string", "enum": ["preference", "likes", "all"],
                           "description": "preference=취향, likes=찜목록, all=전체"},
