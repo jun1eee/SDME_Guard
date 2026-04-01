@@ -745,9 +745,11 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
 
       {/* Messages */}
           <div
+            data-couple-chat-drop
             className={cn(
               "flex-1 overflow-y-auto transition-colors",
-              vendorDragOver && "bg-primary/5"
+              vendorDragOver && "bg-primary/5",
+              "[&[data-drag-over]]:bg-primary/10 [&[data-drag-over]]:ring-2 [&[data-drag-over]]:ring-inset [&[data-drag-over]]:ring-primary/40"
             )}
             onDragOver={(e) => {
               if (e.dataTransfer.types.includes("application/vendor-card") || e.dataTransfer.types.includes("application/fitting-image")) {
