@@ -576,7 +576,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     : `${currentUser === "groom" ? groomName : brideName}(으)로 메시지 보내기... (@AI 로 AI 호출)`
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div data-couple-chat-drop className="flex h-full flex-col bg-white">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
         <div className="flex items-center gap-3">
