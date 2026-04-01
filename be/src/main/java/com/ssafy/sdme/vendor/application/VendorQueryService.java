@@ -86,7 +86,10 @@ public class VendorQueryService {
               ));
 
         List<VendorHallDetail> hallDetails = isHall
-            ? vendorHallDetailRepository.findByVendorId(representative.getId())
+            ? vendorHallDetailRepository.findByVendorId(representative.getId()).stream()
+                .map(h -> h.getRentalPrice() != null && h.getRentalPrice() > 0 ? h
+                    : VendorHallDetail.withRentalPrice(h, representative.getPrice() != null ? representative.getPrice().intValue() : null))
+                .toList()
             : List.of();
 
         JsonNode detailJson = isHall ? null : vendorDetailStore.findBySourceId(representative.getSourceId());

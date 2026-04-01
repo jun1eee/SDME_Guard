@@ -94,7 +94,7 @@ export function ChatInput({
   }
 
   const handleDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes("application/vendor-card")) {
+    if (e.dataTransfer.types.includes("application/vendor-card") || e.dataTransfer.types.includes("application/fitting-image")) {
       e.preventDefault()
       e.dataTransfer.dropEffect = "copy"
       setDragOver(true)
@@ -103,13 +103,27 @@ export function ChatInput({
 
   const handleDragLeave = () => setDragOver(false)
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    const data = e.dataTransfer.getData("application/vendor-card")
-    if (!data) return
-    const vendor = JSON.parse(data) as DroppedVendor
-    onVendorDrop?.(vendor)
+    const vendorData = e.dataTransfer.getData("application/vendor-card")
+    if (vendorData) {
+      const vendor = JSON.parse(vendorData) as DroppedVendor
+      onVendorDrop?.(vendor)
+      return
+    }
+    const imageUrl = e.dataTransfer.getData("application/fitting-image")
+    if (imageUrl) {
+      try {
+        const res = await fetch(imageUrl)
+        const blob = await res.blob()
+        const file = new File([blob], "fitting-result.png", { type: "image/png" })
+        setPastedImage(file)
+        setImagePreview(URL.createObjectURL(file))
+      } catch (err) {
+        console.error("[피팅 이미지 드롭 실패]", err)
+      }
+    }
   }
 
   const hasVendors = attachedVendors.length > 0
