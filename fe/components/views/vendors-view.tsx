@@ -1648,11 +1648,6 @@ export function VendorDetailView({
                       alt="AI 드레스 피팅 결과"
                       className="w-full rounded-xl object-cover pointer-events-none"
                     />
-                    <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">
-                        커플 채팅으로 드래그
-                      </span>
-                    </div>
                   </div>
                   <Button
                     variant="outline"
