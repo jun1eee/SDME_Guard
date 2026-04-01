@@ -1572,11 +1572,88 @@ export function VendorDetailView({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <img
-                    src={`/res.png?t=${Date.now()}`}
-                    alt="AI 드레스 피팅 결과"
-                    className="w-full rounded-xl object-cover"
-                  />
+                  <div
+                    className="relative group cursor-grab active:cursor-grabbing"
+                    onPointerDown={(e) => {
+                      e.preventDefault()
+                      const target = e.currentTarget
+                      target.setPointerCapture(e.pointerId)
+                      const startX = e.clientX
+                      const startY = e.clientY
+                      let dragging = false
+                      let clone: HTMLImageElement | null = null
+                      let dropZone: Element | null = null
+
+                      const cleanup = () => {
+                        target.removeEventListener("pointermove", onMove as EventListener)
+                        target.removeEventListener("pointerup", onUpSync)
+                        target.removeEventListener("pointercancel", onUpSync)
+                        if (clone) { document.body.removeChild(clone); clone = null }
+                        dropZone?.removeAttribute("data-drag-over")
+                      }
+
+                      const onMove = (me: PointerEvent) => {
+                        if (!dragging) {
+                          if (Math.abs(me.clientX - startX) > 5 || Math.abs(me.clientY - startY) > 5) {
+                            dragging = true
+                            clone = document.createElement("img")
+                            clone.src = `/res.png`
+                            clone.style.cssText = "position:fixed;width:160px;height:auto;opacity:0.85;pointer-events:none;z-index:9999;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);transform:translate(-50%,-50%)"
+                            clone.style.left = me.clientX + "px"
+                            clone.style.top = me.clientY + "px"
+                            document.body.appendChild(clone)
+                          }
+                          return
+                        }
+                        if (clone) {
+                          clone.style.left = me.clientX + "px"
+                          clone.style.top = me.clientY + "px"
+                        }
+                        const el = document.elementFromPoint(me.clientX, me.clientY)
+                        const newDropZone = el?.closest("[data-couple-chat-drop]") ?? null
+                        if (newDropZone !== dropZone) {
+                          dropZone?.removeAttribute("data-drag-over")
+                          newDropZone?.setAttribute("data-drag-over", "true")
+                          dropZone = newDropZone
+                        }
+                      }
+
+                      const onUpSync = (ue: Event) => {
+                        const { clientX, clientY } = ue as PointerEvent
+                        const wasDragging = dragging
+                        cleanup()
+                        if (!wasDragging) return
+                        const el = document.elementFromPoint(clientX, clientY)
+                        if (el?.closest("[data-couple-chat-drop]")) {
+                          void (async () => {
+                            try {
+                              const res = await fetch("/res.png")
+                              const blob = await res.blob()
+                              const file = new File([blob], "fitting-result.png", { type: "image/png" })
+                              window.dispatchEvent(new CustomEvent("sdme:fitting-to-chat", { detail: { file } }))
+                            } catch (err) {
+                              console.error("[피팅 이미지 전송 실패]", err)
+                            }
+                          })()
+                        }
+                      }
+
+                      target.addEventListener("pointermove", onMove as EventListener)
+                      target.addEventListener("pointerup", onUpSync)
+                      target.addEventListener("pointercancel", onUpSync)
+                    }}
+                  >
+                    <img
+                      src={`/res.png?t=${Date.now()}`}
+                      alt="AI 드레스 피팅 결과"
+                      className="w-full rounded-xl object-cover pointer-events-none"
+                    />
+                    <div className="absolute inset-0 flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">
+                        커플 채팅으로 드래그
+                      </span>
+                    </div>
+                  </div>
                   <Button
                     variant="outline"
                     className="w-full"
