@@ -366,6 +366,16 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     scrollToBottom()
   }, [messages, isTyping])
 
+  // 드레스 피팅 결과 이미지 전송 (vendors 패널 → 커플 채팅)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const file = (e as CustomEvent<{ file: File }>).detail?.file
+      if (file) handleImagePaste(file)
+    }
+    window.addEventListener("sdme:fitting-to-chat", handler)
+    return () => window.removeEventListener("sdme:fitting-to-chat", handler)
+  }, [coupleId])
+
   const triggerAiResponse = async (content: string, vendors: typeof attachedVendors = [], vendorShares: VendorShare[] = []) => {
     setIsTyping(true)
     try {
