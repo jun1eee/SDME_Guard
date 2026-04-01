@@ -129,10 +129,8 @@ public class ScheduleService {
         }
         boolean authorized;
         if (user.getCoupleId() != null && schedule.getCoupleId() != null) {
-            // 둘 다 커플 연결 상태 → coupleId로 체크 (파트너도 수정 가능)
             authorized = user.getCoupleId().equals(schedule.getCoupleId());
         } else {
-            // 커플 연결 전 만든 일정 → 본인만 수정 가능
             authorized = schedule.getUserId().equals(userId);
         }
         if (!authorized) {
