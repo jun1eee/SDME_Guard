@@ -252,9 +252,13 @@ class SdmChatService:
                             reason = v
                             break
                 if reason:
-                    formatted_text = formatted_text.replace(
-                        f"**{vendor}**\n",
-                        f"**{vendor}**\n- 추천 이유: {reason}\n",
+                    # _build_vendor_list는 "**N. 업체명**\n" 형식 사용, 번호 prefix 포함 패턴으로 매칭
+                    pattern = rf'(\*\*(?:\d+\.\s*)?{re.escape(vendor)}\*\*\n)'
+                    formatted_text = re.sub(
+                        pattern,
+                        rf'\g<1>- 추천 이유: {reason}\n',
+                        formatted_text,
+                        count=1,
                     )
         except Exception as exc:
             log_lines.append(f"[reason_error] {exc}")

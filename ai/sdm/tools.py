@@ -1501,9 +1501,9 @@ class ToolRegistry:
                 if tags:
                     line += f"- 태그: {', '.join(tags[:4])}\n"
 
-                # 연관 추천 이유 (source_name이 있으면 공유 태그 기반)
-                if source_name and source_tag_set:
-                    shared = [t for t in tags if t in source_tag_set][:3]
+                # 연관 추천 이유 (source_name이 있으면 태그 기반)
+                if source_name:
+                    shared = [t for t in tags if t in source_tag_set][:3] if source_tag_set else []
                     if shared:
                         line += f"- 추천 이유: {', '.join(shared)} 스타일 매칭\n"
                     elif tags:
