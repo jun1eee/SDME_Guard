@@ -1217,7 +1217,7 @@ export default function ChatPage() {
             </div>
           )
         }
-        return <ScheduleView />
+        return <ScheduleView coupleId={coupleId} />
 
       case "vote":
         return <VoteView currentUser={userRole} pendingItems={pendingVoteItems} refreshKey={voteRefreshKey} onVoteSubmitApi={(itemId, score, reason) => {
@@ -1328,7 +1328,7 @@ export default function ChatPage() {
             </div>
           )
         }
-        return <ScheduleView />
+        return <ScheduleView coupleId={coupleId} />
       case "my-page":
         return (
           <MyPageView

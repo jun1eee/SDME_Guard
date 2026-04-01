@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Plus,
   ChevronLeft,
@@ -263,7 +263,7 @@ function ScheduleForm({
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 
-export function ScheduleView() {
+export function ScheduleView({ coupleId }: { coupleId?: number | null }) {
   const [items, setItems] = useState<ScheduleItem[]>([])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [showAddForm, setShowAddForm] = useState(false)
@@ -284,23 +284,26 @@ export function ScheduleView() {
     }
   }
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/schedules", {
-          credentials: "include",
-          headers: authHeaders(),
-        })
-        if (!res.ok) return
-        const json = await res.json()
-        const raw: ScheduleApiItem[] = Array.isArray(json) ? json : (json.data ?? [])
-        setItems(raw.map(mapApiItem))
-      } catch {
-        // ignore
-      }
+  const loadSchedules = useCallback(async () => {
+    try {
+      const res = await fetch("/api/schedules", {
+        credentials: "include",
+        headers: authHeaders(),
+      })
+      if (!res.ok) return
+      const json = await res.json()
+      const raw: ScheduleApiItem[] = Array.isArray(json) ? json : (json.data ?? [])
+      setItems(raw.map(mapApiItem))
+    } catch {
+      // ignore
     }
-    void load()
   }, [])
+
+  useEffect(() => {
+    void loadSchedules()
+    const interval = setInterval(() => { void loadSchedules() }, 1000)
+    return () => clearInterval(interval)
+  }, [loadSchedules])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()

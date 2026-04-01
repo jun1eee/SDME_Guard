@@ -208,6 +208,12 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
           const data = JSON.parse(message.body)
           console.log("[WS 수신]", data.type || data.messageType, data)
 
+          // 찜 등 다른 뷰 갱신 브로드캐스트
+          if (data.type === "FAVORITE_UPDATED") {
+            window.dispatchEvent(new CustomEvent("sdme:ws-message", { detail: data }))
+            return
+          }
+
           // 공유 취소 신호
           if (data.type === "vendor_unshare") {
             setMessages((prev) => prev.filter((m) => !(m.vendorShare?.vendorId === String(data.vendorId))))
