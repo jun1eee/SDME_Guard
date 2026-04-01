@@ -453,8 +453,8 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
           id: vendor.id,
           name: vendor.name,
           category: vendor.category,
-          categoryLabel: ("categoryLabel" in vendor ? vendor.categoryLabel : vendor.category) || "",
-          price: ("price" in vendor ? vendor.price : "") || "",
+          categoryLabel: vendor.categoryLabel || "",
+          price: vendor.price || "",
           rating: vendor.rating || 0,
           coverUrl: ("coverUrl" in vendor ? (vendor as any).coverUrl : undefined),
         }]
@@ -480,7 +480,7 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
     }])
 
     try {
-      await uploadChatImage(coupleId, file)
+      await uploadChatImage(coupleId!, file)
       // WebSocket으로 서버 응답이 오면 optimistic 메시지를 교체함
     } catch (err) {
       console.error("[이미지 업로드 실패]", err)
@@ -740,19 +740,32 @@ export function CoupleChatView({ groomName, brideName, currentUser, coupleId, us
               vendorDragOver && "bg-primary/5"
             )}
             onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("application/vendor-card")) {
+              if (e.dataTransfer.types.includes("application/vendor-card") || e.dataTransfer.types.includes("application/fitting-image")) {
                 e.preventDefault()
                 e.dataTransfer.dropEffect = "copy"
                 setVendorDragOver(true)
               }
             }}
             onDragLeave={() => setVendorDragOver(false)}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault()
               setVendorDragOver(false)
-              const data = e.dataTransfer.getData("application/vendor-card")
-              if (!data) return
-              handleVendorDrop(JSON.parse(data) as PendingVendor)
+              const vendorData = e.dataTransfer.getData("application/vendor-card")
+              if (vendorData) {
+                handleVendorDrop(JSON.parse(vendorData) as PendingVendor)
+                return
+              }
+              const imageUrl = e.dataTransfer.getData("application/fitting-image")
+              if (imageUrl) {
+                try {
+                  const res = await fetch(imageUrl)
+                  const blob = await res.blob()
+                  const file = new File([blob], "fitting-result.png", { type: "image/png" })
+                  handleImagePaste(file)
+                } catch (err) {
+                  console.error("[피팅 이미지 드롭 실패]", err)
+                }
+              }
             }}
           >
             {vendorDragOver && (
