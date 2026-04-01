@@ -64,6 +64,28 @@ public class VendorHallDetail extends BaseIdEntity {
     @Column(nullable = false)
     private boolean hasVirginRoad;
 
+    public static VendorHallDetail withRentalPrice(VendorHallDetail h, Integer rentalPrice) {
+        return VendorHallDetail.builder()
+            .vendorId(h.getVendorId())
+            .name(h.getName())
+            .guestMin(h.getGuestMin())
+            .guestMax(h.getGuestMax())
+            .hallType(h.getHallType())
+            .style(h.getStyle())
+            .mealType(h.getMealType())
+            .mealPrice(h.getMealPrice())
+            .rentalPrice(rentalPrice)
+            .ceremonyType(h.getCeremonyType())
+            .ceremonyIntervalMin(h.getCeremonyIntervalMin())
+            .ceremonyIntervalMax(h.getCeremonyIntervalMax())
+            .entranceType(h.getEntranceType())
+            .hasSubway(h.isHasSubway())
+            .hasParking(h.isHasParking())
+            .hasValet(h.isHasValet())
+            .hasVirginRoad(h.isHasVirginRoad())
+            .build();
+    }
+
     @Builder
     private VendorHallDetail(
         Long vendorId, String name,

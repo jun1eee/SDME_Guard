@@ -1560,11 +1560,6 @@ export function VendorDetailView({
                         const b64 = json.data?.resultImageBase64
                         if (!b64) throw new Error("결과 이미지가 없습니다.")
                         setFittingResult(b64)
-                        fetch("/api/save-fitting", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ base64: b64 }),
-                        }).catch(() => {})
                       } catch {
                         setFittingError("피팅 처리에 실패했습니다. 다시 시도해주세요.")
                       } finally {
